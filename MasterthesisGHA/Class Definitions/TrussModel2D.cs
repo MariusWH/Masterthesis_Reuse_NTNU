@@ -25,6 +25,9 @@ namespace MasterthesisGHA
         public Matrix r_out;
         public List<double> N_out;
 
+        public List<Brep> GeometryVisuals;
+        public List<Brep> LoadVisuals;
+
         
 
 
@@ -89,6 +92,9 @@ namespace MasterthesisGHA
             r_out = new Matrix(dofs, 1);
             //N_out = new Matrix(Elements.Count, 1);
             N_out = new List<double>();
+            
+            GeometryVisuals = new List<Brep>();
+            LoadVisuals = new List<Brep>();
 
         }
 
@@ -187,25 +193,17 @@ namespace MasterthesisGHA
         }
 
 
-        public void ResultVisuals(out List<System.Drawing.Color> colors)
+        public void GetResultVisuals(out List<System.Drawing.Color> colors, out List<Brep> pipes, out List<LineCurve> lines)
         {
-            //Interval N_interval = new Interval(N.Min(), N.Max());
-
             double min = N_out[0];
             double max = N_out[0];
-
             double f_dim = 355;
             List<double> sigma = new List<double>();
             List<double> utilization = new List<double>();
             colors = new List<System.Drawing.Color>();
+            pipes = new List<Brep>();
+            lines = new List<LineCurve>();
 
-            for (int i = 1; i < Elements.Count; i++)
-            {
-                if (N_out[i] < min)
-                    min = N_out[i];
-                if (N_out[i] > max)
-                    max = N_out[i];
-            }
 
             for (int i = 0; i < Elements.Count; i++)
             {
@@ -213,28 +211,60 @@ namespace MasterthesisGHA
                 utilization.Add(sigma[i] / f_dim);
                 
                 N_out[i] = utilization[i];
-
                 
                 int r = 0;
                 int g = 0;
                 int b = 0;
-                int alfa = 255;
+                int alfa = 100;
 
                 if (utilization[i] > 1 || utilization[i] < -1)
-                {
-                    r = 255;
-                    g = 0;
-                    b = 0;
-                }
+                    { r = 255; g = 0; b = 0; }
                 else
-                {
-                    r = 0;
-                    g = 255;
-                    b = 0;
-                }
+                    { r = 0; g = 255; b = 0; }
 
                 colors.Add(System.Drawing.Color.FromArgb(alfa,r,g,b));
+
+                Point3d startOfElement = Elements[i].StartPoint;
+                if (Elements[i].StartNodeIndex != -1 )
+                    startOfElement = Nodes[Elements[i].StartNodeIndex];
+
+                Point3d endOfElement = Elements[i].EndPoint;
+                if (Elements[i].EndNodeIndex != -1 )                   
+                    endOfElement =  Nodes[Elements[i].EndNodeIndex];
+
+                List<Point3d> endPoints = new List<Point3d>() { startOfElement, endOfElement };
+                lines.Add(new LineCurve(startOfElement, endOfElement));
+                               
+                Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(Elements[i].A/Math.PI)), startOfElement.DistanceTo(endOfElement));
+                Brep pipe = cylinder.ToBrep(true, true);
+                pipes.Add(pipe);   
+                
+                GeometryVisuals.Add(pipe);
             }                
+        }
+
+        public void GetLoadVisuals()
+        {
+            for (int i = 0; i < Nodes.Count; i++)
+            {
+                Vector3d dir = new Vector3d(R0[2 * i] , R0[2 * i + 1] , 0);
+                dir.Unitize();
+                double arrowLength = Math.Sqrt( R0[2*i]*R0[2*i] + R0[2*i+1]*R0[2*i+1] ) / 1000;
+                double lineRadius = 20;
+
+                Point3d startPoint = Nodes[i];
+                Point3d endPoint = Nodes[i] + new Point3d(dir*arrowLength);
+                Point3d arrowBase = endPoint + dir*4*lineRadius;
+                
+              
+                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
+                LoadVisuals.Add(loadCylinder.ToBrep(true,true));
+
+                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(R0[2 * i], R0[2 * i + 1], 0)), - 4 * lineRadius, 2 * lineRadius);
+                LoadVisuals.Add(arrow.ToBrep(true));
+
+                
+            }
         }
 
 

@@ -37,13 +37,11 @@ namespace MasterthesisGHA.Components
             pManager.AddMatrixParameter("K", "K", "K", GH_ParamAccess.item);
             pManager.AddMatrixParameter("r", "r", "r", GH_ParamAccess.item);
             pManager.AddPointParameter("Nodes", "Nodes", "Nodes", GH_ParamAccess.list);
-            //pManager.AddLineParameter("LoadVisual", "LoadVisual", "LoadVisual", GH_ParamAccess.list);
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
-            //pManager.AddMatrixParameter("N", "N", "N", GH_ParamAccess.list);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
             pManager.AddColourParameter("Util", "Util", "Util", GH_ParamAccess.list);
             pManager.AddBrepParameter("Geometry", "Geometry", "Geometry", GH_ParamAccess.list);
-            pManager.AddLineParameter("Lines", "Lines", "Lines", GH_ParamAccess.list);
+
         }
 
 
@@ -65,26 +63,21 @@ namespace MasterthesisGHA.Components
             DA.GetData(3, ref iE);
             DA.GetDataList(4, iLoad);
             DA.GetDataList(5, iLoadVecs);
-           
-
+            
+            
+            
             // CODE
 
             TrussModel2D truss2D = new TrussModel2D(iLines, iA, iAnchoredPoints, iLoad, iLoadVecs, iE);
                                    
-            truss2D.Assemble();
-            
+            truss2D.Assemble();           
             truss2D.Solve();
             truss2D.Retracking();
-            truss2D.GetResultVisuals(out List<System.Drawing.Color> colors_out, out List<Brep> pipes, out List<LineCurve> lines);
+            truss2D.GetResultVisuals();
             truss2D.GetLoadVisuals();
-
-
-            List<Brep> outGeometry = new List<Brep>();
-            foreach (Brep geometry in truss2D.GeometryVisuals)
-                outGeometry.Add(geometry);
-            foreach (Brep load in truss2D.LoadVisuals)
-                outGeometry.Add(load);
-
+            
+            
+            
             // OUTPUT
 
             DA.SetData("#Elements", truss2D.Elements.Count);
@@ -92,13 +85,10 @@ namespace MasterthesisGHA.Components
             DA.SetData("K", truss2D.K_out);
             DA.SetData("r", truss2D.r_out);
             DA.SetDataList("Nodes", truss2D.Nodes);
-            //DA.SetDataList("LoadVisual", truss2D.loadVisuals); 
             DA.SetData("Info", truss2D.PrintInfo());
-            //DA.SetData("N", truss2D.N_out);
             DA.SetDataList("N", truss2D.N_out);
-            DA.SetDataList("Util", colors_out);
-            DA.SetDataList("Geometry", outGeometry );
-            DA.SetDataList("Lines", lines);
+            DA.SetDataList("Util", truss2D.BrepColors);
+            DA.SetDataList("Geometry", truss2D.BrepVisuals );
         }
 
 

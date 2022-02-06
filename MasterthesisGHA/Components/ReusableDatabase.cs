@@ -91,6 +91,7 @@ namespace MasterthesisGHA.Components
 
             // Outputs
             DA.SetData("Info", element.GetDatabaseInfo());
+            DA.SetDataList("Brep", element.VisualizeDatabase());
 
 
 

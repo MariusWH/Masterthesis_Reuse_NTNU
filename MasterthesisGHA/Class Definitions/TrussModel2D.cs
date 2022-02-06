@@ -28,10 +28,10 @@ namespace MasterthesisGHA
         public List<Brep> GeometryVisuals;
         public List<Brep> LoadVisuals;
 
-        
 
 
-        public TrussModel2D(List<Line> lines, List<double> A, List<Point3d> anchoredPoints, List<double> loadList, List<Vector3d> loadVecs, double E )
+
+        public TrussModel2D(List<Line> lines, List<double> A, List<Point3d> anchoredPoints, List<double> loadList, List<Vector3d> loadVecs, double E)
         {
             if (lines.Count == 0)
                 throw new Exception("Line Input is not valid!");
@@ -62,7 +62,7 @@ namespace MasterthesisGHA
             }
 
             int dofs = 2 * Nodes.Count;
-            
+
             while (loadList.Count < dofs)
                 loadList.Add(0);
 
@@ -84,7 +84,7 @@ namespace MasterthesisGHA
                 R0[2 * i + 1] = loadList[2 * i + 1];
             }
 
-            K = Matrix<double>.Build.Dense(dofs, dofs);           
+            K = Matrix<double>.Build.Dense(dofs, dofs);
             r = Vector<double>.Build.Dense(dofs);
             N = Vector<double>.Build.Dense(0);
 
@@ -92,7 +92,7 @@ namespace MasterthesisGHA
             r_out = new Matrix(dofs, 1);
             //N_out = new Matrix(Elements.Count, 1);
             N_out = new List<double>();
-            
+
             GeometryVisuals = new List<Brep>();
             LoadVisuals = new List<Brep>();
 
@@ -107,11 +107,11 @@ namespace MasterthesisGHA
             {
                 double dy = element.EndPoint.Y - element.StartPoint.Y;
                 double dx = element.EndPoint.X - element.StartPoint.X;
-                double rad = Math.Atan2(dy, dx);                            
+                double rad = Math.Atan2(dy, dx);
                 double EAL = (element.A * element.E / element.Length());
-                double cc = Math.Cos(rad)*Math.Cos(rad)*EAL;
-                double ss = Math.Sin(rad)*Math.Sin(rad)*EAL;
-                double sc = Math.Sin(rad)*Math.Cos(rad)*EAL;
+                double cc = Math.Cos(rad) * Math.Cos(rad) * EAL;
+                double ss = Math.Sin(rad) * Math.Sin(rad) * EAL;
+                double sc = Math.Sin(rad) * Math.Cos(rad) * EAL;
 
                 int startIndex = element.StartNodeIndex;
                 int endIndex = element.EndNodeIndex;
@@ -142,7 +142,7 @@ namespace MasterthesisGHA
                     K[2 * endIndex + 1, 2 * startIndex] += -sc;
                     K[2 * endIndex, 2 * startIndex + 1] += -sc;
                 }
-                
+
             }
         }
 
@@ -177,10 +177,10 @@ namespace MasterthesisGHA
                 double L1 = 0;
 
                 if (element.StartNodeIndex == -1 && element.EndNodeIndex == -1)
-                    L1 = L0;                   
-                else if(element.EndNodeIndex == -1)
+                    L1 = L0;
+                else if (element.EndNodeIndex == -1)
                     L1 = Nodes[element.StartNodeIndex].DistanceTo(element.EndPoint);
-                else if(element.StartNodeIndex == -1)
+                else if (element.StartNodeIndex == -1)
                     L1 = element.StartPoint.DistanceTo(Nodes[element.EndNodeIndex]);
                 else
                     L1 = Nodes[element.StartNodeIndex].DistanceTo(Nodes[element.EndNodeIndex]);
@@ -207,63 +207,63 @@ namespace MasterthesisGHA
 
             for (int i = 0; i < Elements.Count; i++)
             {
-                sigma.Add( N_out[i] / Elements[i].A );
+                sigma.Add(N_out[i] / Elements[i].A);
                 utilization.Add(sigma[i] / f_dim);
-                
+
                 N_out[i] = utilization[i];
-                
+
                 int r = 0;
                 int g = 0;
                 int b = 0;
                 int alfa = 100;
 
                 if (utilization[i] > 1 || utilization[i] < -1)
-                    { r = 255; g = 0; b = 0; }
+                { r = 255; g = 0; b = 0; }
                 else
-                    { r = 0; g = 255; b = 0; }
+                { r = 0; g = 255; b = 0; }
 
-                colors.Add(System.Drawing.Color.FromArgb(alfa,r,g,b));
+                colors.Add(System.Drawing.Color.FromArgb(alfa, r, g, b));
 
                 Point3d startOfElement = Elements[i].StartPoint;
-                if (Elements[i].StartNodeIndex != -1 )
+                if (Elements[i].StartNodeIndex != -1)
                     startOfElement = Nodes[Elements[i].StartNodeIndex];
 
                 Point3d endOfElement = Elements[i].EndPoint;
-                if (Elements[i].EndNodeIndex != -1 )                   
-                    endOfElement =  Nodes[Elements[i].EndNodeIndex];
+                if (Elements[i].EndNodeIndex != -1)
+                    endOfElement = Nodes[Elements[i].EndNodeIndex];
 
                 List<Point3d> endPoints = new List<Point3d>() { startOfElement, endOfElement };
                 lines.Add(new LineCurve(startOfElement, endOfElement));
-                               
-                Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(Elements[i].A/Math.PI)), startOfElement.DistanceTo(endOfElement));
+
+                Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(Elements[i].A / Math.PI)), startOfElement.DistanceTo(endOfElement));
                 Brep pipe = cylinder.ToBrep(true, true);
-                pipes.Add(pipe);   
-                
+                pipes.Add(pipe);
+
                 GeometryVisuals.Add(pipe);
-            }                
+            }
         }
 
         public void GetLoadVisuals()
         {
             for (int i = 0; i < Nodes.Count; i++)
             {
-                Vector3d dir = new Vector3d(R0[2 * i] , R0[2 * i + 1] , 0);
+                Vector3d dir = new Vector3d(R0[2 * i], R0[2 * i + 1], 0);
                 dir.Unitize();
-                double arrowLength = Math.Sqrt( R0[2*i]*R0[2*i] + R0[2*i+1]*R0[2*i+1] ) / 1000;
+                double arrowLength = Math.Sqrt(R0[2 * i] * R0[2 * i] + R0[2 * i + 1] * R0[2 * i + 1]) / 1000;
                 double lineRadius = 20;
 
                 Point3d startPoint = Nodes[i];
-                Point3d endPoint = Nodes[i] + new Point3d(dir*arrowLength);
-                Point3d arrowBase = endPoint + dir*4*lineRadius;
-                
-              
-                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
-                LoadVisuals.Add(loadCylinder.ToBrep(true,true));
+                Point3d endPoint = Nodes[i] + new Point3d(dir * arrowLength);
+                Point3d arrowBase = endPoint + dir * 4 * lineRadius;
 
-                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(R0[2 * i], R0[2 * i + 1], 0)), - 4 * lineRadius, 2 * lineRadius);
+
+                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
+                LoadVisuals.Add(loadCylinder.ToBrep(true, true));
+
+                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(R0[2 * i], R0[2 * i + 1], 0)), -4 * lineRadius, 2 * lineRadius);
                 LoadVisuals.Add(arrow.ToBrep(true));
 
-                
+
             }
         }
 
@@ -275,7 +275,7 @@ namespace MasterthesisGHA
             foreach (Element element in Elements)
                 info += element.elementInfo + "\n";
             return info;
-        }      
+        }
 
 
     }

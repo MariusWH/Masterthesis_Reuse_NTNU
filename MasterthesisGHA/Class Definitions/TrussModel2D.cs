@@ -14,7 +14,8 @@ namespace MasterthesisGHA
     internal class TrussModel2D
     {
         public readonly List<Element> Elements;
-        public readonly List<Point3d> Nodes;
+        public readonly List<Point3d> FreeNodes;
+        public readonly List<Point3d> PinnedNodes;
 
         public Matrix<double> K;
         public Vector<double> R0;
@@ -37,16 +38,17 @@ namespace MasterthesisGHA
             CheckInputs(ref lines, ref A, ref anchoredPoints, ref loadList, ref loadVecs, ref E);
 
             Elements = new List<Element>();
-            Nodes = new List<Point3d>();
+            FreeNodes = new List<Point3d>();
+            PinnedNodes = anchoredPoints;
 
             for (int i = 0; i < lines.Count; i++)
             {
                 Point3d startPoint = lines[i].PointAt(0);
                 Point3d endPoint = lines[i].PointAt(1);
-                Elements.Add(new Element(startPoint, endPoint, ref Nodes, anchoredPoints, E, A[i]));
+                Elements.Add(new Element(startPoint, endPoint, ref FreeNodes, anchoredPoints, E, A[i]));
             }
 
-            int dofs = 2 * Nodes.Count;
+            int dofs = 2 * FreeNodes.Count;
 
             while (loadList.Count < dofs)
                 loadList.Add(0);
@@ -55,7 +57,7 @@ namespace MasterthesisGHA
                 loadList.RemoveAt(loadList.Count - 1);
 
 
-            if (loadVecs.Count <= Nodes.Count)
+            if (loadVecs.Count <= FreeNodes.Count)
                 for (int i = 0; i < loadVecs.Count; i++)
                 {
                     loadList[2 * i] += loadVecs[i].X;
@@ -63,7 +65,7 @@ namespace MasterthesisGHA
                 }
 
             R0 = Vector<double>.Build.Dense(dofs);
-            for (int i = 0; i < Nodes.Count; i++)
+            for (int i = 0; i < FreeNodes.Count; i++)
             {
                 R0[2 * i] = loadList[2 * i];
                 R0[2 * i + 1] = loadList[2 * i + 1];
@@ -165,8 +167,8 @@ namespace MasterthesisGHA
         {
             r = K.Solve(R0);
 
-            for (int i = 0; i < Nodes.Count; i++)
-                Nodes[i] += new Point3d(r[2 * i], r[2 * i + 1], 0);
+            for (int i = 0; i < FreeNodes.Count; i++)
+                FreeNodes[i] += new Point3d(r[2 * i], r[2 * i + 1], 0);
 
             for (int i = 0; i < r.Count; i++)
                 r_out[i, 0] = r[i];
@@ -193,11 +195,11 @@ namespace MasterthesisGHA
                 if (element.StartNodeIndex == -1 && element.EndNodeIndex == -1)
                     L1 = L0;
                 else if (element.EndNodeIndex == -1)
-                    L1 = Nodes[element.StartNodeIndex].DistanceTo(element.EndPoint);
+                    L1 = FreeNodes[element.StartNodeIndex].DistanceTo(element.EndPoint);
                 else if (element.StartNodeIndex == -1)
-                    L1 = element.StartPoint.DistanceTo(Nodes[element.EndNodeIndex]);
+                    L1 = element.StartPoint.DistanceTo(FreeNodes[element.EndNodeIndex]);
                 else
-                    L1 = Nodes[element.StartNodeIndex].DistanceTo(Nodes[element.EndNodeIndex]);
+                    L1 = FreeNodes[element.StartNodeIndex].DistanceTo(FreeNodes[element.EndNodeIndex]);
 
                 double N_element = (element.A * element.E / L0) * (L1 - L0);
                 N.Append(N_element);
@@ -215,6 +217,9 @@ namespace MasterthesisGHA
             List<double> sigma = new List<double>();
             List<double> utilization = new List<double>();
 
+            System.Drawing.Color pinnedNodeColor = System.Drawing.Color.AliceBlue;
+            System.Drawing.Color freeNodeColor = System.Drawing.Color.AliceBlue;
+
             for (int i = 0; i < Elements.Count; i++)
             {
                 sigma.Add(N_out[i] / Elements[i].A);
@@ -229,16 +234,40 @@ namespace MasterthesisGHA
 
                 Point3d startOfElement = Elements[i].StartPoint;
                 if (Elements[i].StartNodeIndex != -1)
-                    startOfElement = Nodes[Elements[i].StartNodeIndex];
+                    startOfElement = FreeNodes[Elements[i].StartNodeIndex];
 
                 Point3d endOfElement = Elements[i].EndPoint;
                 if (Elements[i].EndNodeIndex != -1)
-                    endOfElement = Nodes[Elements[i].EndNodeIndex];
+                    endOfElement = FreeNodes[Elements[i].EndNodeIndex];
 
                 Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(Elements[i].A / Math.PI)), startOfElement.DistanceTo(endOfElement));
-                Brep pipe = cylinder.ToBrep(true, true);
-                BrepVisuals.Add(pipe);
+                BrepVisuals.Add(cylinder.ToBrep(true, true));
             }
+
+            foreach (Point3d pinnedNode in PinnedNodes)
+            {
+                double nodeRadius = 40;
+                Sphere nodeSphere = new Sphere(pinnedNode, nodeRadius);
+                BrepVisuals.Add(nodeSphere.ToBrep());
+                BrepColors.Add(pinnedNodeColor);
+
+                Plane conePlane = new Plane(pinnedNode + new Point3d(0,-nodeRadius,0), new Vector3d(0, -1, 0));
+                Cone pinnedCone = new Cone(conePlane, 2*nodeRadius, 2*nodeRadius);
+                BrepVisuals.Add(pinnedCone.ToBrep(true));
+                BrepColors.Add(pinnedNodeColor);
+
+            }
+
+            foreach (Point3d freeNode in FreeNodes)
+            {
+                double nodeRadius = 40;
+                Sphere nodeSphere = new Sphere(freeNode, nodeRadius);
+                BrepVisuals.Add(nodeSphere.ToBrep());
+                BrepColors.Add(pinnedNodeColor);
+
+            }
+
+
         }
 
 
@@ -247,7 +276,7 @@ namespace MasterthesisGHA
 
         public void GetLoadVisuals()
         {
-            for (int i = 0; i < Nodes.Count; i++)
+            for (int i = 0; i < FreeNodes.Count; i++)
             {
                 Vector3d dir = new Vector3d(R0[2 * i], R0[2 * i + 1], 0);
                 dir.Unitize();
@@ -256,8 +285,8 @@ namespace MasterthesisGHA
 
                 System.Drawing.Color loadColor = System.Drawing.Color.AliceBlue;
 
-                Point3d startPoint = Nodes[i];
-                Point3d endPoint = Nodes[i] + new Point3d(dir * arrowLength);
+                Point3d startPoint = FreeNodes[i];
+                Point3d endPoint = FreeNodes[i] + new Point3d(dir * arrowLength);
                 Point3d arrowBase = endPoint + dir * 4 * lineRadius;
 
                 Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
@@ -267,9 +296,7 @@ namespace MasterthesisGHA
                 Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(R0[2 * i], R0[2 * i + 1], 0)), -4 * lineRadius, 2 * lineRadius);
                 BrepVisuals.Add(arrow.ToBrep(true));
                 BrepColors.Add(loadColor);
-
-
-            }
+            }           
         }
 
 
@@ -287,6 +314,12 @@ namespace MasterthesisGHA
 
 
 
+
+
+        public void ApplyLineLoad()
+        {
+            
+        }
 
 
 

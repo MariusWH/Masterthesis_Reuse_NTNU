@@ -81,10 +81,10 @@ namespace MasterthesisGHA.Components
             // OUTPUT
 
             DA.SetData("#Elements", truss2D.Elements.Count);
-            DA.SetData("#Nodes",truss2D.Nodes.Count); 
+            DA.SetData("#Nodes",truss2D.FreeNodes.Count); 
             DA.SetData("K", truss2D.K_out);
             DA.SetData("r", truss2D.r_out);
-            DA.SetDataList("Nodes", truss2D.Nodes);
+            DA.SetDataList("Nodes", truss2D.FreeNodes);
             DA.SetData("Info", truss2D.PrintInfo());
             DA.SetDataList("N", truss2D.N_out);
             DA.SetDataList("Util", truss2D.BrepColors);
@@ -92,9 +92,10 @@ namespace MasterthesisGHA.Components
         }
 
 
-        /// <summary>
-        /// Provides an Icon for the component.
-        /// </summary>
+
+
+
+
         protected override System.Drawing.Bitmap Icon
         {
             get
@@ -105,9 +106,7 @@ namespace MasterthesisGHA.Components
             }
         }
 
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
+
         public override Guid ComponentGuid
         {
             get { return new Guid("1AB4E987-0B6A-4EFA-BD27-8418F7C24308"); }

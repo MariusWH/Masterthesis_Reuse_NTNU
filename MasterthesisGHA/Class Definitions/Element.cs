@@ -98,5 +98,31 @@ namespace MasterthesisGHA
         }
 
 
+
+
+        public double ProjectedElementLength(Vector3d distributionDirection)
+        {
+            double elementLength = StartPoint.DistanceTo(EndPoint);
+            Vector3d elementDirection = new Vector3d(EndPoint - StartPoint);
+
+            elementDirection.Unitize();
+            distributionDirection.Unitize();
+
+            Vector<double> elementDirectionMathNet = Vector<double>.Build.Dense(3);
+            Vector<double> projectionDirectionMathNet = Vector<double>.Build.Dense(3);
+
+            for (int i = 0; i < 3; i++)
+            {
+                elementDirectionMathNet[i] = elementDirection[i];
+                projectionDirectionMathNet[i] = distributionDirection[i];
+            }
+         
+            return elementLength * elementDirectionMathNet.DotProduct(projectionDirectionMathNet);
+        }
+
+
+
+
+
     }
 }

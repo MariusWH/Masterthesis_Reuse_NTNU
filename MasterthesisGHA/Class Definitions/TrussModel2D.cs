@@ -316,14 +316,27 @@ namespace MasterthesisGHA
 
 
 
-        public void ApplyLineLoad()
+        public void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
         {
-            
+            loadDirection.Unitize();
+            foreach (Element element in Elements)
+            {
+                foreach (Line loadElement in loadElements)
+                {
+                    if (element.StartPoint == loadElement.PointAt(0) && element.EndPoint == loadElement.PointAt(1))
+                    {
+                        R0[2 * element.StartNodeIndex] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[0] / 2;
+                        R0[2 * element.EndNodeIndex] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[0] /2;
+                        R0[2 * element.StartNodeIndex+1] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[1] /2;
+                        R0[2 * element.EndNodeIndex+1] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[1] /2;
+                    }
+                }
+            }
         }
 
 
 
-
+        
 
 
 

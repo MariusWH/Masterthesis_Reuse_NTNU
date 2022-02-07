@@ -28,6 +28,11 @@ namespace MasterthesisGHA.Components
             pManager.AddNumberParameter("Young's Modulus [N/mm^2]", "E", "Young's Modulus for all members", GH_ParamAccess.item, 210e3);
             pManager.AddNumberParameter("Nodal Loading [N]", "Load", "Nodal loads by numeric values (x1, y1, x2, y2, ..)", GH_ParamAccess.list, new List<double> { 0 });
             pManager.AddVectorParameter("Nodal Loading [N]", "vecLoad", "Nodal loads by vector input", GH_ParamAccess.list, new Vector3d(0,0,0));
+
+            pManager.AddNumberParameter("Load Value","","",GH_ParamAccess.item);
+            pManager.AddVectorParameter("Load Direction","","",GH_ParamAccess.item);
+            pManager.AddVectorParameter("Distribution Direction","","",GH_ParamAccess.item);
+            pManager.AddLineParameter("Elements","","",GH_ParamAccess.list);
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
@@ -63,6 +68,20 @@ namespace MasterthesisGHA.Components
             DA.GetData(3, ref iE);
             DA.GetDataList(4, iLoad);
             DA.GetDataList(5, iLoadVecs);
+
+
+            double iLineLoadValue = 0;
+            Vector3d iLineLoadDirection = new Vector3d();
+            Vector3d iLineLoadDistribution = new Vector3d();
+            List<Line> iLinesToLoad = new List<Line>();
+
+            DA.GetData(6, ref iLineLoadValue);
+            DA.GetData(7, ref iLineLoadDirection);
+            DA.GetData(8, ref iLineLoadDistribution);
+            DA.GetDataList(9, iLinesToLoad);
+
+
+
             
             
             
@@ -70,7 +89,8 @@ namespace MasterthesisGHA.Components
 
             TrussModel2D truss2D = new TrussModel2D(iLines, iA, iAnchoredPoints, iLoad, iLoadVecs, iE);
                                    
-            truss2D.Assemble();           
+            truss2D.Assemble();
+            truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss2D.Solve();
             truss2D.Retracking();
             truss2D.GetResultVisuals();

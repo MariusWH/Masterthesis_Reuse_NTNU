@@ -25,7 +25,7 @@ namespace MasterthesisGHA
         public Matrix<double> k;
 
         private static int instanceCounter;
-        private readonly int instanceID;
+        public readonly int instanceID;
 
 
         public Element(Point3d startPoint, Point3d endPoint, ref List<Point3d> nodes, List<Point3d> anchored, double e = 1, double a = 1, double i = 1)

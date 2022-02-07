@@ -343,8 +343,23 @@ namespace MasterthesisGHA
 
 
 
-        
 
+        public string writeElementOutput()  // "Element #1 {  }"
+        {
+            string output = "ELEMENTS: \n\n";
+            foreach (Element element in Elements)
+            {
+                output += "Element #" + element.instanceID + "{ ";
+                output += "E[MPa]=" + element.E + ", ";
+                output += "A[mm^2]=" + element.A + ", ";
+                output += "I[mm^4]=" + element.I + ", ";
+                output += "StartPoint[mm,mm]=(" + element.StartPoint.X + "," + element.StartPoint.Y + ")" + ", ";
+                output += "EndPoint[mm,mm]=(" + element.EndPoint.X + "," + element.EndPoint.Y + ")" + ", ";
+                output += "FreeNodeIndexing[#,#]=(" + element.StartNodeIndex + "," + element.EndNodeIndex + ")";
+                output += " }\n";
+            }
+            return output;
+        }
 
 
 

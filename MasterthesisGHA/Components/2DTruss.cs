@@ -46,6 +46,7 @@ namespace MasterthesisGHA.Components
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
             pManager.AddColourParameter("Util", "Util", "Util", GH_ParamAccess.list);
             pManager.AddBrepParameter("Geometry", "Geometry", "Geometry", GH_ParamAccess.list);
+            pManager.AddTextParameter("ElementOutput", "ElementOutput", "ElementOutput", GH_ParamAccess.item);
 
         }
 
@@ -81,8 +82,7 @@ namespace MasterthesisGHA.Components
             DA.GetDataList(9, iLinesToLoad);
 
 
-
-            
+ 
             
             
             // CODE
@@ -109,6 +109,7 @@ namespace MasterthesisGHA.Components
             DA.SetDataList("N", truss2D.N_out);
             DA.SetDataList("Util", truss2D.BrepColors);
             DA.SetDataList("Geometry", truss2D.BrepVisuals );
+            DA.SetData("ElementOutput", truss2D.writeElementOutput());
         }
 
 

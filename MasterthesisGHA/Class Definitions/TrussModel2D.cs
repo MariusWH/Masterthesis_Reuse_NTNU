@@ -325,10 +325,17 @@ namespace MasterthesisGHA
                 {
                     if (element.StartPoint == loadElement.PointAt(0) && element.EndPoint == loadElement.PointAt(1))
                     {
-                        R0[2 * element.StartNodeIndex] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[0] / 2;
-                        R0[2 * element.EndNodeIndex] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[0] /2;
-                        R0[2 * element.StartNodeIndex+1] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[1] /2;
-                        R0[2 * element.EndNodeIndex+1] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[1] /2;
+                        if (element.StartNodeIndex != -1)
+                        {
+                            R0[2 * element.StartNodeIndex] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[0] / 2;
+                            R0[2 * element.StartNodeIndex + 1] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[1] / 2;
+                        }
+
+                        if (element.EndNodeIndex != -1)
+                        {
+                            R0[2 * element.EndNodeIndex] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[0] / 2;
+                            R0[2 * element.EndNodeIndex + 1] += loadValue * element.ProjectedElementLength(distributionDirection) * loadDirection[1] / 2;
+                        }
                     }
                 }
             }

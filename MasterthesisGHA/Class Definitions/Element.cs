@@ -117,7 +117,7 @@ namespace MasterthesisGHA
                 projectionDirectionMathNet[i] = distributionDirection[i];
             }
          
-            return elementLength * elementDirectionMathNet.DotProduct(projectionDirectionMathNet);
+            return elementLength * elementDirectionMathNet.ConjugateDotProduct(projectionDirectionMathNet);
         }
 
 

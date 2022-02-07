@@ -39,6 +39,7 @@ namespace MasterthesisGHA.Components
         {
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddBrepParameter("Brep", "Brep", "Brep", GH_ParamAccess.list);
+            pManager.AddColourParameter("Color", "Color", "Color", GH_ParamAccess.item);
         }
 
         /// <summary>
@@ -93,7 +94,9 @@ namespace MasterthesisGHA.Components
             DA.SetData("Info", element.GetDatabaseInfo());
             DA.SetDataList("Brep", element.VisualizeDatabase());
 
+       
 
+            DA.SetData("Color", System.Drawing.Color.FromArgb(255, 145, 184, 206));
 
 
 

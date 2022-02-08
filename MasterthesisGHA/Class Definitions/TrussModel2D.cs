@@ -88,6 +88,76 @@ namespace MasterthesisGHA
 
 
 
+        public TrussModel2D(List<Element> elements, List<Point3d> supportPoints, List<double> loads )
+        {
+            Elements = elements;
+            FreeNodes = new List<Point3d>();
+            PinnedNodes = supportPoints;
+
+                // SORT ELEMENTS HERE            
+            
+            for (int i = 0; i < Elements.Count; i++)
+            {
+                Point3d startPoint = elements[i].StartPoint;
+                Point3d endPoint = elements[i].EndPoint;
+
+                if (!PinnedNodes.Contains(startPoint))
+                {
+                    if (!FreeNodes.Contains(startPoint))
+                        FreeNodes.Add(startPoint);
+                    Elements[i].StartNodeIndex = FreeNodes.IndexOf(startPoint);
+                }
+
+                if (!PinnedNodes.Contains(endPoint))
+                {
+                    if (!FreeNodes.Contains(endPoint))
+                        FreeNodes.Add(endPoint);
+                    Elements[i].EndNodeIndex = FreeNodes.IndexOf(endPoint);
+                }
+            }
+
+
+            
+
+            int dofs = 2 * FreeNodes.Count;
+            R0 = Vector<double>.Build.Dense(dofs);
+
+            while (loads.Count < dofs)
+                loads.Add(0);
+
+            while (loads.Count > dofs)
+                loads.RemoveAt(loads.Count - 1);
+
+            for (int i = 0; i < FreeNodes.Count; i++)
+            {
+                R0[2 * i] = loads[2 * i];
+                R0[2 * i + 1] = loads[2 * i + 1];
+            }
+
+            
+
+            K = Matrix<double>.Build.Dense(dofs, dofs);
+            r = Vector<double>.Build.Dense(dofs);
+            N = Vector<double>.Build.Dense(0);
+
+            K_out = new Matrix(dofs, dofs);
+            r_out = new Matrix(dofs, 1);
+            N_out = new List<double>();
+
+            BrepVisuals = new List<Brep>();
+            BrepColors = new List<System.Drawing.Color>();
+            
+
+        }
+
+
+
+
+
+
+
+
+
 
 
         private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<Point3d> anchoredPoints, ref List<double> loadList, ref List<Vector3d> loadVecs, ref double E)
@@ -340,6 +410,8 @@ namespace MasterthesisGHA
                 }
             }
         }
+
+
 
 
 

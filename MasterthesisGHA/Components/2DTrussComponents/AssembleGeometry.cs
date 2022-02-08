@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 
-namespace MasterthesisGHA.Components
+namespace MasterthesisGHA
 {
     public class AssembleGeometry : GH_Component
     {
@@ -21,7 +21,7 @@ namespace MasterthesisGHA.Components
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddLineParameter("Input Elements", "Elements", "Lines for creating truss geometry", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Input Elements", "Elements", "Lines for creating truss geometry", GH_ParamAccess.list);
             pManager.AddPointParameter("Input Support Points", "Supports", "Support points restricted from translation but free to rotate", GH_ParamAccess.list);
             pManager.AddNumberParameter("Nodal Loading [N]", "Load", "Nodal loads by numeric values (x1, y1, x2, y2, ..)", GH_ParamAccess.list, new List<double> { 0 });
         }
@@ -29,7 +29,7 @@ namespace MasterthesisGHA.Components
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-
+            pManager.AddMatrixParameter("K", "K", "K", GH_ParamAccess.item);
         }
 
 
@@ -38,19 +38,20 @@ namespace MasterthesisGHA.Components
         {
             // INPUTS
 
-            List<Line> iLines = new List<Line>();
-            List<Point3d> iAnchoredPoints = new List<Point3d>();
-            List<double> iA = new List<double>();
-            double iE = 0;
+            List<Element> iElements = new List<Element>();
+            List<Point3d> iSupportPoints = new List<Point3d>();
+            List<double> iLoads = new List<double>();
 
-            DA.GetDataList(0, iLines);
-            DA.GetDataList(1, iAnchoredPoints);
-            DA.GetDataList(2, iA);
-            DA.GetData(3, ref iE);
+
+            DA.GetDataList(0, iElements);
+            DA.GetDataList(1, iSupportPoints);
+            DA.GetDataList(2, iLoads);
+
 
 
 
             // CODE
+            TrussModel2D trussModel2D = new TrussModel2D(iElements, iSupportPoints, iLoads);
 
 
 
@@ -59,7 +60,7 @@ namespace MasterthesisGHA.Components
 
 
             // OUTPUTS
-
+            DA.SetData(0, trussModel2D.K_out);
 
 
 

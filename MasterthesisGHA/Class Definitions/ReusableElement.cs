@@ -69,7 +69,8 @@ namespace MasterthesisGHA
             A = 0;
             I = 0;
 
-            ReusableDataset = new List<ReusableElement>();
+            if (ReusableDataset.Count == 0)
+                ReusableDataset = new List<ReusableElement>();
         }
 
 
@@ -99,7 +100,7 @@ namespace MasterthesisGHA
             ReusableDataset.Add(this);
         }
 
-        public string GetDatabaseInfo() // "ProfileName;ReusableLength;A;I;E"
+        public static string GetDatabaseInfo() // "ProfileName;ReusableLength;A;I;E"
         {
             string info = "";
 

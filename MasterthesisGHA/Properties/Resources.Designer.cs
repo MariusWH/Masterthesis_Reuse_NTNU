@@ -79,5 +79,25 @@ namespace MasterthesisGHA.Properties {
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Rect100x100x1000,1000,10000,8333333,210000
+        ///Rect120x100x1000,1000,12000,14400000,210000
+        ///Rect140x100x1000,1000,14000,22866667,210000
+        ///Rect160x100x1000,1000,16000,34133333,210000
+        ///Rect180x100x1000,1000,18000,48600000,210000
+        ///Rect200x100x1000,1000,20000,66666667,210000
+        ///Rect220x100x1000,1000,22000,88733333,210000
+        ///Rect240x100x1000,1000,24000,115200000,210000
+        ///Rect260x100x1000,1000,26000,146466667,210000
+        ///Rect280x100x1000,1000,28000,182933333,210000
+        ///Rect300x100x1000,1000,30000,225000000,210000
+        ///Rect320x100x10 [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string Profiles {
+            get {
+                return ResourceManager.GetString("Profiles", resourceCulture);
+            }
+        }
     }
 }

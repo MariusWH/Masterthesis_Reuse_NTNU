@@ -60,6 +60,60 @@ namespace MasterthesisGHA
         }
 
 
+        public Element(Line line, double e = 1, double a = 1, double i = 1)
+        {
+            this.instanceID = instanceCounter++;
+
+            StartPoint = line.PointAt(0);
+            EndPoint = line.PointAt(1);
+
+            StartNodeIndex = -1;
+            EndNodeIndex = -1;
+
+            I = i;
+            A = a;
+            E = e;
+
+            k = getLocalStiffness();
+
+        }
+
+
+
+
+        private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<double> E)
+        {
+            if (lines.Count == 0)
+                throw new Exception("Line Input is not valid!");
+
+            if (A.Count == 1)
+            {
+                List<double> A_constValue = new List<double>();
+                for (int i = 0; i < lines.Count; i++)
+                    A_constValue.Add(A[0]);
+                A = A_constValue;
+            }
+            else if (A.Count != lines.Count)
+                throw new Exception("A is wrong size! Input list with same length as Lines or constant value!");
+
+            if (E.Count == 1)
+            {
+                List<double> E_constValue = new List<double>();
+                for (int i = 0; i < lines.Count; i++)
+                    E_constValue.Add(A[0]);
+                E = E_constValue;
+            }
+            else if (E.Count != lines.Count)
+                throw new Exception("E is wrong size! Input list with same length as Lines or constant value!");
+
+            foreach(double e in E)
+            {
+                if (e < 0 || e > 1000e3)
+                    throw new Exception("E-modulus can not be less than 0 or more than 1000 GPa!");
+            }
+            
+        }
+
 
 
 

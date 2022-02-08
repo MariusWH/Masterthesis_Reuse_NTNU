@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 
-namespace MasterthesisGHA.Components._2DTrussComponents
+namespace MasterthesisGHA
 {
     public class Elements : GH_Component
     {
@@ -23,19 +23,85 @@ namespace MasterthesisGHA.Components._2DTrussComponents
         {
             pManager.AddLineParameter("Input Lines", "Lines", "Lines for creating truss geometry", GH_ParamAccess.list, new Line());          
             pManager.AddNumberParameter("Cross Section Area [mm^2]", "A", "Cross Section Area by indivial member values (list) or constant value", GH_ParamAccess.list, 10000);
-            pManager.AddNumberParameter("Young's Modulus [N/mm^2]", "E", "Young's Modulus for all members", GH_ParamAccess.item, 210e3);
+            pManager.AddNumberParameter("Young's Modulus [N/mm^2]", "E", "Young's Modulus by indivial member values (list) or constant value", GH_ParamAccess.list, 210e3);
         }
 
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("Elements in geometry", "Elements", "Elements", GH_ParamAccess.list);
+            pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
         }
 
 
         /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
+            // INPUT
+            List<Line> iLines = new List<Line>();
+            List<double> iA = new List<double>();
+            List<double> iE = new List<double>();
+
+            DA.GetDataList(0, iLines);
+            DA.GetDataList(1, iA);
+            DA.GetDataList(2, iE);
+
+            if (iLines.Count == 0)
+                throw new Exception("Line Input is not valid!");
+
+            if (iA.Count == 1)
+            {
+                List<double> A_constValue = new List<double>();
+                for (int i = 0; i < iLines.Count; i++)
+                    A_constValue.Add(iA[0]);
+                iA = A_constValue;
+            }
+            else if (iA.Count != iLines.Count)
+                throw new Exception("A is wrong size! Input list with same length as Lines or constant value!");
+
+            if (iE.Count == 1)
+            {
+                List<double> E_constValue = new List<double>();
+                for (int i = 0; i < iLines.Count; i++)
+                    E_constValue.Add(iA[0]);
+                iE = E_constValue;
+            }
+            else if (iE.Count != iLines.Count)
+                throw new Exception("E is wrong size! Input list with same length as Lines or constant value!");
+
+            foreach (double e in iE)
+            {
+                if (e < 0 || e > 1000e3)
+                    throw new Exception("E-modulus can not be less than 0 or more than 1000 GPa!");
+            }
+
+
+
+
+
+            // CODE
+            List<Element> elements = new List<Element>();
+            for ( int i = 0; i < iLines.Count; i++ )
+            {
+                elements.Add(new Element(iLines[i], iE[i], iA[i]));
+            }
+
+
+
+
+
+            string info = "";
+            foreach (Element element in elements)
+                info += element.getElementInfo() + "\n";
+
+
+
+
+
+            // OUTPUT
+            DA.SetDataList(0, elements);
+            DA.SetData(1, info);
+
         }
 
 

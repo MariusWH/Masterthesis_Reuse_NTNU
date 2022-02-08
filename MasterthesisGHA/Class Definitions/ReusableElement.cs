@@ -20,6 +20,7 @@ namespace MasterthesisGHA
         public static List<ReusableElement> ReusableDataset;
 
 
+
         // Constructors
         public ReusableElement(string profileName, double length, double a, double i = 0, double e = 210e3)
         {
@@ -118,42 +119,40 @@ namespace MasterthesisGHA
 
         public List<Brep> VisualizeDatabase()
         {
-            /*
-            List<ReusableElement> sortedList = new List<ReusableElement>();
-
-            foreach (ReusableElement element in ReusableDataset)
-            {
-                
-            }
-            */
 
 
 
-                List<Brep> outList = new List<Brep>();
-            
+
+            List<Brep> outList = new List<Brep>();
+
             double group = 0;
             double instance = 0;
             double spacing = 100;
+
+
+
+
+
             
+            
+                foreach (ReusableElement element in ReusableDataset)
+                {
+                    
+                    Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));
+                    Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.A)/Math.PI);
 
-            foreach (ReusableElement element in ReusableDataset)
-            {
-                Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));
-                Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.A)/Math.PI);
+                    Cylinder cylinder = new Cylinder(baseCircle, element.ReusableLength);
+                    outList.Add(cylinder.ToBrep(true, true));
 
-                Cylinder cylinder = new Cylinder(baseCircle, element.ReusableLength);
-                outList.Add(cylinder.ToBrep(true, true));
+                    instance = instance +  2 * Math.Sqrt(element.A) / Math.PI + spacing;
+                }
+            return outList;
+                    
 
-                instance = instance +  2 * Math.Sqrt(element.A) / Math.PI + spacing;
+                }
+
+                
             }
 
-            return outList;
+
         }
-
-
-
-
-
-
-    }
-}

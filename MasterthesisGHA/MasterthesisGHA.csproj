@@ -16,6 +16,7 @@
   <ItemGroup>
     <Reference Include="MathNet.Numerics">
       <HintPath>..\..\..\..\Downloads\mathnet.numerics.4.15.0\lib\net461\MathNet.Numerics.dll</HintPath>
+      <CopyLocal>True</CopyLocal>
     </Reference>
   </ItemGroup>
   
@@ -59,7 +60,7 @@
   </PropertyGroup>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="Copy &quot;$(TargetPath)&quot; &quot;C:\Users\mwh\AppData\Roaming\Grasshopper\Libraries\MasterthesisGHA.gha&quot;&#xD;&#xA;Erase &quot;$(TargetPath)&quot;" />
+    <Exec Command="Copy &quot;$(TargetPath)&quot; &quot;C:\Users\Rade\AppData\Roaming\Grasshopper\Libraries\MasterthesisGHA.gha&quot;&#xD;&#xA;Erase &quot;$(TargetPath)&quot;" />
   </Target>
 
 </Project>

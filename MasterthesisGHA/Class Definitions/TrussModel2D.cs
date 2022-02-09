@@ -36,6 +36,7 @@ namespace MasterthesisGHA
         public TrussModel2D(List<Line> lines, List<double> A, List<Point3d> anchoredPoints, List<double> loadList, List<Vector3d> loadVecs, double E)
         {
             CheckInputs(ref lines, ref A, ref anchoredPoints, ref loadList, ref loadVecs, ref E);
+            Element.resetStatic(); // Instance counter to zero
 
             Elements = new List<Element>();
             FreeNodes = new List<Point3d>();
@@ -90,6 +91,8 @@ namespace MasterthesisGHA
 
         public TrussModel2D(List<Element> elements, List<Point3d> supportPoints, List<double> loads )
         {
+            Element.resetStatic();
+
             Elements = elements;
             FreeNodes = new List<Point3d>();
             PinnedNodes = supportPoints;
@@ -278,6 +281,9 @@ namespace MasterthesisGHA
         }
 
 
+        
+
+        
 
 
 
@@ -294,7 +300,7 @@ namespace MasterthesisGHA
             {
                 sigma.Add(N_out[i] / Elements[i].A);
                 utilization.Add(sigma[i] / f_dim);
-                N_out[i] = utilization[i];
+                //N_out[i] = utilization[i];
 
                 if (utilization[i] > 1 || utilization[i] < -1)
                     { BrepColors.Add(System.Drawing.Color.Red); }
@@ -333,7 +339,7 @@ namespace MasterthesisGHA
                 double nodeRadius = 40;
                 Sphere nodeSphere = new Sphere(freeNode, nodeRadius);
                 BrepVisuals.Add(nodeSphere.ToBrep());
-                BrepColors.Add(pinnedNodeColor);
+                BrepColors.Add(freeNodeColor);
 
             }
 

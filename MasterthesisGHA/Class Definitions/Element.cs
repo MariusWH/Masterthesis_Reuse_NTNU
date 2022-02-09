@@ -28,6 +28,20 @@ namespace MasterthesisGHA
         public readonly int instanceID;
 
 
+
+        // Static
+        static Element()
+        {
+            instanceCounter = 0;
+        }
+
+        public static void resetStatic()
+        {
+            instanceCounter = 0;
+        }
+
+
+        // Constructors
         public Element(Point3d startPoint, Point3d endPoint, ref List<Point3d> nodes, List<Point3d> anchored, double e = 1, double a = 1, double i = 1)
         {
             this.instanceID = instanceCounter++;
@@ -80,7 +94,7 @@ namespace MasterthesisGHA
 
 
 
-
+        // Methods
         private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<double> E)
         {
             if (lines.Count == 0)

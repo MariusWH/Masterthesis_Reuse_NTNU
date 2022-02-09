@@ -10,9 +10,6 @@ namespace MasterthesisGHA
 {
     public class ReusableStock : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the MyComponent2 class.
-        /// </summary>
         public ReusableStock()
           : base("Reusable Stock of Elements", "ReusableElements",
               "Description",
@@ -30,7 +27,8 @@ namespace MasterthesisGHA
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("Elements", "Elements", "Elements", GH_ParamAccess.list);
-            pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.list);
+            pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
+            pManager.AddBrepParameter("StockVisuals", "StockVisuals", "StockVisuals", GH_ParamAccess.list);
         }
 
 
@@ -65,13 +63,8 @@ namespace MasterthesisGHA
 
 
 
-
-
-            List<string> vs = new List<string>();
-            ReusableElement element = new ReusableElement();
-            List<ReusableElement> elements = new List<ReusableElement>();
-
-
+            ReusableElement.ResetStatic(); 
+            
             foreach ( string command in inputCommands )
             {
                 string[] commandArray = command.Split('x');
@@ -89,29 +82,22 @@ namespace MasterthesisGHA
                         
                         for (int j = 0; j < amount; j++)
                         {
-                            vs.Add("test");
-                            element = new ReusableElement(sectionName, length);
-                            elements.Add(element);
-
-                        }
-                        
+                            new ReusableElement(sectionName, length, a, i, 210e3);
+                        }                      
                     }                    
                 }  
             }
 
 
 
-            //string outputInfo = "";
-            
-            //foreach (ReusableElement element in reusableElements)
-            //    outputInfo += element.GetDatabaseInfo();
 
 
 
 
             // OUTPUTS
-            //DA.SetDataList(0, reusableElements);
-            DA.SetDataList(1, vs);
+            DA.SetDataList(0, ReusableElement.ReusableDataset);
+            DA.SetData(1, ReusableElement.GetDatabaseInfo());
+            DA.SetDataList(2, ReusableElement.VisualizeDatabase());
 
 
 

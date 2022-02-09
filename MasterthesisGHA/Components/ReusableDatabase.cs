@@ -60,7 +60,7 @@ namespace MasterthesisGHA.Components
             DA.GetData(1, ref filepath);
 
 
-
+            /*
             // Initialize variables
             ReusableElement element = new ReusableElement();
 
@@ -81,6 +81,7 @@ namespace MasterthesisGHA.Components
                 toggle = false;
 
             }
+            
 
 
 
@@ -98,7 +99,7 @@ namespace MasterthesisGHA.Components
 
             DA.SetData("Color", System.Drawing.Color.FromArgb(255, 145, 184, 206));
 
-
+            */
 
 
         }

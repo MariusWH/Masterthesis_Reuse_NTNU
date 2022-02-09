@@ -19,6 +19,14 @@ namespace MasterthesisGHA
         public static int InstanceCounter;
         public static List<ReusableElement> ReusableDataset;
 
+        
+        
+        // Static constructor
+        static ReusableElement()
+        {
+            InstanceCounter = 0;
+            ReusableDataset = new List<ReusableElement>();
+        }
 
 
         // Constructors
@@ -40,8 +48,10 @@ namespace MasterthesisGHA
             ReusableLength = length;
 
             E = e;
-            A = this.NameToA(profileName);
-            I = this.NameToI(profileName);
+            //A = this.NameToA(profileName);
+            //I = this.NameToI(profileName);
+            A = 1;
+            E = 1;
 
             InstanceID = InstanceCounter++;
             UpdateDatabase();
@@ -61,44 +71,25 @@ namespace MasterthesisGHA
             UpdateDatabase();
         }
 
-        public ReusableElement() // null element
-        {
-            ProfileName = "";
-            ReusableLength = 0;
-            E = 0;
-            A = 0;
-            I = 0;
-
-            if (ReusableDataset.Count == 0)
-                ReusableDataset = new List<ReusableElement>();
-        }
-
-
-
 
 
 
         // Methods
-        public double NameToA(string profileName)
+        public static void ResetStatic()
         {
-
-            return 1;
+            ReusableDataset = new List<ReusableElement>();
+            InstanceCounter = 0;
         }
 
-        public double NameToI(string profileName)
-        {
 
-            return 1;
-        }
 
         public void UpdateDatabase()
         {
-            if (ReusableDataset.Count != 0)
-                ReusableDataset.Add(this);
-            else
-                ReusableDataset = new List<ReusableElement>();
             ReusableDataset.Add(this);
         }
+
+
+
 
         public static string GetDatabaseInfo() // "ProfileName;ReusableLength;A;I;E"
         {
@@ -118,42 +109,37 @@ namespace MasterthesisGHA
             return info;
         }
 
-        public List<Brep> VisualizeDatabase()
+        public static List<Brep> VisualizeDatabase()
         {
-
-
-
-
             List<Brep> outList = new List<Brep>();
 
             double group = 0;
             double instance = 0;
             double spacing = 100;
 
+            foreach (ReusableElement element in ReusableDataset)
+            {
 
+                Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));
+                Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.A) / Math.PI);
 
+                Cylinder cylinder = new Cylinder(baseCircle, element.ReusableLength);
+                outList.Add(cylinder.ToBrep(true, true));
 
-
-            
-            
-                foreach (ReusableElement element in ReusableDataset)
-                {
-                    
-                    Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));
-                    Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.A)/Math.PI);
-
-                    Cylinder cylinder = new Cylinder(baseCircle, element.ReusableLength);
-                    outList.Add(cylinder.ToBrep(true, true));
-
-                    instance = instance +  2 * Math.Sqrt(element.A) / Math.PI + spacing;
-                }
-            return outList;
-                    
-
-                }
-
-                
+                instance = instance + 2 * Math.Sqrt(element.A) / Math.PI + spacing;
             }
-
+            return outList;
 
         }
+
+
+
+        public double CheckUtilization(double N)
+        {
+            double f_dim = 355;
+            return (N / (A * f_dim));
+        }
+
+
+    }
+}

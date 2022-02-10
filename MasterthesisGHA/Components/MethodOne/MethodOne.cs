@@ -99,7 +99,7 @@ namespace MasterthesisGHA.Components.MethodOne
                 foreach(ReusableElement reusableElement in iReusableElements)
                 {   
                     double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if ( reusableElement.CheckUtilization(trussModel2D.N_out[elementCounter]) > 1 && reusableElement.ReusableLength > lengthOfElement )
+                    if ( reusableElement.CheckUtilization(trussModel2D.N_out[elementCounter]) < 1 && reusableElement.ReusableLength > lengthOfElement )
                         reusablesSuggestionList.Add(reusableElement);
                 }
                 reusablesSuggestionTree.Add(reusablesSuggestionList);

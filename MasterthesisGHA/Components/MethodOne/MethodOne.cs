@@ -72,7 +72,7 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
             // CODE
-            List<double> areas = new List<double> { 1e4 };
+            List<double> areas = new List<double> { 2e3 };
             List<double> loadList = new List<double>();
             List<Vector3d> loadVecs = new List<Vector3d> { new Vector3d(0, 0, 0) };
             double e = 210e3;

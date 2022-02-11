@@ -171,6 +171,8 @@ namespace MasterthesisGHA
         public double ProjectedElementLength(Vector3d distributionDirection)
         {
             double elementLength = StartPoint.DistanceTo(EndPoint);
+            
+            
             Vector3d elementDirection = new Vector3d(EndPoint - StartPoint);
 
             elementDirection.Unitize();

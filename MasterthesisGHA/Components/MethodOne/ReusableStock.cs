@@ -95,7 +95,7 @@ namespace MasterthesisGHA
 
 
             // OUTPUTS
-            DA.SetDataList(0, ReusableElement.ReusableDataset);
+            DA.SetDataList(0, ReusableElement.MaterialBank);
             DA.SetData(1, ReusableElement.GetDatabaseInfo());
             DA.SetDataList(2, ReusableElement.VisualizeDatabase());
 

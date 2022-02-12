@@ -17,7 +17,7 @@ namespace MasterthesisGHA
 
         public readonly int InstanceID;
         public static int InstanceCounter;
-        public static List<ReusableElement> ReusableDataset;
+        public static List<ReusableElement> MaterialBank;
 
         
         
@@ -25,7 +25,7 @@ namespace MasterthesisGHA
         static ReusableElement()
         {
             InstanceCounter = 0;
-            ReusableDataset = new List<ReusableElement>();
+            MaterialBank = new List<ReusableElement>();
         }
 
 
@@ -77,7 +77,7 @@ namespace MasterthesisGHA
         // Methods
         public static void ResetStatic()
         {
-            ReusableDataset = new List<ReusableElement>();
+            MaterialBank = new List<ReusableElement>();
             InstanceCounter = 0;
         }
 
@@ -85,7 +85,7 @@ namespace MasterthesisGHA
 
         public void UpdateDatabase()
         {
-            ReusableDataset.Add(this);
+            MaterialBank.Add(this);
         }
 
 
@@ -95,10 +95,10 @@ namespace MasterthesisGHA
         {
             string info = "";
 
-            if (ReusableDataset.Count == 0)
+            if (MaterialBank.Count == 0)
                 throw new Exception("Close but no cigar..");
 
-            foreach (ReusableElement element in ReusableDataset)
+            foreach (ReusableElement element in MaterialBank)
             {
                 info += element.ProfileName + ";";
                 info += element.ReusableLength + ";";
@@ -117,7 +117,7 @@ namespace MasterthesisGHA
             double instance = 0;
             double spacing = 100;
 
-            foreach (ReusableElement element in ReusableDataset)
+            foreach (ReusableElement element in MaterialBank)
             {
 
                 Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));

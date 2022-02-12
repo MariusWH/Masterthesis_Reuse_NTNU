@@ -80,10 +80,10 @@ namespace MasterthesisGHA
 
 
             // CODE
-            List<Element> elements = new List<Element>();
+            List<OLDInPlaceElement> elements = new List<OLDInPlaceElement>();
             for ( int i = 0; i < iLines.Count; i++ )
             {
-                elements.Add(new Element(iLines[i], iE[i], iA[i]));
+                elements.Add(new OLDInPlaceElement(iLines[i], iE[i], iA[i]));
             }
 
 
@@ -91,7 +91,7 @@ namespace MasterthesisGHA
 
 
             string info = "";
-            foreach (Element element in elements)
+            foreach (OLDInPlaceElement element in elements)
                 info += element.getElementInfo() + "\n";
 
 

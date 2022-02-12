@@ -38,7 +38,7 @@ namespace MasterthesisGHA
         {
             // INPUTS
 
-            List<Element> iElements = new List<Element>();
+            List<OLDInPlaceElement> iElements = new List<OLDInPlaceElement>();
             List<Point3d> iSupportPoints = new List<Point3d>();
             List<double> iLoads = new List<double>();
 

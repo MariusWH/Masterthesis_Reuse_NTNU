@@ -49,7 +49,7 @@ namespace MasterthesisGHA.Components.MethodOne
             // INPUTS
             List<Line> iGeometryLines = new List<Line>();
             List<Point3d> iSupports = new List<Point3d>();
-            List<ReusableElement> iReusableElements = new List<ReusableElement>();
+            List<OLDReusableElement> iReusableElements = new List<OLDReusableElement>();
             List<string> iNewElementsCatalog = new List<string>();
 
             DA.GetDataList(0, iGeometryLines);
@@ -89,14 +89,14 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
             // Check possible reuse elements for each element in geometry
-            List<List<ReusableElement>> reusablesSuggestionTree = new List<List<ReusableElement>>();
+            List<List<OLDReusableElement>> reusablesSuggestionTree = new List<List<OLDReusableElement>>();
             
 
             int elementCounter = 0;
-            foreach( Element elementInStructure in trussModel2D.Elements )
+            foreach( OLDInPlaceElement elementInStructure in trussModel2D.Elements )
             {                
-                List<ReusableElement> reusablesSuggestionList = new List<ReusableElement>();
-                foreach(ReusableElement reusableElement in iReusableElements)
+                List<OLDReusableElement> reusablesSuggestionList = new List<OLDReusableElement>();
+                foreach(OLDReusableElement reusableElement in iReusableElements)
                 {   
                     double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
                     if ( reusableElement.CheckUtilization(trussModel2D.N_out[elementCounter]) < 1 && reusableElement.ReusableLength > lengthOfElement )
@@ -106,13 +106,13 @@ namespace MasterthesisGHA.Components.MethodOne
                 elementCounter++;
             }
 
-            Grasshopper.DataTree<ReusableElement> dataTree = new Grasshopper.DataTree<ReusableElement>();
+            Grasshopper.DataTree<OLDReusableElement> dataTree = new Grasshopper.DataTree<OLDReusableElement>();
 
             int outerCount = 0;
-            foreach ( List<ReusableElement> list in reusablesSuggestionTree )
+            foreach ( List<OLDReusableElement> list in reusablesSuggestionTree )
             {
                 int innerCount = 0;
-                foreach (ReusableElement reusableElement in list)
+                foreach (OLDReusableElement reusableElement in list)
                 {
                     Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] {outerCount});
                     dataTree.Insert(reusableElement, path, innerCount);

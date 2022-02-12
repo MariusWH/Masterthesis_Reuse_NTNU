@@ -7,7 +7,7 @@ using Rhino.Geometry;
 
 namespace MasterthesisGHA
 {
-    internal class ReusableElement
+    internal class OLDReusableElement
     {
         public string ProfileName;
         public double E;
@@ -17,20 +17,20 @@ namespace MasterthesisGHA
 
         public readonly int InstanceID;
         public static int InstanceCounter;
-        public static List<ReusableElement> MaterialBank;
+        public static List<OLDReusableElement> MaterialBank;
 
         
         
         // Static constructor
-        static ReusableElement()
+        static OLDReusableElement()
         {
             InstanceCounter = 0;
-            MaterialBank = new List<ReusableElement>();
+            MaterialBank = new List<OLDReusableElement>();
         }
 
 
         // Constructors
-        public ReusableElement(string profileName, double length, double a, double i = 0, double e = 210e3)
+        public OLDReusableElement(string profileName, double length, double a, double i = 0, double e = 210e3)
         {
             ProfileName = profileName;
             ReusableLength = length;
@@ -42,7 +42,7 @@ namespace MasterthesisGHA
             UpdateDatabase();
         }
 
-        public ReusableElement(string profileName, double length, double e = 210e3)
+        public OLDReusableElement(string profileName, double length, double e = 210e3)
         {
             ProfileName = profileName;
             ReusableLength = length;
@@ -57,7 +57,7 @@ namespace MasterthesisGHA
             UpdateDatabase();
         }
 
-        public ReusableElement(string profileInfo) // "ProfileName;ReusableLength;A;I;E"
+        public OLDReusableElement(string profileInfo) // "ProfileName;ReusableLength;A;I;E"
         {
             string[] txtcol = profileInfo.Split(',');
 
@@ -77,7 +77,7 @@ namespace MasterthesisGHA
         // Methods
         public static void ResetStatic()
         {
-            MaterialBank = new List<ReusableElement>();
+            MaterialBank = new List<OLDReusableElement>();
             InstanceCounter = 0;
         }
 
@@ -98,7 +98,7 @@ namespace MasterthesisGHA
             if (MaterialBank.Count == 0)
                 throw new Exception("Close but no cigar..");
 
-            foreach (ReusableElement element in MaterialBank)
+            foreach (OLDReusableElement element in MaterialBank)
             {
                 info += element.ProfileName + ";";
                 info += element.ReusableLength + ";";
@@ -117,7 +117,7 @@ namespace MasterthesisGHA
             double instance = 0;
             double spacing = 100;
 
-            foreach (ReusableElement element in MaterialBank)
+            foreach (OLDReusableElement element in MaterialBank)
             {
 
                 Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));

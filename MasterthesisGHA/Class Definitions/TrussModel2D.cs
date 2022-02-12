@@ -13,7 +13,7 @@ namespace MasterthesisGHA
 {
     internal class TrussModel2D
     {
-        public readonly List<Element> Elements;
+        public readonly List<OLDInPlaceElement> Elements;
         public readonly List<Point3d> FreeNodes;
         public readonly List<Point3d> PinnedNodes;
 
@@ -36,9 +36,9 @@ namespace MasterthesisGHA
         public TrussModel2D(List<Line> lines, List<double> A, List<Point3d> anchoredPoints, List<double> loadList, List<Vector3d> loadVecs, double E)
         {
             CheckInputs(ref lines, ref A, ref anchoredPoints, ref loadList, ref loadVecs, ref E);
-            Element.resetStatic(); // Instance counter to zero
+            OLDInPlaceElement.resetStatic(); // Instance counter to zero
 
-            Elements = new List<Element>();
+            Elements = new List<OLDInPlaceElement>();
             FreeNodes = new List<Point3d>();
             PinnedNodes = anchoredPoints;
 
@@ -46,7 +46,7 @@ namespace MasterthesisGHA
             {
                 Point3d startPoint = lines[i].PointAt(0);
                 Point3d endPoint = lines[i].PointAt(1);
-                Elements.Add(new Element(startPoint, endPoint, ref FreeNodes, anchoredPoints, E, A[i]));
+                Elements.Add(new OLDInPlaceElement(startPoint, endPoint, ref FreeNodes, anchoredPoints, E, A[i]));
             }
 
             int dofs = 2 * FreeNodes.Count;
@@ -89,9 +89,9 @@ namespace MasterthesisGHA
 
 
 
-        public TrussModel2D(List<Element> elements, List<Point3d> supportPoints, List<double> loads )
+        public TrussModel2D(List<OLDInPlaceElement> elements, List<Point3d> supportPoints, List<double> loads )
         {
-            Element.resetStatic();
+            OLDInPlaceElement.resetStatic();
 
             Elements = elements;
             FreeNodes = new List<Point3d>();
@@ -189,7 +189,7 @@ namespace MasterthesisGHA
 
         public void Assemble() // Improve this
         {
-            foreach (Element element in Elements)
+            foreach (OLDInPlaceElement element in Elements)
             {
                 double dy = element.EndPoint.Y - element.StartPoint.Y;
                 double dx = element.EndPoint.X - element.StartPoint.X;
@@ -260,7 +260,7 @@ namespace MasterthesisGHA
 
         public void Retracking()
         {
-            foreach (Element element in Elements)
+            foreach (OLDInPlaceElement element in Elements)
             {
                 double L0 = element.StartPoint.DistanceTo(element.EndPoint);
                 double L1 = 0;
@@ -382,7 +382,7 @@ namespace MasterthesisGHA
         public string PrintInfo()
         {
             string info = "";
-            foreach (Element element in Elements)
+            foreach (OLDInPlaceElement element in Elements)
                 info += element.getElementInfo() + "\n";
             return info;
         }
@@ -395,7 +395,7 @@ namespace MasterthesisGHA
         public void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
         {
             loadDirection.Unitize();
-            foreach (Element element in Elements)
+            foreach (OLDInPlaceElement element in Elements)
             {
                 foreach (Line loadElement in loadElements)
                 {
@@ -425,7 +425,7 @@ namespace MasterthesisGHA
         public string writeElementOutput()  // "Element #1 {  }"
         {
             string output = "ELEMENTS: \n\n";
-            foreach (Element element in Elements)
+            foreach (OLDInPlaceElement element in Elements)
             {
                 output += "Element #" + element.instanceID + "{ ";
                 output += "E[MPa]=" + element.E + ", ";

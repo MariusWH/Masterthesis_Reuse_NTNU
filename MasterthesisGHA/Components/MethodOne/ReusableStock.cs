@@ -63,7 +63,7 @@ namespace MasterthesisGHA
 
 
 
-            ReusableElement.ResetStatic(); 
+            OLDReusableElement.ResetStatic(); 
             
             foreach ( string command in inputCommands )
             {
@@ -82,7 +82,7 @@ namespace MasterthesisGHA
                         
                         for (int j = 0; j < amount; j++)
                         {
-                            new ReusableElement(sectionName, length, a, i, 210e3);
+                            new OLDReusableElement(sectionName, length, a, i, 210e3);
                         }                      
                     }                    
                 }  
@@ -95,9 +95,9 @@ namespace MasterthesisGHA
 
 
             // OUTPUTS
-            DA.SetDataList(0, ReusableElement.MaterialBank);
-            DA.SetData(1, ReusableElement.GetDatabaseInfo());
-            DA.SetDataList(2, ReusableElement.VisualizeDatabase());
+            DA.SetDataList(0, OLDReusableElement.MaterialBank);
+            DA.SetData(1, OLDReusableElement.GetDatabaseInfo());
+            DA.SetDataList(2, OLDReusableElement.VisualizeDatabase());
 
 
 

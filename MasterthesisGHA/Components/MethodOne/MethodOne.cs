@@ -93,7 +93,7 @@ namespace MasterthesisGHA.Components.MethodOne
             
 
             int elementCounter = 0;
-            foreach( OLDInPlaceElement elementInStructure in trussModel2D.Elements )
+            foreach( OLDInPlaceElement elementInStructure in trussModel2D.ElementsInStructure )
             {                
                 List<OLDReusableElement> reusablesSuggestionList = new List<OLDReusableElement>();
                 foreach(OLDReusableElement reusableElement in iReusableElements)

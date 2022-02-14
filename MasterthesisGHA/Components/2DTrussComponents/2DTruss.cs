@@ -99,7 +99,7 @@ namespace MasterthesisGHA.Components
             
             // OUTPUT
 
-            DA.SetData("#Elements", truss2D.Elements.Count);
+            DA.SetData("#Elements", truss2D.ElementsInStructure.Count);
             DA.SetData("#Nodes",truss2D.FreeNodes.Count); 
             DA.SetData("K", truss2D.K_out);
             DA.SetData("r", truss2D.r_out);

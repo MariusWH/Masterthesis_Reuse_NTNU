@@ -26,9 +26,9 @@ namespace MasterthesisGHA
 
                 
         // Constructors
-        public Structure(List<Line> lines, List<Point3d> anchoredPoints)
+        public Structure(List<Line> lines, List<Point3d> supportPoints)
         {
-            VerifyModel(ref lines, ref anchoredPoints);
+            VerifyModel(ref lines, ref supportPoints);
             BrepVisuals = new List<Brep>();
             BrepColors = new List<System.Drawing.Color>();
         }
@@ -307,7 +307,7 @@ namespace MasterthesisGHA
 
 
 
-    internal class TrussModel2D
+    internal class TrussModel2D : Structure
     {
         public readonly List<OLDInPlaceElement> ElementsInStructure;
         public readonly List<Point3d> FreeNodes;
@@ -327,20 +327,21 @@ namespace MasterthesisGHA
 
 
         // Constructors
-        public TrussModel2D(List<Line> lines, List<double> A, List<Point3d> anchoredPoints, List<double> loadList, List<Vector3d> loadVecs, double E)
+        public TrussModel2D(List<Line> lines, List<double> A, List<Point3d> supportPoints, List<double> loadList, List<Vector3d> loadVecs, double E)
+            : base(lines, supportPoints)
         {
-            CheckInputs(ref lines, ref A, ref anchoredPoints, ref loadList, ref loadVecs, ref E);
+            CheckInputs(ref lines, ref A, ref supportPoints, ref loadList, ref loadVecs, ref E);
             OLDInPlaceElement.resetStatic(); // Instance counter to zero
 
             ElementsInStructure = new List<OLDInPlaceElement>();
             FreeNodes = new List<Point3d>();
-            SupportNodes = anchoredPoints;
+            SupportNodes = supportPoints;
 
             for (int i = 0; i < lines.Count; i++)
             {
                 Point3d startPoint = lines[i].PointAt(0);
                 Point3d endPoint = lines[i].PointAt(1);
-                ElementsInStructure.Add(new OLDInPlaceElement(startPoint, endPoint, ref FreeNodes, anchoredPoints, E, A[i]));
+                ElementsInStructure.Add(new OLDInPlaceElement(startPoint, endPoint, ref FreeNodes, supportPoints, E, A[i]));
             }
 
             int dofs = 2 * FreeNodes.Count;
@@ -377,7 +378,10 @@ namespace MasterthesisGHA
             BrepColors = new List<System.Drawing.Color>();
 
         }
+
+        /*
         public TrussModel2D(List<OLDInPlaceElement> elements, List<Point3d> supportPoints, List<double> loads)
+            :base()
         {
             OLDInPlaceElement.resetStatic();
 
@@ -439,9 +443,16 @@ namespace MasterthesisGHA
 
 
         }
+        */
 
 
         // Methods
+        protected override int GetDofsPerNode()
+        {
+            return 2;
+        }
+
+
         private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<Point3d> anchoredPoints, ref List<double> loadList, ref List<Vector3d> loadVecs, ref double E)
         {
             if (lines.Count == 0)

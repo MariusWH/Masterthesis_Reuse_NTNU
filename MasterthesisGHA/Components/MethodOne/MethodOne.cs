@@ -5,7 +5,8 @@ using Grasshopper.Kernel;
 using Rhino.Geometry;
 
 namespace MasterthesisGHA.Components.MethodOne
-{
+{ 
+
     public class MethodOne : GH_Component
     {
 
@@ -69,7 +70,7 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
 
-
+            /*
 
             // CODE
             List<double> areas = new List<double> { 2e3 };
@@ -123,7 +124,7 @@ namespace MasterthesisGHA.Components.MethodOne
                 
                     
             
-
+            
 
 
 
@@ -136,7 +137,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetDataTree(4, dataTree);
 
 
-
+            */
 
         }
 

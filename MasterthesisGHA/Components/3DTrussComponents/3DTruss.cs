@@ -98,7 +98,7 @@ namespace MasterthesisGHA
 
 
             
-            TrussModel2D truss2D = new TrussModel2D(iLines, iA, iAnchoredPoints, iLoad, iLoadVecs, iE);
+            TrussModel2D truss2D = new TrussModel2D(iLines, iProfiles, iAnchoredPoints);
 
             truss2D.Assemble();
             truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);

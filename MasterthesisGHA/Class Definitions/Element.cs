@@ -56,6 +56,43 @@ namespace MasterthesisGHA
 
 
         // Methods
+        public virtual Point3d getStartPoint()
+        {
+            throw new NotImplementedException();
+        }
+        public virtual Point3d getEndPoint()
+        {
+            throw new NotImplementedException();
+        }
+        public virtual int getStartNodeIndex()
+        {
+            throw new NotImplementedException();
+        }
+        public virtual int getEndNodeIndex()
+        {
+            throw new NotImplementedException();
+        }
+        public virtual Matrix<double> getLocalStiffnessMatrix()
+        {
+            throw new NotImplementedException();
+        }
+
+
+        public virtual void UpdateLocalStiffnessMatrix()
+        {
+            throw new NotImplementedException();
+        }
+        public virtual double ProjectedElementLength(Vector3d distributionDirection)
+        {
+            throw new NotImplementedException();
+        }
+
+
+        public virtual string getElementInfo()
+        {
+            return "Not Implemented";
+        }
+
 
 
         // Static Methods
@@ -111,8 +148,9 @@ namespace MasterthesisGHA
 
 
         // Constructors
-        public InPlaceBarElement( ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, double crossSectionArea, double areaMomentOfInertiaYY,
-            double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus, Point3d startPoint, Point3d endPoint)
+        public InPlaceBarElement( ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, double crossSectionArea, 
+            double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus, Point3d startPoint, 
+            Point3d endPoint)
             : base(profileName, crossSectionArea, areaMomentOfInertiaYY, areaMomentOfInertiaZZ, polarMomentOfInertia, youngsModulus)
         {
             StartPoint = startPoint;
@@ -141,7 +179,8 @@ namespace MasterthesisGHA
         }
 
 
-        public InPlaceBarElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
+        public InPlaceBarElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, 
+            Point3d endPoint)
             : this(ref FreeNodes, ref SupportNodes, profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYYDictionary[profileName], 
                   AreaMomentOfInertiaZZDictionary[profileName], PolarMomentOfInertiaDictionary[profileName],210e3,startPoint,endPoint)
         {
@@ -151,7 +190,30 @@ namespace MasterthesisGHA
 
 
         // Methods
-        private void UpdateLocalStiffnessMatrix()
+        public override Point3d getStartPoint()
+        {
+            return this.StartPoint;
+        }
+        public override Point3d getEndPoint()
+        {
+            return this.EndPoint;
+        }
+        public override int getStartNodeIndex()
+        {
+            return this.StartNodeIndex;
+        }
+        public override int getEndNodeIndex()
+        {
+            return this.EndNodeIndex;
+        }
+        public override Matrix<double> getLocalStiffnessMatrix()
+        {
+            return LocalStiffnessMatrix;
+        }
+
+
+
+        public override void UpdateLocalStiffnessMatrix()
         {
             double elementLength = StartPoint.DistanceTo(EndPoint);
             double cx = (EndPoint.X - StartPoint.X) / elementLength;
@@ -181,35 +243,9 @@ namespace MasterthesisGHA
 
             LocalStiffnessMatrix =  EAL * TranformationOrientation.Transpose()
                 .Multiply(StiffnessMatrixBar.Multiply(TranformationOrientation));
-        }
-        public void UpdateGlobalMatrix(ref Matrix<double> GlobalStiffnessMatrix)
-        {
-            UpdateLocalStiffnessMatrix();
-            for (int row = 0; row < LocalStiffnessMatrix.RowCount / 2; row++)
-            {
-                for (int col = 0; col < LocalStiffnessMatrix.ColumnCount / 2; col++)
-                {
-                    int dofsPerNode = 3;
-                    if(StartNodeIndex != -1)
-                        GlobalStiffnessMatrix[dofsPerNode * StartNodeIndex + row, dofsPerNode * StartNodeIndex + col] 
-                            += LocalStiffnessMatrix[row, col];
-                    if(EndNodeIndex != -1)
-                        GlobalStiffnessMatrix[dofsPerNode * EndNodeIndex + row, dofsPerNode * EndNodeIndex + col]
-                            += LocalStiffnessMatrix[row + dofsPerNode, col + dofsPerNode];
-                    
-                    if(StartNodeIndex != -1 && EndNodeIndex != -1)
-                    {
-                        GlobalStiffnessMatrix[dofsPerNode * StartNodeIndex + row, dofsPerNode * EndNodeIndex + col]
-                            += LocalStiffnessMatrix[row, col + dofsPerNode];
-                        GlobalStiffnessMatrix[dofsPerNode * EndNodeIndex + row, dofsPerNode * StartNodeIndex + col] 
-                            += LocalStiffnessMatrix[row + dofsPerNode, col];
-                        
-                    }
-                        
-                }
-            }
-        }
-        public double ProjectedElementLength(Vector3d distributionDirection)
+        }       
+        
+        public override double ProjectedElementLength(Vector3d distributionDirection)
         {
             double elementLength = StartPoint.DistanceTo(EndPoint);
             Vector3d elementDirection = new Vector3d(EndPoint - StartPoint);
@@ -236,6 +272,105 @@ namespace MasterthesisGHA
 
 
     }
+
+
+
+
+
+    internal class InPlaceBarElement2D : InPlaceBarElement
+    {
+        // Constructor
+        public InPlaceBarElement2D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, double crossSectionArea, 
+            double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus, Point3d startPoint, 
+            Point3d endPoint)
+            : base(ref FreeNodes, ref SupportNodes, profileName, crossSectionArea, areaMomentOfInertiaYY, areaMomentOfInertiaZZ, 
+                  polarMomentOfInertia, youngsModulus, startPoint, endPoint)
+        {
+
+        }
+
+        public InPlaceBarElement2D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, 
+            Point3d endPoint)
+            : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
+        {
+
+        }
+
+
+        // Overloaded Methods
+        public override void UpdateLocalStiffnessMatrix()
+        {
+            double dz = getEndPoint().Z - getStartPoint().Z;
+            double dx = getEndPoint().X - getStartPoint().X;
+            double rad = Math.Atan2(dz, dx);
+            double EAL = CrossSectionArea * YoungsModulus / getStartPoint().DistanceTo(getEndPoint());
+            double cc = Math.Cos(rad) * Math.Cos(rad) * EAL;
+            double ss = Math.Sin(rad) * Math.Sin(rad) * EAL;
+            double sc = Math.Sin(rad) * Math.Cos(rad) * EAL;
+
+            LocalStiffnessMatrix = Matrix<double>.Build.SparseOfArray(new double[,]
+            {
+                    {cc,sc,-cc,-sc},
+                    {sc,ss,-sc,-ss},
+                    {-cc,-sc,cc,sc},
+                    {-sc,-ss,sc,ss}
+            });
+
+            
+        }
+
+        /*
+        public override void UpdateGlobalMatrix(ref Matrix<double> GlobalStiffnessMatrix)
+        {
+                int startIndex = element.getStartNodeIndex();
+                int endIndex = element.getEndNodeIndex();
+
+                if (startIndex != -1)
+                {
+                    GlobalStiffnessMatrix[2 * startIndex, 2 * startIndex] += cc;
+                    GlobalStiffnessMatrix[2 * startIndex + 1, 2 * startIndex + 1] += ss;
+                    GlobalStiffnessMatrix[2 * startIndex + 1, 2 * startIndex] += sc;
+                    GlobalStiffnessMatrix[2 * startIndex, 2 * startIndex + 1] += sc;
+                }
+                if (endIndex != -1)
+                {
+                    GlobalStiffnessMatrix[2 * endIndex, 2 * endIndex] += cc;
+                    GlobalStiffnessMatrix[2 * endIndex + 1, 2 * endIndex + 1] += ss;
+                    GlobalStiffnessMatrix[2 * endIndex + 1, 2 * endIndex] += sc;
+                    GlobalStiffnessMatrix[2 * endIndex, 2 * endIndex + 1] += sc;
+                }
+            if (startIndex != -1 && endIndex != -1)
+            {
+                GlobalStiffnessMatrix[2 * startIndex, 2 * endIndex] += -cc;
+                GlobalStiffnessMatrix[2 * startIndex + 1, 2 * endIndex + 1] += -ss;
+                GlobalStiffnessMatrix[2 * startIndex + 1, 2 * endIndex] += -sc;
+                GlobalStiffnessMatrix[2 * startIndex, 2 * endIndex + 1] += -sc;
+
+                GlobalStiffnessMatrix[2 * endIndex, 2 * startIndex] += -cc;
+                GlobalStiffnessMatrix[2 * endIndex + 1, 2 * startIndex + 1] += -ss;
+                GlobalStiffnessMatrix[2 * endIndex + 1, 2 * startIndex] += -sc;
+                GlobalStiffnessMatrix[2 * endIndex, 2 * startIndex + 1] += -sc;
+            }
+            
+        }
+        */
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     internal class StockElement // : Element

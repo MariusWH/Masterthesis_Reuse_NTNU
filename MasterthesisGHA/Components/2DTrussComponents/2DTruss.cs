@@ -23,6 +23,7 @@ namespace MasterthesisGHA.Components
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddLineParameter("Input Lines", "Lines", "Lines for creating truss geometry", GH_ParamAccess.list);
+            pManager.AddTextParameter("Input Profiles", "Profiles", "Profiles of members", GH_ParamAccess.list);
             pManager.AddPointParameter("Input Anchored Points", "Anchored", "Support points restricted from translation but free to rotate", GH_ParamAccess.list);           
             pManager.AddNumberParameter("Cross Section Area [mm^2]", "A", "Cross Section Area by indivial member values (list) or constant value", GH_ParamAccess.list, 10000);
             pManager.AddNumberParameter("Young's Modulus [N/mm^2]", "E", "Young's Modulus for all members", GH_ParamAccess.item, 210e3);           
@@ -56,6 +57,7 @@ namespace MasterthesisGHA.Components
             // INPUT
 
             List<Line> iLines = new List<Line>();
+            List<string> iProfiles = new List<string>();
             List<Point3d> iAnchoredPoints = new List<Point3d>();
             List<double> iA = new List<double>();
             double iE = 0;
@@ -63,11 +65,12 @@ namespace MasterthesisGHA.Components
             List<Vector3d> iLoadVecs = new List<Vector3d>();
                       
             DA.GetDataList(0, iLines);
-            DA.GetDataList(1, iAnchoredPoints);
-            DA.GetDataList(2, iA);
-            DA.GetData(3, ref iE);
-            DA.GetDataList(4, iLoad);
-            DA.GetDataList(5, iLoadVecs);
+            DA.GetDataList(1, iProfiles);
+            DA.GetDataList(2, iAnchoredPoints);
+            DA.GetDataList(3, iA);
+            DA.GetData(4, ref iE);
+            DA.GetDataList(5, iLoad);
+            DA.GetDataList(6, iLoadVecs);
 
 
             double iLineLoadValue = 0;
@@ -75,10 +78,10 @@ namespace MasterthesisGHA.Components
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
 
-            DA.GetData(6, ref iLineLoadValue);
-            DA.GetData(7, ref iLineLoadDirection);
-            DA.GetData(8, ref iLineLoadDistribution);
-            DA.GetDataList(9, iLinesToLoad);
+            DA.GetData(7, ref iLineLoadValue);
+            DA.GetData(8, ref iLineLoadDirection);
+            DA.GetData(9, ref iLineLoadDistribution);
+            DA.GetDataList(10, iLinesToLoad);
 
 
  
@@ -86,8 +89,9 @@ namespace MasterthesisGHA.Components
             
             // CODE
 
-            TrussModel2D truss2D = new TrussModel2D(iLines, iA, iAnchoredPoints, iLoad, iLoadVecs, iE);
-            
+            //TrussModel2D truss2D = new TrussModel2D(iLines, iA, iAnchoredPoints, iLoad, iLoadVecs, iE);
+            TrussModel2D truss2D = new TrussModel2D(iLines, iProfiles, iAnchoredPoints);
+
             truss2D.Assemble();
             truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss2D.Solve();

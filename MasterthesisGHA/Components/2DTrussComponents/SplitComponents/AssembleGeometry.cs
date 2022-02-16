@@ -6,6 +6,7 @@ using Rhino.Geometry;
 
 namespace MasterthesisGHA
 {
+    /*
     public class AssembleGeometry : GH_Component
     {
         /// <summary>
@@ -91,4 +92,5 @@ namespace MasterthesisGHA
             get { return new Guid("2EED3182-EC79-4207-9D7C-58952E502A44"); }
         }
     }
+    */
 }

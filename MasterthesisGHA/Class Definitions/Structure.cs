@@ -337,7 +337,6 @@ namespace MasterthesisGHA
                 BrepColors.Add(loadColor);
             }
         }
-
         protected override void UpdateGlobalMatrix()
         {
             foreach (Element element in ElementsInStructure)
@@ -403,72 +402,6 @@ namespace MasterthesisGHA
 
 
         }
-
-        /*
-        public TrussModel2D(List<OLDInPlaceElement> elements, List<Point3d> supportPoints, List<double> loads)
-            :base()
-        {
-            OLDInPlaceElement.resetStatic();
-
-            ElementsInStructure = elements;
-            FreeNodes = new List<Point3d>();
-            SupportNodes = supportPoints;
-
-            // SORT ELEMENTS HERE            
-
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                Point3d startPoint = elements[i].StartPoint;
-                Point3d endPoint = elements[i].EndPoint;
-
-                if (!SupportNodes.Contains(startPoint))
-                {
-                    if (!FreeNodes.Contains(startPoint))
-                        FreeNodes.Add(startPoint);
-                    ElementsInStructure[i].StartNodeIndex = FreeNodes.IndexOf(startPoint);
-                }
-
-                if (!SupportNodes.Contains(endPoint))
-                {
-                    if (!FreeNodes.Contains(endPoint))
-                        FreeNodes.Add(endPoint);
-                    ElementsInStructure[i].EndNodeIndex = FreeNodes.IndexOf(endPoint);
-                }
-            }
-
-
-
-
-            int dofs = 2 * FreeNodes.Count;
-            GlobalLoadVector = Vector<double>.Build.Dense(dofs);
-
-            while (loads.Count < dofs)
-                loads.Add(0);
-
-            while (loads.Count > dofs)
-                loads.RemoveAt(loads.Count - 1);
-
-            for (int i = 0; i < FreeNodes.Count; i++)
-            {
-                GlobalLoadVector[2 * i] = loads[2 * i];
-                GlobalLoadVector[2 * i + 1] = loads[2 * i + 1];
-            }
-
-
-
-            GlobalStiffnessMatrix = Matrix<double>.Build.Dense(dofs, dofs);
-            GlobalDisplacementVector = Vector<double>.Build.Dense(dofs);
-
-            K_out = new Matrix(dofs, dofs);
-            r_out = new Matrix(dofs, 1);
-            N_out = new List<double>();
-
-            BrepVisuals = new List<Brep>();
-            BrepColors = new List<System.Drawing.Color>();
-
-
-        }
-        */
 
 
         // Methods
@@ -594,10 +527,40 @@ namespace MasterthesisGHA
                     K_out[i, j] = GlobalStiffnessMatrix[i, j];
             }
         }
-        
-        
+        protected override void UpdateGlobalMatrix()
+        {
+            foreach (Element element in ElementsInStructure)
+            {
+                element.UpdateLocalStiffnessMatrix();
+                Matrix<double> LocalStiffnessMatrix = element.getLocalStiffnessMatrix();
+                for (int row = 0; row < LocalStiffnessMatrix.RowCount / 2; row++)
+                {
+                    for (int col = 0; col < element.getLocalStiffnessMatrix().ColumnCount / 2; col++)
+                    {
+                        int dofsPerNode = GetDofsPerNode();
+                        int StartNodeIndex = element.getStartNodeIndex();
+                        int EndNodeIndex = element.getEndNodeIndex();
 
+                        if (StartNodeIndex != -1)
+                            GlobalStiffnessMatrix[dofsPerNode * StartNodeIndex + row, dofsPerNode * StartNodeIndex + col]
+                                += LocalStiffnessMatrix[row, col];
 
+                        if (EndNodeIndex != -1)
+                            GlobalStiffnessMatrix[dofsPerNode * EndNodeIndex + row, dofsPerNode * EndNodeIndex + col]
+                                += LocalStiffnessMatrix[row + dofsPerNode, col + dofsPerNode];
+
+                        if (StartNodeIndex != -1 && EndNodeIndex != -1)
+                        {
+                            GlobalStiffnessMatrix[dofsPerNode * StartNodeIndex + row, dofsPerNode * EndNodeIndex + col]
+                                += LocalStiffnessMatrix[row, col + dofsPerNode];
+                            GlobalStiffnessMatrix[dofsPerNode * EndNodeIndex + row, dofsPerNode * StartNodeIndex + col]
+                                += LocalStiffnessMatrix[row + dofsPerNode, col];
+                        }
+
+                    }
+                }
+            }
+        }
         public override void GetLoadVisuals()
         {
             for (int i = 0; i < FreeNodes.Count; i++)
@@ -632,8 +595,6 @@ namespace MasterthesisGHA
                 info += element.getElementInfo() + "\n";
             return info;
         }
-
-
 
 
 

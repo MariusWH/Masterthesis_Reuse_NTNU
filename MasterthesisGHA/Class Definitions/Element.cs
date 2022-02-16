@@ -76,6 +76,10 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
+        public virtual string getElementInfo()
+        {
+            return "Not Implemented";
+        }
 
 
         public virtual void UpdateLocalStiffnessMatrix()
@@ -86,12 +90,7 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
-
-
-        public virtual string getElementInfo()
-        {
-            return "Not Implemented";
-        }
+        
 
 
 
@@ -178,7 +177,6 @@ namespace MasterthesisGHA
 
         }
 
-
         public InPlaceBarElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, 
             Point3d endPoint)
             : this(ref FreeNodes, ref SupportNodes, profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYYDictionary[profileName], 
@@ -212,7 +210,6 @@ namespace MasterthesisGHA
         }
 
 
-
         public override void UpdateLocalStiffnessMatrix()
         {
             double elementLength = StartPoint.DistanceTo(EndPoint);
@@ -243,8 +240,7 @@ namespace MasterthesisGHA
 
             LocalStiffnessMatrix =  EAL * TranformationOrientation.Transpose()
                 .Multiply(StiffnessMatrixBar.Multiply(TranformationOrientation));
-        }       
-        
+        }           
         public override double ProjectedElementLength(Vector3d distributionDirection)
         {
             double elementLength = StartPoint.DistanceTo(EndPoint);

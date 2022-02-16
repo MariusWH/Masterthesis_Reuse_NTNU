@@ -25,8 +25,6 @@ namespace MasterthesisGHA.Components
             pManager.AddLineParameter("Input Lines", "Lines", "Lines for creating truss geometry", GH_ParamAccess.list);
             pManager.AddTextParameter("Input Profiles", "Profiles", "Profiles of members", GH_ParamAccess.list);
             pManager.AddPointParameter("Input Anchored Points", "Anchored", "Support points restricted from translation but free to rotate", GH_ParamAccess.list);           
-            pManager.AddNumberParameter("Cross Section Area [mm^2]", "A", "Cross Section Area by indivial member values (list) or constant value", GH_ParamAccess.list, 10000);
-            pManager.AddNumberParameter("Young's Modulus [N/mm^2]", "E", "Young's Modulus for all members", GH_ParamAccess.item, 210e3);           
             pManager.AddNumberParameter("Nodal Loading [N]", "Load", "Nodal loads by numeric values (x1, y1, x2, y2, ..)", GH_ParamAccess.list, new List<double> { 0 });
             pManager.AddVectorParameter("Nodal Loading [N]", "vecLoad", "Nodal loads by vector input", GH_ParamAccess.list, new Vector3d(0,0,0));
             pManager.AddNumberParameter("Load Value","","",GH_ParamAccess.item);
@@ -44,10 +42,8 @@ namespace MasterthesisGHA.Components
             pManager.AddPointParameter("Nodes", "Nodes", "Nodes", GH_ParamAccess.list);
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
-            pManager.AddColourParameter("Util", "Util", "Util", GH_ParamAccess.list);
             pManager.AddBrepParameter("Geometry", "Geometry", "Geometry", GH_ParamAccess.list);
-            pManager.AddTextParameter("ElementOutput", "ElementOutput", "ElementOutput", GH_ParamAccess.item);
-
+            pManager.AddColourParameter("Util", "Util", "Util", GH_ParamAccess.list);
         }
 
 
@@ -59,29 +55,22 @@ namespace MasterthesisGHA.Components
             List<Line> iLines = new List<Line>();
             List<string> iProfiles = new List<string>();
             List<Point3d> iAnchoredPoints = new List<Point3d>();
-            List<double> iA = new List<double>();
-            double iE = 0;
             List<double> iLoad = new List<double>();
             List<Vector3d> iLoadVecs = new List<Vector3d>();
-                      
-            DA.GetDataList(0, iLines);
-            DA.GetDataList(1, iProfiles);
-            DA.GetDataList(2, iAnchoredPoints);
-            DA.GetDataList(3, iA);
-            DA.GetData(4, ref iE);
-            DA.GetDataList(5, iLoad);
-            DA.GetDataList(6, iLoadVecs);
-
-
             double iLineLoadValue = 0;
             Vector3d iLineLoadDirection = new Vector3d();
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
 
-            DA.GetData(7, ref iLineLoadValue);
-            DA.GetData(8, ref iLineLoadDirection);
-            DA.GetData(9, ref iLineLoadDistribution);
-            DA.GetDataList(10, iLinesToLoad);
+            DA.GetDataList(0, iLines);
+            DA.GetDataList(1, iProfiles);
+            DA.GetDataList(2, iAnchoredPoints);
+            DA.GetDataList(3, iLoad);
+            DA.GetDataList(4, iLoadVecs);
+            DA.GetData(5, ref iLineLoadValue);
+            DA.GetData(6, ref iLineLoadDirection);
+            DA.GetData(7, ref iLineLoadDistribution);
+            DA.GetDataList(8, iLinesToLoad);
 
 
  
@@ -89,10 +78,9 @@ namespace MasterthesisGHA.Components
             
             // CODE
 
-            //TrussModel2D truss2D = new TrussModel2D(iLines, iA, iAnchoredPoints, iLoad, iLoadVecs, iE);
             TrussModel2D truss2D = new TrussModel2D(iLines, iProfiles, iAnchoredPoints);
 
-            truss2D.Assemble();
+            truss2D.ApplyNodalLoads(iLoad, iLoadVecs);
             truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss2D.Solve();
             truss2D.Retracking();
@@ -108,11 +96,9 @@ namespace MasterthesisGHA.Components
             DA.SetData("K", truss2D.K_out);
             DA.SetData("r", truss2D.r_out);
             DA.SetDataList("Nodes", truss2D.FreeNodes);
-            DA.SetData("Info", truss2D.PrintInfo());
             DA.SetDataList("N", truss2D.N_out);
-            DA.SetDataList("Util", truss2D.BrepColors);
             DA.SetDataList("Geometry", truss2D.BrepVisuals );
-            DA.SetData("ElementOutput", truss2D.writeElementOutput());
+            DA.SetDataList("Util", truss2D.BrepColors);
         }
 
 

@@ -8,15 +8,38 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA
 {
-    internal abstract class Structure 
+    internal abstract class ElementCollection
     {
-        // Static
-        protected static List<Structure> AllStructures;
-        protected static int structureCount;
-        
+        // Static Variables
+        protected static System.Drawing.Color supportNodeColor;
+        protected static System.Drawing.Color freeNodeColor;
+        protected static System.Drawing.Color loadArrowColor;
+        protected static System.Drawing.Color overUtilizedMemberColor;
+        protected static System.Drawing.Color underUtilizedMemberColor;
+        protected static System.Drawing.Color memberFromReusableStockColor;
 
+
+        // Static Constructor
+        static ElementCollection()
+        {
+            supportNodeColor = System.Drawing.Color.Gray;
+            freeNodeColor = System.Drawing.Color.AliceBlue;
+            loadArrowColor = System.Drawing.Color.White;
+            overUtilizedMemberColor = System.Drawing.Color.LightPink;
+            underUtilizedMemberColor = System.Drawing.Color.LightGreen;
+            memberFromReusableStockColor = System.Drawing.Color.LightYellow;
+        }
+
+
+        // Constructor
+
+    }
+
+
+    internal abstract class Structure : ElementCollection
+    {      
         // Variables
-        public List<Element> ElementsInStructure;
+        public List<InPlaceElement> ElementsInStructure;
         public List<Point3d> FreeNodes;
         public List<Point3d> SupportNodes;
 
@@ -24,99 +47,34 @@ namespace MasterthesisGHA
         public Vector<double> GlobalLoadVector;
         public Vector<double> GlobalDisplacementVector;
 
-        public Matrix K_out;
-        public Matrix r_out;
         public List<double> N_out;
 
-        public List<System.Drawing.Color> BrepColors;
-        public List<Brep> BrepVisuals;
-
-        // Static Variables
-        protected static System.Drawing.Color supportNodeColor;
-        protected static System.Drawing.Color freeNodeColor;
-        protected static System.Drawing.Color overUtilizedMemberColor;
-        protected static System.Drawing.Color underUtilizedMemberColor;
-
+        public List<System.Drawing.Color> StructureColors;
+        public List<Brep> StructureVisuals;
 
 
         // Constructors
         static Structure()
         {
-            structureCount = 0;
-            AllStructures = new List<Structure>();
-            supportNodeColor = System.Drawing.Color.AliceBlue;
-            freeNodeColor = System.Drawing.Color.AliceBlue;
-            overUtilizedMemberColor = System.Drawing.Color.Red;
-            underUtilizedMemberColor= System.Drawing.Color.Green;
+            
         }
-        public Structure(List<Line> lines, List<Point3d> supportPoints)
-        {
+        public Structure(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
+        {           
+            StructureVisuals = new List<Brep>();
+            StructureColors = new List<System.Drawing.Color>();
+
             VerifyModel(ref lines, ref supportPoints);
-            BrepVisuals = new List<Brep>();
-            BrepColors = new List<System.Drawing.Color>();
 
-            
-        }
-
-
-
-        // Virtual Methods
-        private void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
-        {
-            if (lines.Count == 0)
-                throw new Exception("Line Input is not valid!");
-
-            if (anchoredPoints.Count < 2)
-                throw new Exception("Anchored points needs to be at least 2 to prevent rigid body motion!");
-            
-        }
-        protected virtual int GetDofsPerNode()
-        {
-            return 0;
-        }
-        protected virtual void ConstructElements(List<Line> lines, List<string> profileNames)
-        {
-            throw new NotImplementedException();
-        }
-        public virtual void Solve()
-        {
-            throw new NotImplementedException();
-        }
-        public virtual void GetLoadVisuals()
-        {
-            throw new NotImplementedException();
-        }
-        public virtual void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
-        {
-            throw new NotImplementedException();
-        }
-        protected virtual void UpdateGlobalMatrix()
-        {
-            throw new NotImplementedException();
-        }
-
-    }
-
-
-
-    internal class TrussModel3D : Structure
-    {
-        // Constructors
-        public TrussModel3D(List<Line> lines, List<string> profileNames, List<Point3d> anchoredPoints)
-            : base(lines, anchoredPoints)
-        {
-            ElementsInStructure = new List<Element>();
+            ElementsInStructure = new List<InPlaceElement>();
             FreeNodes = new List<Point3d>();
-            SupportNodes = anchoredPoints;
+            SupportNodes = supportPoints;
 
-            ConstructElements(lines, profileNames);
+            ConstructElementsFromLines(lines, profileNames);
 
             int dofs = GetDofsPerNode() * FreeNodes.Count;
             GlobalStiffnessMatrix = Matrix<double>.Build.Dense(dofs, dofs);
             GlobalLoadVector = Vector<double>.Build.Dense(dofs);
             GlobalDisplacementVector = Vector<double>.Build.Dense(dofs);
-            K_out = new Matrix(dofs, dofs);
-            r_out = new Matrix(dofs, 1);
             N_out = new List<double>();
 
             // Stiffness Matrix
@@ -125,7 +83,114 @@ namespace MasterthesisGHA
         }
 
 
-        // New Methods                     
+        // Get Functions
+        public Matrix GetStiffnessMatrix()
+        {
+            Matrix K_out = new Matrix(GlobalStiffnessMatrix.RowCount, GlobalStiffnessMatrix.ColumnCount);
+            for (int i = 0; i < GlobalStiffnessMatrix.RowCount; i++)
+                for (int j = 0; j < GlobalStiffnessMatrix.ColumnCount; j++)
+                    K_out[i, j] = GlobalStiffnessMatrix[i, j];
+            return K_out;
+        }
+        public Matrix GetLoadVector()
+        {
+            Matrix R_out = new Matrix(GlobalLoadVector.Count,1);
+            for ( int i = 0; i < GlobalLoadVector.Count; i++)
+                R_out[i,0] = GlobalLoadVector[i];
+            return R_out;
+        }
+        public Matrix GetDisplacementVector()
+        {
+            Matrix r_out = new Matrix(GlobalDisplacementVector.Count, 1);
+            for (int i = 0; i < GlobalDisplacementVector.Count; i++)
+                r_out[i, 0] = GlobalDisplacementVector[i];
+            return r_out;
+        }
+
+
+        // Virtual Methods
+        protected virtual void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
+        {
+            throw new NotImplementedException();
+
+        }
+        protected virtual void ConstructElementsFromLines(List<Line> lines, List<string> profileNames)
+        {
+            throw new NotImplementedException();
+        }
+        protected virtual int GetDofsPerNode()
+        {
+            return 0;
+        }
+
+
+
+        // Virtual Structural Analysis Methods
+        protected virtual void UpdateGlobalMatrix()
+        {
+            throw new NotImplementedException();
+        }
+        public virtual void Solve()
+        {
+            throw new NotImplementedException();
+        }      
+        public virtual void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
+        {
+            throw new NotImplementedException();
+        }
+        public virtual void GetLoadVisuals()
+        {
+            throw new NotImplementedException();
+        }
+        public virtual void GetResultVisuals()
+        {
+            throw new NotImplementedException();
+        }
+
+
+        // Virtual Replace Elements
+        public virtual void InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, int materialBankElementIndex)
+        {
+            throw new NotImplementedException();
+        }
+        public void RemoveStockElementFromStructure()
+        {
+            throw new NotImplementedException();
+        }
+
+
+    }
+
+    internal class TrussModel3D : Structure
+    {
+        // Constructors
+        public TrussModel3D(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
+            : base(lines, profileNames, supportPoints)
+        {
+            
+
+        }
+
+
+        // New Methods
+        protected override void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
+        {
+            if (lines.Count == 0)
+                throw new Exception("Line Input is not valid!");
+
+            if (anchoredPoints.Count < 2)
+                throw new Exception("Anchored points needs to be at least 2 to prevent rigid body motion!");
+
+        }
+        protected override void ConstructElementsFromLines(List<Line> lines, List<string> profileNames)
+        {
+            for (int i = 0; i < lines.Count; i++)
+            {
+                Point3d startPoint = lines[i].PointAt(0);
+                Point3d endPoint = lines[i].PointAt(1);
+                ElementsInStructure.Add(new InPlaceBarElement3D(ref FreeNodes, ref SupportNodes, profileNames[i], startPoint, endPoint));
+            }
+        }
         public void ApplyNodalLoads(List<double> loadList, List<Vector3d> loadVecs)
         {
             int dofsPerNode = GetDofsPerNode();
@@ -153,7 +218,7 @@ namespace MasterthesisGHA
         }
         public void Retracking()
         {
-            foreach (InPlaceBarElement element in ElementsInStructure)
+            foreach (InPlaceBarElement3D element in ElementsInStructure)
             {
                 double L0 = element.StartPoint.DistanceTo(element.EndPoint);
                 double L1 = 0;
@@ -171,82 +236,19 @@ namespace MasterthesisGHA
                 N_out.Add(N_element);
             }
         }
-        public void GetResultVisuals()
-        {
-            double f_dim = 355;
-            List<double> sigma = new List<double>();
-            List<double> utilization = new List<double>();
 
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                sigma.Add(N_out[i] / ElementsInStructure[i].CrossSectionArea);
-                utilization.Add(sigma[i] / f_dim);
-                //N_out[i] = utilization[i];
-
-                if (utilization[i] > 1 || utilization[i] < -1)
-                { BrepColors.Add(overUtilizedMemberColor); }
-                else
-                { BrepColors.Add(underUtilizedMemberColor); }
-
-
-                Point3d startOfElement = ElementsInStructure[i].getStartPoint();
-                if (ElementsInStructure[i].getStartNodeIndex() != -1)
-                    startOfElement = FreeNodes[ElementsInStructure[i].getStartNodeIndex()];
-
-                Point3d endOfElement = ElementsInStructure[i].getEndPoint();
-                if (ElementsInStructure[i].getEndNodeIndex() != -1)
-                    endOfElement = FreeNodes[ElementsInStructure[i].getEndNodeIndex()];
-
-                Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)), startOfElement.DistanceTo(endOfElement));
-                BrepVisuals.Add(cylinder.ToBrep(true, true));
-            }
-
-            foreach (Point3d supportNode in SupportNodes)
-            {
-                double nodeRadius = 40;
-                Sphere nodeSphere = new Sphere(supportNode, nodeRadius);
-                BrepVisuals.Add(nodeSphere.ToBrep());
-                BrepColors.Add(Structure.supportNodeColor);
-
-                Plane conePlane = new Plane(supportNode + new Point3d(0, 0, -nodeRadius), new Vector3d(0, 0, -1));
-                Cone pinnedCone = new Cone(conePlane, 2 * nodeRadius, 2 * nodeRadius);
-                BrepVisuals.Add(pinnedCone.ToBrep(true));
-                BrepColors.Add(Structure.supportNodeColor);
-
-            }
-
-            foreach (Point3d freeNode in FreeNodes)
-            {
-                double nodeRadius = 40;
-                Sphere nodeSphere = new Sphere(freeNode, nodeRadius);
-                BrepVisuals.Add(nodeSphere.ToBrep());
-                BrepColors.Add(Structure.freeNodeColor);
-
-            }
-
-
-        }
-
+        
 
         // Overriden Methods
         protected override int GetDofsPerNode()
         {
             return 3;
-        }
-        protected override void ConstructElements(List<Line> lines, List<string> profileNames)
-        {
-            for (int i = 0; i < lines.Count; i++)
-            {
-                Point3d startPoint = lines[i].PointAt(0);
-                Point3d endPoint = lines[i].PointAt(1);
-                ElementsInStructure.Add(new InPlaceBarElement(ref FreeNodes, ref SupportNodes, profileNames[i], startPoint, endPoint));
-            }
-        }
+        }       
         public override void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
         {
             loadDirection.Unitize();
             int dofsPerNode = GetDofsPerNode();
-            foreach (InPlaceBarElement element in ElementsInStructure)
+            foreach (InPlaceBarElement3D element in ElementsInStructure)
             {
                 foreach (Line loadElement in loadElements)
                 {
@@ -284,49 +286,11 @@ namespace MasterthesisGHA
                 FreeNodes[i] += new Point3d(GlobalDisplacementVector[dofsPerNode * i], 
                     GlobalDisplacementVector[dofsPerNode * i + 1], GlobalDisplacementVector[dofsPerNode * i + 2]);
 
-            for (int i = 0; i < GlobalDisplacementVector.Count; i++)
-                r_out[i, 0] = GlobalDisplacementVector[i];
-
-            for (int i = 0; i < GlobalStiffnessMatrix.RowCount; i++)
-            {
-                for (int j = 0; j < GlobalStiffnessMatrix.ColumnCount; j++)
-                    K_out[i, j] = GlobalStiffnessMatrix[i, j];
-            }
-        }
-
-        public override void GetLoadVisuals()
-        {
-            for (int i = 0; i < FreeNodes.Count; i++)
-            {
-                int dofsPerNode = GetDofsPerNode();
-                Vector3d dir = new Vector3d(GlobalLoadVector[dofsPerNode * i], GlobalLoadVector[dofsPerNode * i + 1], 
-                    GlobalLoadVector[dofsPerNode * i + 2]);
-                dir.Unitize();
-                double arrowLength = Math.Sqrt(GlobalLoadVector[dofsPerNode * i] * GlobalLoadVector[dofsPerNode * i] 
-                    + GlobalLoadVector[dofsPerNode * i + 1] * GlobalLoadVector[dofsPerNode * i + 1]
-                    + GlobalLoadVector[dofsPerNode * i + 2] * GlobalLoadVector[dofsPerNode * i + 2]) / 1000;
-                double lineRadius = 20;
-
-                System.Drawing.Color loadColor = System.Drawing.Color.AliceBlue;
-
-                Point3d startPoint = FreeNodes[i];
-                Point3d endPoint = FreeNodes[i] + new Point3d(dir * arrowLength);
-                Point3d arrowBase = endPoint + dir * 4 * lineRadius;
-
-                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
-                BrepVisuals.Add(loadCylinder.ToBrep(true, true));
-                BrepColors.Add(loadColor);
-
-                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(GlobalLoadVector[dofsPerNode * i], GlobalLoadVector[dofsPerNode * i + 1], GlobalLoadVector[dofsPerNode * i + 2])), -4 * lineRadius, 2 * lineRadius);
-                BrepVisuals.Add(arrow.ToBrep(true));
-                BrepColors.Add(loadColor);
-            }
         }
         protected override void UpdateGlobalMatrix()
         {
-            foreach (Element element in ElementsInStructure)
+            foreach (InPlaceElement element in ElementsInStructure)
             {
-                element.UpdateLocalStiffnessMatrix();
                 Matrix<double> LocalStiffnessMatrix = element.getLocalStiffnessMatrix();
                 for (int row = 0; row < LocalStiffnessMatrix.RowCount / 2; row++)
                 {
@@ -354,6 +318,99 @@ namespace MasterthesisGHA
                     }
                 }
             }           
+        }
+        public override void GetLoadVisuals()
+        {
+            for (int i = 0; i < FreeNodes.Count; i++)
+            {
+                int dofsPerNode = GetDofsPerNode();
+                Vector3d dir = new Vector3d(GlobalLoadVector[dofsPerNode * i], GlobalLoadVector[dofsPerNode * i + 1],
+                    GlobalLoadVector[dofsPerNode * i + 2]);
+                dir.Unitize();
+                double arrowLength = Math.Sqrt(GlobalLoadVector[dofsPerNode * i] * GlobalLoadVector[dofsPerNode * i]
+                    + GlobalLoadVector[dofsPerNode * i + 1] * GlobalLoadVector[dofsPerNode * i + 1]
+                    + GlobalLoadVector[dofsPerNode * i + 2] * GlobalLoadVector[dofsPerNode * i + 2]) / 100;
+                double lineRadius = 20;
+
+                Point3d startPoint = FreeNodes[i];
+                Point3d endPoint = FreeNodes[i] + new Point3d(dir * arrowLength);
+                Point3d arrowBase = endPoint + dir * 4 * lineRadius;
+
+                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
+                StructureVisuals.Add(loadCylinder.ToBrep(true, true));
+                StructureColors.Add(Structure.loadArrowColor);
+
+                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(GlobalLoadVector[dofsPerNode * i], GlobalLoadVector[dofsPerNode * i + 1], GlobalLoadVector[dofsPerNode * i + 2])), -4 * lineRadius, 2 * lineRadius);
+                StructureVisuals.Add(arrow.ToBrep(true));
+                StructureColors.Add(Structure.loadArrowColor);
+            }
+        }
+        public override void GetResultVisuals()
+        {
+            double f_dim = 355;
+            List<double> sigma = new List<double>();
+            List<double> utilization = new List<double>();
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                sigma.Add(N_out[i] / ElementsInStructure[i].CrossSectionArea);
+                utilization.Add(sigma[i] / f_dim);
+                //N_out[i] = utilization[i];
+
+                if (utilization[i] > 1 || utilization[i] < -1)
+                { StructureColors.Add(overUtilizedMemberColor); }
+                else
+                { StructureColors.Add(underUtilizedMemberColor); }
+
+
+                Point3d startOfElement = ElementsInStructure[i].getStartPoint();
+                if (ElementsInStructure[i].getStartNodeIndex() != -1)
+                    startOfElement = FreeNodes[ElementsInStructure[i].getStartNodeIndex()];
+
+                Point3d endOfElement = ElementsInStructure[i].getEndPoint();
+                if (ElementsInStructure[i].getEndNodeIndex() != -1)
+                    endOfElement = FreeNodes[ElementsInStructure[i].getEndNodeIndex()];
+
+                Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)), startOfElement.DistanceTo(endOfElement));
+                StructureVisuals.Add(cylinder.ToBrep(true, true));
+            }
+
+            foreach (Point3d supportNode in SupportNodes)
+            {
+                double nodeRadius = 40;
+                Sphere nodeSphere = new Sphere(supportNode, nodeRadius);
+                StructureVisuals.Add(nodeSphere.ToBrep());
+                StructureColors.Add(Structure.supportNodeColor);
+
+                Plane conePlane = new Plane(supportNode + new Point3d(0, 0, -nodeRadius), new Vector3d(0, 0, -1));
+                Cone pinnedCone = new Cone(conePlane, 2 * nodeRadius, 2 * nodeRadius);
+                StructureVisuals.Add(pinnedCone.ToBrep(true));
+                StructureColors.Add(Structure.supportNodeColor);
+
+            }
+
+            foreach (Point3d freeNode in FreeNodes)
+            {
+                double nodeRadius = 40;
+                Sphere nodeSphere = new Sphere(freeNode, nodeRadius);
+                StructureVisuals.Add(nodeSphere.ToBrep());
+                StructureColors.Add(Structure.freeNodeColor);
+
+            }
+
+
+        }
+
+        // Replace Element
+        public override void InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, int materialBankElementIndex)
+        {
+            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+
+            ElementsInStructure.Add(new InPlaceBarElement3D(ref materialBank, materialBankElementIndex, 
+                ElementsInStructure[inPlaceElementIndex].getStartPoint(), ElementsInStructure[inPlaceElementIndex].getEndPoint()));
+
+
         }
 
 
@@ -390,8 +447,6 @@ namespace MasterthesisGHA
         }
     }
 
-
-
     internal class TrussModel2D : TrussModel3D
     {   
         // Constructors
@@ -407,7 +462,7 @@ namespace MasterthesisGHA
         {
             return 2;
         }
-        protected override void ConstructElements(List<Line> lines, List<string> profileNames)
+        protected override void ConstructElementsFromLines(List<Line> lines, List<string> profileNames)
         {
             for (int i = 0; i < lines.Count; i++)
             {
@@ -420,7 +475,7 @@ namespace MasterthesisGHA
         {
             loadDirection.Unitize();
             int dofsPerNode = GetDofsPerNode();
-            foreach (InPlaceBarElement element in ElementsInStructure)
+            foreach (InPlaceBarElement3D element in ElementsInStructure)
             {
                 foreach (Line loadElement in loadElements)
                 {
@@ -453,20 +508,11 @@ namespace MasterthesisGHA
             for (int i = 0; i < FreeNodes.Count; i++)
                 FreeNodes[i] += new Point3d(GlobalDisplacementVector[dofsPerNode * i], 0, GlobalDisplacementVector[dofsPerNode * i + 1]);
 
-            for (int i = 0; i < GlobalDisplacementVector.Count; i++)
-                r_out[i, 0] = GlobalDisplacementVector[i];
-
-            for (int i = 0; i < GlobalStiffnessMatrix.RowCount; i++)
-            {
-                for (int j = 0; j < GlobalStiffnessMatrix.ColumnCount; j++)
-                    K_out[i, j] = GlobalStiffnessMatrix[i, j];
-            }
         }
         protected override void UpdateGlobalMatrix()
         {
-            foreach (Element element in ElementsInStructure)
+            foreach (InPlaceElement element in ElementsInStructure)
             {
-                element.UpdateLocalStiffnessMatrix();
                 Matrix<double> LocalStiffnessMatrix = element.getLocalStiffnessMatrix();
                 for (int row = 0; row < LocalStiffnessMatrix.RowCount / 2; row++)
                 {
@@ -505,7 +551,7 @@ namespace MasterthesisGHA
                 Vector3d dir = new Vector3d(GlobalLoadVector[dofsPerNode * i], 0, GlobalLoadVector[dofsPerNode * i + 1]);
                 dir.Unitize();
                 double arrowLength = Math.Sqrt(GlobalLoadVector[dofsPerNode * i] * GlobalLoadVector[dofsPerNode * i] +
-                    GlobalLoadVector[dofsPerNode * i + 1] * GlobalLoadVector[dofsPerNode * i + 1]) / 1000;
+                    GlobalLoadVector[dofsPerNode * i + 1] * GlobalLoadVector[dofsPerNode * i + 1]) / 100;
                 double lineRadius = 20;
 
                 System.Drawing.Color loadColor = System.Drawing.Color.AliceBlue;
@@ -515,12 +561,12 @@ namespace MasterthesisGHA
                 Point3d arrowBase = endPoint + dir * 4 * lineRadius;
 
                 Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
-                BrepVisuals.Add(loadCylinder.ToBrep(true, true));
-                BrepColors.Add(loadColor);
+                StructureVisuals.Add(loadCylinder.ToBrep(true, true));
+                StructureColors.Add(loadColor);
 
                 Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(GlobalLoadVector[dofsPerNode * i], 0, GlobalLoadVector[dofsPerNode * i + 1])), -4 * lineRadius, 2 * lineRadius);
-                BrepVisuals.Add(arrow.ToBrep(true));
-                BrepColors.Add(loadColor);
+                StructureVisuals.Add(arrow.ToBrep(true));
+                StructureColors.Add(loadColor);
             }
         }
 
@@ -546,7 +592,7 @@ namespace MasterthesisGHA
         }
         public void Assemble()
         {
-            foreach (Element element in ElementsInStructure)
+            foreach (InPlaceElement element in ElementsInStructure)
             {
                 double dz = element.getEndPoint().Z - element.getStartPoint().Z;
                 double dx = element.getEndPoint().X - element.getStartPoint().X;
@@ -590,7 +636,7 @@ namespace MasterthesisGHA
         public string PrintInfo()
         {
             string info = "";
-            foreach (Element element in ElementsInStructure)
+            foreach (AbstractLineElement element in ElementsInStructure)
                 info += element.getElementInfo() + "\n";
             return info;
         } 
@@ -599,8 +645,60 @@ namespace MasterthesisGHA
 
 
 
+    internal class MaterialBank : ElementCollection
+    {
+        // Variables
+        public List<StockElement> StockElementsInMaterialBank;
+        public List<System.Drawing.Color> MaterialBankColors;
+        public List<Brep> MaterialBankVisuals;
 
 
+
+        // Constructor
+        public MaterialBank() 
+            : base()
+        {
+            StockElementsInMaterialBank = new List<StockElement>();
+            MaterialBankColors = new List<System.Drawing.Color>();
+            MaterialBankVisuals = new List<Brep>();
+        }
+
+
+
+        // Replace Elements
+        public void InsertStockElementIntoMaterialBank(InPlaceElement inPlaceElement)
+        {
+            throw new NotImplementedException();
+        }
+        public void RemoveStockElementFromMaterialBank(StockElement stockElement)
+        {
+            throw new NotImplementedException();
+        }
+
+
+
+        public List<Brep> VisualizeMaterialBank()
+        {
+            List<Brep> outList = new List<Brep>();
+            double group = 0;
+            double instance = 0;
+            double spacing = 100;
+
+            foreach (StockElement element in StockElementsInMaterialBank)
+            {
+                Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));
+                Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.CrossSectionArea) / Math.PI);
+                Cylinder cylinder = new Cylinder(baseCircle, element.GetStockElementLength());
+                outList.Add(cylinder.ToBrep(true, true));
+                instance = instance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + spacing;
+            }
+            return outList;
+        }
+
+
+
+
+    }
 
 
 }

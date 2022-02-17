@@ -18,8 +18,6 @@ namespace MasterthesisGHA.Components
               "Master", "FEA")
         {
         }
-
-
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddLineParameter("Input Lines", "Lines", "Lines for creating truss geometry", GH_ParamAccess.list);
@@ -32,14 +30,13 @@ namespace MasterthesisGHA.Components
             pManager.AddVectorParameter("Distribution Direction","","",GH_ParamAccess.item);
             pManager.AddLineParameter("Elements","","",GH_ParamAccess.list);
         }
-
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddNumberParameter("#Elements", "#Elements", "#Elements", GH_ParamAccess.item);
             pManager.AddNumberParameter("#Nodes", "#Nodes", "#Nodes", GH_ParamAccess.item);
             pManager.AddMatrixParameter("K", "K", "K", GH_ParamAccess.item);
             pManager.AddMatrixParameter("r", "r", "r", GH_ParamAccess.item);
-            pManager.AddNumberParameter("R", "R", "R", GH_ParamAccess.list);
+            pManager.AddMatrixParameter("R", "R", "R", GH_ParamAccess.item);
             pManager.AddPointParameter("Nodes", "Nodes", "Nodes", GH_ParamAccess.list);
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
@@ -53,7 +50,6 @@ namespace MasterthesisGHA.Components
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUT
-
             List<Line> iLines = new List<Line>();
             List<string> iProfiles = new List<string>();
             List<Point3d> iAnchoredPoints = new List<Point3d>();
@@ -74,44 +70,29 @@ namespace MasterthesisGHA.Components
             DA.GetData(7, ref iLineLoadDistribution);
             DA.GetDataList(8, iLinesToLoad);
 
-
- 
-            
-            
+           
             // CODE
-
             TrussModel2D truss2D = new TrussModel2D(iLines, iProfiles, iAnchoredPoints);
-
             truss2D.ApplyNodalLoads(iLoad, iLoadVecs);
             truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss2D.Solve();
             truss2D.Retracking();
             truss2D.GetResultVisuals();
             truss2D.GetLoadVisuals();
-
-            List<double> R_out = new List<double>();
-            foreach(double load in truss2D.GlobalLoadVector)
-                R_out.Add(load);
-            
-            
+                       
             
             // OUTPUT
-
             DA.SetData("#Elements", truss2D.ElementsInStructure.Count);
-            DA.SetData("#Nodes",truss2D.FreeNodes.Count); 
-            DA.SetData("K", truss2D.K_out);
-            DA.SetData("r", truss2D.r_out);
-            DA.SetDataList("R", R_out);
+            DA.SetData("#Nodes",truss2D.FreeNodes.Count);
+            DA.SetData("K", truss2D.GetStiffnessMatrix());
+            DA.SetData("r", truss2D.GetDisplacementVector());
+            DA.SetData("R", truss2D.GetLoadVector());
             DA.SetDataList("Nodes", truss2D.FreeNodes);
             DA.SetDataList("N", truss2D.N_out);
-            DA.SetDataList("Geometry", truss2D.BrepVisuals );
-            DA.SetDataList("Util", truss2D.BrepColors);
+            DA.SetDataList("Geometry", truss2D.StructureVisuals );
+            DA.SetDataList("Util", truss2D.StructureColors);
             DA.SetDataList("Elements", truss2D.ElementsInStructure);
         }
-
-
-
-
 
 
         protected override System.Drawing.Bitmap Icon
@@ -123,8 +104,6 @@ namespace MasterthesisGHA.Components
                 //return null;
             }
         }
-
-
         public override Guid ComponentGuid
         {
             get { return new Guid("1AB4E987-0B6A-4EFA-BD27-8418F7C24308"); }

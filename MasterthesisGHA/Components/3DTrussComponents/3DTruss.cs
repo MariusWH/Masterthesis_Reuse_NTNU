@@ -8,17 +8,12 @@ namespace MasterthesisGHA
 {
     public class Truss3D : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the MyComponent1 class.
-        /// </summary>
         public Truss3D()
           : base("3D Truss Analysis", "3D Truss",
               "Minimal Finite Element Analysis of 3D Truss",
               "Master", "FEA")
         {
         }
-
-
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddLineParameter("Input Lines", "Lines", "Lines for creating truss geometry", GH_ParamAccess.list);
@@ -31,15 +26,13 @@ namespace MasterthesisGHA
             pManager.AddVectorParameter("Distribution Direction", "", "", GH_ParamAccess.item);
             pManager.AddLineParameter("Elements", "", "", GH_ParamAccess.list);
         }
-
-
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddNumberParameter("#Elements", "#Elements", "#Elements", GH_ParamAccess.item);
             pManager.AddNumberParameter("#Nodes", "#Nodes", "#Nodes", GH_ParamAccess.item);
             pManager.AddMatrixParameter("K", "K", "K", GH_ParamAccess.item);
             pManager.AddMatrixParameter("r", "r", "r", GH_ParamAccess.item);
-            pManager.AddNumberParameter("R", "R", "R", GH_ParamAccess.list);
+            pManager.AddMatrixParameter("R", "R", "R", GH_ParamAccess.item);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
             pManager.AddPointParameter("Nodes", "Nodes", "Nodes", GH_ParamAccess.list);
             pManager.AddBrepParameter("Geometry", "Geometry", "Geometry", GH_ParamAccess.list);
@@ -53,7 +46,6 @@ namespace MasterthesisGHA
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUT
-
             List<Line> iLines = new List<Line>();
             List<string> iProfiles = new List<string>();
             List<Point3d> iAnchoredPoints = new List<Point3d>();
@@ -75,12 +67,8 @@ namespace MasterthesisGHA
             DA.GetDataList(8, iLinesToLoad);
 
 
-
-
-
             // CODE
             TrussModel3D truss3D = new TrussModel3D(iLines, iProfiles, iAnchoredPoints);
-
             truss3D.ApplyNodalLoads(iLoad, iLoadVecs);
             truss3D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss3D.Solve();
@@ -88,30 +76,18 @@ namespace MasterthesisGHA
             truss3D.GetResultVisuals();
             truss3D.GetLoadVisuals();
 
-            List<double> R_out = new List<double>();
-            foreach (double load in truss3D.GlobalLoadVector)
-                R_out.Add(load);
-
-
-
-
-
 
             // OUTPUT
-
             DA.SetData("#Elements", truss3D.ElementsInStructure.Count);
             DA.SetData("#Nodes", truss3D.FreeNodes.Count);
-            DA.SetData("K", truss3D.K_out);
-            DA.SetData("r", truss3D.r_out);
-            DA.SetDataList("R", R_out);
+            DA.SetData("K", truss3D.GetStiffnessMatrix());
+            DA.SetData("r", truss3D.GetDisplacementVector());
+            DA.SetData("R", truss3D.GetLoadVector());
             DA.SetDataList("N", truss3D.N_out);
             DA.SetDataList("Nodes", truss3D.FreeNodes);
-            DA.SetDataList("Geometry", truss3D.BrepVisuals);
-            DA.SetDataList("Util", truss3D.BrepColors);
+            DA.SetDataList("Geometry", truss3D.StructureVisuals);
+            DA.SetDataList("Util", truss3D.StructureColors);
             DA.SetDataList("Elements", truss3D.ElementsInStructure);
-
-
-
         }
 
 
@@ -122,10 +98,6 @@ namespace MasterthesisGHA
                 return Properties.Resources._3D_Truss_Icon;
             }
         }
-
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
         public override Guid ComponentGuid
         {
             get { return new Guid("DC35EDA8-72CC-45ED-A755-DF28A9EFB877"); }

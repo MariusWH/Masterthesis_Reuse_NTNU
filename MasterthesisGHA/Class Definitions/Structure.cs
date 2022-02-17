@@ -8,7 +8,7 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA
 {
-    internal abstract class Structure
+    internal abstract class Structure 
     {
         // Static
         protected static List<Structure> AllStructures;
@@ -96,7 +96,6 @@ namespace MasterthesisGHA
         }
 
     }
-
 
 
 

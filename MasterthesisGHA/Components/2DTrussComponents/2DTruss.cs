@@ -39,11 +39,13 @@ namespace MasterthesisGHA.Components
             pManager.AddNumberParameter("#Nodes", "#Nodes", "#Nodes", GH_ParamAccess.item);
             pManager.AddMatrixParameter("K", "K", "K", GH_ParamAccess.item);
             pManager.AddMatrixParameter("r", "r", "r", GH_ParamAccess.item);
+            pManager.AddNumberParameter("R", "R", "R", GH_ParamAccess.list);
             pManager.AddPointParameter("Nodes", "Nodes", "Nodes", GH_ParamAccess.list);
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
             pManager.AddBrepParameter("Geometry", "Geometry", "Geometry", GH_ParamAccess.list);
             pManager.AddColourParameter("Util", "Util", "Util", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Elements", "Elememts", "Elements", GH_ParamAccess.list);
         }
 
 
@@ -86,6 +88,10 @@ namespace MasterthesisGHA.Components
             truss2D.Retracking();
             truss2D.GetResultVisuals();
             truss2D.GetLoadVisuals();
+
+            List<double> R_out = new List<double>();
+            foreach(double load in truss2D.GlobalLoadVector)
+                R_out.Add(load);
             
             
             
@@ -95,10 +101,12 @@ namespace MasterthesisGHA.Components
             DA.SetData("#Nodes",truss2D.FreeNodes.Count); 
             DA.SetData("K", truss2D.K_out);
             DA.SetData("r", truss2D.r_out);
+            DA.SetDataList("R", R_out);
             DA.SetDataList("Nodes", truss2D.FreeNodes);
             DA.SetDataList("N", truss2D.N_out);
             DA.SetDataList("Geometry", truss2D.BrepVisuals );
             DA.SetDataList("Util", truss2D.BrepColors);
+            DA.SetDataList("Elements", truss2D.ElementsInStructure);
         }
 
 

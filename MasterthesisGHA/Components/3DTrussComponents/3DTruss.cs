@@ -39,11 +39,13 @@ namespace MasterthesisGHA
             pManager.AddNumberParameter("#Nodes", "#Nodes", "#Nodes", GH_ParamAccess.item);
             pManager.AddMatrixParameter("K", "K", "K", GH_ParamAccess.item);
             pManager.AddMatrixParameter("r", "r", "r", GH_ParamAccess.item);
+            pManager.AddNumberParameter("R", "R", "R", GH_ParamAccess.list);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
             pManager.AddPointParameter("Nodes", "Nodes", "Nodes", GH_ParamAccess.list);
             pManager.AddBrepParameter("Geometry", "Geometry", "Geometry", GH_ParamAccess.list);
             pManager.AddColourParameter("Util", "Util", "Util", GH_ParamAccess.list);
- 
+            pManager.AddGenericParameter("Elements", "Elememts", "Elements", GH_ParamAccess.list);
+
         }
 
 
@@ -86,8 +88,12 @@ namespace MasterthesisGHA
             truss3D.GetResultVisuals();
             truss3D.GetLoadVisuals();
 
+            List<double> R_out = new List<double>();
+            foreach (double load in truss3D.GlobalLoadVector)
+                R_out.Add(load);
 
-            
+
+
 
 
 
@@ -97,23 +103,12 @@ namespace MasterthesisGHA
             DA.SetData("#Nodes", truss3D.FreeNodes.Count);
             DA.SetData("K", truss3D.K_out);
             DA.SetData("r", truss3D.r_out);
+            DA.SetDataList("R", R_out);
             DA.SetDataList("N", truss3D.N_out);
             DA.SetDataList("Nodes", truss3D.FreeNodes);
             DA.SetDataList("Geometry", truss3D.BrepVisuals);
             DA.SetDataList("Util", truss3D.BrepColors);
-
-
-
-
-
-
-
-
-
-
-
-
-
+            DA.SetDataList("Elements", truss3D.ElementsInStructure);
 
 
 

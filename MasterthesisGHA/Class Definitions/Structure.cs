@@ -677,21 +677,49 @@ namespace MasterthesisGHA
 
 
 
-        public List<Brep> VisualizeMaterialBank()
+        public List<Brep> VisualizeMaterialBank(int groupingMethod)
         {
+            if (groupingMethod < 0 || groupingMethod > 1)
+                throw new Exception("Grouping Methods are: \n0 - By Length \n1 - By Profile");
+
             List<Brep> outList = new List<Brep>();
-            double group = 0;
+            double group = -1;
             double instance = 0;
             double spacing = 100;
 
+            if (groupingMethod == 0)
+            {
+                // sort by length
+            }
+            else if (groupingMethod == 1)
+            {
+                // sort by profile
+            }
+
+            StockElement priorElement = StockElementsInMaterialBank[0];
             foreach (StockElement element in StockElementsInMaterialBank)
             {
+                if (groupingMethod == 0)
+                {
+                    if (priorElement.GetStockElementLength() != element.GetStockElementLength())
+                        group++;
+                }
+                else if (groupingMethod == 1)
+                {
+                    if (priorElement.ProfileName != element.ProfileName)
+                        group++;
+                }
+
                 Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));
                 Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.CrossSectionArea) / Math.PI);
                 Cylinder cylinder = new Cylinder(baseCircle, element.GetStockElementLength());
                 outList.Add(cylinder.ToBrep(true, true));
                 instance = instance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + spacing;
+
+                priorElement = element;
+                
             }
+
             return outList;
         }
 

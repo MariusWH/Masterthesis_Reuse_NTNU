@@ -70,13 +70,20 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
 
-            /*
+            
 
             // CODE
-            List<double> areas = new List<double> { 2e3 };
             List<double> loadList = new List<double>();
             List<Vector3d> loadVecs = new List<Vector3d> { new Vector3d(0, 0, 0) };
-            double e = 210e3;
+
+
+            TrussModel2D truss2D = new TrussModel2D(iGeometryLines, iProfiles, iSupports);
+            truss2D.ApplyNodalLoads(iLoad, iLoadVecs);
+            truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
+            truss2D.Solve();
+            truss2D.Retracking();
+            truss2D.GetResultVisuals();
+            truss2D.GetLoadVisuals();
 
 
             TrussModel2D trussModel2D = new TrussModel2D(iGeometryLines, areas, iSupports, loadList, loadVecs, e);
@@ -87,7 +94,7 @@ namespace MasterthesisGHA.Components.MethodOne
             trussModel2D.GetResultVisuals();
             trussModel2D.GetLoadVisuals();
 
-
+            /*
 
             // Check possible reuse elements for each element in geometry
             List<List<OLDReusableElement>> reusablesSuggestionTree = new List<List<OLDReusableElement>>();

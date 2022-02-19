@@ -20,6 +20,7 @@ namespace MasterthesisGHA
         public double AreaMomentOfInertiaZZ;
         public double PolarMomentOfInertia;
         public double YoungsModulus;
+        protected double YieldStress;
 
         // Static Variables
         protected static Dictionary<string, double> CrossSectionAreaDictionary;
@@ -38,6 +39,7 @@ namespace MasterthesisGHA
             AreaMomentOfInertiaZZ = areaMomentOfInertiaZZ;
             PolarMomentOfInertia = polarMomentOfInertia;
             YoungsModulus = youngsModulus;
+            YieldStress = 355;
         }
         protected AbstractLineElement(string profileName)
             : this(profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYYDictionary[profileName], 
@@ -334,6 +336,19 @@ namespace MasterthesisGHA
 
 
         // Methods
+        public override string getElementInfo()
+        {
+            string info = "StockElement{ ";
+            info += "{L=" + GetStockElementLength() + "}, ";
+            info += "{A=" + CrossSectionArea + "}, ";
+            info += "{Iyy=" + AreaMomentOfInertiaYY + "}, ";
+            info += "{Izz=" + AreaMomentOfInertiaZZ + "}, ";
+            info += "{Ip=" + PolarMomentOfInertia + "}, ";
+            info += "{E=" + YoungsModulus + "}";
+            info += " }";
+
+            return info;
+        }
         public double GetStockElementLength()
         {
             return ReusableElementLength;
@@ -343,10 +358,11 @@ namespace MasterthesisGHA
             if (newLength < 0)
                 throw new Exception("Reusable Length can not be less than zero!");
             ReusableElementLength = newLength;
+        }      
+        public double CheckUtilization(double normalForce)
+        {
+            return normalForce/(CrossSectionArea*YieldStress);
         }
-
-        
-
 
 
 

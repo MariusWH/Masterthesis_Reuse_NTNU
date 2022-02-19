@@ -20,7 +20,7 @@ namespace MasterthesisGHA.Components.MethodOne
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("ReusableStock", "ReusableStock", "ReusableStock", GH_ParamAccess.list);
+            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
             pManager.AddTextParameter("NewElements", "NewElements", "NewElements", GH_ParamAccess.list, "ALL");
 
             pManager.AddLineParameter("GeometryLines", "GeometryLines", "GeometryLines", GH_ParamAccess.list, new Line());
@@ -36,8 +36,9 @@ namespace MasterthesisGHA.Components.MethodOne
         {
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
-            pManager.AddColourParameter("Util", "Util", "Util", GH_ParamAccess.list);
-            pManager.AddBrepParameter("Geometry", "Geometry", "Geometry", GH_ParamAccess.list);
+            pManager.AddBrepParameter("Visuals", "Visuals", "Visuals", GH_ParamAccess.list);
+            pManager.AddColourParameter("Colour", "Colour", "Colour", GH_ParamAccess.list);
+            
 
             pManager.AddGenericParameter("ReplacementSuggestions", "", "", GH_ParamAccess.tree);
 
@@ -48,28 +49,23 @@ namespace MasterthesisGHA.Components.MethodOne
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUTS
-            List<OLDReusableElement> iReusableElements = new List<OLDReusableElement>();
+            MaterialBank iMaterialBank = new MaterialBank();
             List<string> iNewElementsCatalog = new List<string>();
             List<Line> iGeometryLines = new List<Line>();
             List<Point3d> iSupports = new List<Point3d>();
-            
-            DA.GetDataList(0, iReusableElements);
-            DA.GetDataList(1, iNewElementsCatalog);
-            DA.GetDataList(2, iGeometryLines);
-            DA.GetDataList(3, iSupports);
-            
-
             double iLineLoadValue = 0;
             Vector3d iLineLoadDirection = new Vector3d();
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
 
+            DA.GetData(0, ref iMaterialBank);
+            DA.GetDataList(1, iNewElementsCatalog);
+            DA.GetDataList(2, iGeometryLines);
+            DA.GetDataList(3, iSupports);
             DA.GetData(4, ref iLineLoadValue);
             DA.GetData(5, ref iLineLoadDirection);
             DA.GetData(6, ref iLineLoadDistribution);
             DA.GetDataList(7, iLinesToLoad);
-
-
 
             
 
@@ -86,33 +82,36 @@ namespace MasterthesisGHA.Components.MethodOne
             truss2D.GetLoadVisuals();
 
 
-            /*
+            
 
             // Check possible reuse elements for each element in geometry
-            List<List<OLDReusableElement>> reusablesSuggestionTree = new List<List<OLDReusableElement>>();
+            List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
             
 
             int elementCounter = 0;
-            foreach( OLDInPlaceElement elementInStructure in trussModel2D.ElementsInStructure )
+            foreach( InPlaceBarElement2D elementInStructure in truss2D.ElementsInStructure )
             {                
-                List<OLDReusableElement> reusablesSuggestionList = new List<OLDReusableElement>();
-                foreach(OLDReusableElement reusableElement in iReusableElements)
-                {   
+                List<StockElement> StockElementSuggestionList = new List<StockElement>();
+                for( int i = 0; i < iMaterialBank.StockElementsInMaterialBank.Count; i++ )
+                {
+                    StockElement stockElement = iMaterialBank.StockElementsInMaterialBank[i];
+
                     double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if ( reusableElement.CheckUtilization(trussModel2D.N_out[elementCounter]) < 1 && reusableElement.ReusableLength > lengthOfElement )
-                        reusablesSuggestionList.Add(reusableElement);
+                    if ( stockElement.CheckUtilization(truss2D.N_out[elementCounter]) < 1 
+                        && stockElement.GetStockElementLength() > lengthOfElement )
+                        StockElementSuggestionList.Add(stockElement);
                 }
-                reusablesSuggestionTree.Add(reusablesSuggestionList);
+                reusablesSuggestionTree.Add(StockElementSuggestionList);
                 elementCounter++;
             }
 
-            Grasshopper.DataTree<OLDReusableElement> dataTree = new Grasshopper.DataTree<OLDReusableElement>();
+            Grasshopper.DataTree<StockElement> dataTree = new Grasshopper.DataTree<StockElement>();
 
             int outerCount = 0;
-            foreach ( List<OLDReusableElement> list in reusablesSuggestionTree )
+            foreach ( List<StockElement> list in reusablesSuggestionTree )
             {
                 int innerCount = 0;
-                foreach (OLDReusableElement reusableElement in list)
+                foreach (StockElement reusableElement in list)
                 {
                     Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] {outerCount});
                     dataTree.Insert(reusableElement, path, innerCount);
@@ -128,15 +127,14 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
             // OUTPUTS
-            DA.SetData("Info", trussModel2D.PrintInfo());
-            DA.SetDataList("N", trussModel2D.N_out);
-            DA.SetDataList("Util", trussModel2D.BrepColors);
-            DA.SetDataList("Geometry", trussModel2D.BrepVisuals);
-
+            DA.SetData("Info", truss2D.PrintInfo());
+            DA.SetDataList("N", truss2D.N_out);
+            DA.SetDataList("Visuals", truss2D.StructureVisuals);
+            DA.SetDataList("Colour", truss2D.StructureColors);           
             DA.SetDataTree(4, dataTree);
 
 
-            */
+            
 
         }
 

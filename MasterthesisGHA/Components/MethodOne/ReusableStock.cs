@@ -30,9 +30,10 @@ namespace MasterthesisGHA
  
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddGenericParameter("Elements", "Elements", "Elements", GH_ParamAccess.list);
+            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddBrepParameter("StockVisuals", "StockVisuals", "StockVisuals", GH_ParamAccess.list);
+            pManager.AddColourParameter("StockColour", "StockColour", "StockColour", GH_ParamAccess.list);
         }
 
 
@@ -56,12 +57,13 @@ namespace MasterthesisGHA
             if (quantities.Count != lengths.Count || quantities.Count != profiles.Count)
                 throw new Exception("Profiles, Quantities and Lengths lists needs to be the same length!");
 
-            List<StockElement> materialBank = new List<StockElement>();           
+            MaterialBank materialBank = new MaterialBank();
+            //List<StockElement> materialBank = new List<StockElement>();           
 
             for (int i = 0; i < quantities.Count; i++)
             {
                 for (int j = 0; j < quantities[i]; j++)
-                    materialBank.Add(new StockElement(profiles[i], lengths[i]));
+                    materialBank.InsertStockElementIntoMaterialBank(new StockElement(profiles[i], lengths[i]));
             }
            
 
@@ -73,20 +75,23 @@ namespace MasterthesisGHA
                 double commandLengths = Convert.ToDouble(commandArray[2]);
 
                 for (int i = 0; i < commandQuantities; i++)
-                    materialBank.Add(new StockElement(commandProfiles, commandLengths));                       
+                    materialBank.InsertStockElementIntoMaterialBank(new StockElement(commandProfiles, commandLengths));                       
             }
 
 
+            
 
 
 
 
 
             // OUTPUTS
-            DA.SetDataList(0, materialBank);
-            //DA.SetData(1, OLDReusableElement.GetDatabaseInfo());
-            //DA.SetDataList(2, OLDReusableElement.VisualizeDatabase());
+            List<System.Drawing.Color> colors = new List<System.Drawing.Color>();
 
+            DA.SetData(0, materialBank);
+            DA.SetData(1, materialBank.GetMaterialBankInfo());
+            DA.SetDataList(2, materialBank.VisualizeMaterialBank(0, out colors));
+            DA.SetDataList(3, colors);
 
 
 

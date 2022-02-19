@@ -16,7 +16,9 @@ namespace MasterthesisGHA
         protected static System.Drawing.Color loadArrowColor;
         protected static System.Drawing.Color overUtilizedMemberColor;
         protected static System.Drawing.Color underUtilizedMemberColor;
-        protected static System.Drawing.Color memberFromReusableStockColor;
+        
+        public static System.Drawing.Color memberFromReusableStockColor;
+        public static List<System.Drawing.Color> memberFromReusableStockColors;
 
 
         // Static Constructor
@@ -25,9 +27,12 @@ namespace MasterthesisGHA
             supportNodeColor = System.Drawing.Color.Gray;
             freeNodeColor = System.Drawing.Color.AliceBlue;
             loadArrowColor = System.Drawing.Color.White;
-            overUtilizedMemberColor = System.Drawing.Color.LightPink;
-            underUtilizedMemberColor = System.Drawing.Color.LightGreen;
-            memberFromReusableStockColor = System.Drawing.Color.LightYellow;
+            overUtilizedMemberColor = System.Drawing.Color.Red;
+            underUtilizedMemberColor = System.Drawing.Color.Green;
+            
+            memberFromReusableStockColor = System.Drawing.Color.DarkBlue;
+            memberFromReusableStockColors = new List<System.Drawing.Color> 
+                { System.Drawing.Color.DarkBlue, System.Drawing.Color.Blue, System.Drawing.Color.LightBlue };
         }
 
 
@@ -649,73 +654,90 @@ namespace MasterthesisGHA
     {
         // Variables
         public List<StockElement> StockElementsInMaterialBank;
-        public List<System.Drawing.Color> MaterialBankColors;
-        public List<Brep> MaterialBankVisuals;
-
-
 
         // Constructor
         public MaterialBank() 
             : base()
         {
             StockElementsInMaterialBank = new List<StockElement>();
-            MaterialBankColors = new List<System.Drawing.Color>();
-            MaterialBankVisuals = new List<Brep>();
         }
-
 
 
         // Replace Elements
-        public void InsertStockElementIntoMaterialBank(InPlaceElement inPlaceElement)
+        public string GetMaterialBankInfo()
         {
-            throw new NotImplementedException();
+            string info = "Material Bank:\n";
+
+            foreach ( StockElement stockElement in StockElementsInMaterialBank )
+            {
+                info += "\n" + stockElement.getElementInfo();
+            }
+
+
+            return info;
         }
-        public void RemoveStockElementFromMaterialBank(StockElement stockElement)
+        public void InsertStockElementIntoMaterialBank(StockElement stockElement)
         {
-            throw new NotImplementedException();
+            StockElementsInMaterialBank.Add(stockElement);
         }
-
-
-
-        public List<Brep> VisualizeMaterialBank(int groupingMethod)
+        public void RemoveStockElementFromMaterialBank(int stockElementIndex)
+        {
+            StockElementsInMaterialBank.RemoveAt(stockElementIndex);
+        }
+        public List<Brep> VisualizeMaterialBank(int groupingMethod, out List<System.Drawing.Color> visualsColour)
         {
             if (groupingMethod < 0 || groupingMethod > 1)
-                throw new Exception("Grouping Methods are: \n0 - By Length \n1 - By Profile");
+                throw new Exception("Grouping Methods are: \n0 - By Length \n1 - By Area");
 
             List<Brep> outList = new List<Brep>();
-            double group = -1;
+            visualsColour = new List<System.Drawing.Color>();
+            int group = 0;
+            double groupSpacing = 0;
             double instance = 0;
-            double spacing = 100;
+            double instanceSpacing = 100;
+            double startSpacing = 1000;
 
+            List<StockElement> sortedMaterialBank = new List<StockElement>();
             if (groupingMethod == 0)
             {
-                // sort by length
+                sortedMaterialBank = getLengthSortedMaterialBank();
             }
             else if (groupingMethod == 1)
             {
-                // sort by profile
+                sortedMaterialBank = getAreaSortedMaterialBank();
             }
 
-            StockElement priorElement = StockElementsInMaterialBank[0];
-            foreach (StockElement element in StockElementsInMaterialBank)
+
+            StockElement priorElement = sortedMaterialBank[0];
+            foreach (StockElement element in sortedMaterialBank)
             {
                 if (groupingMethod == 0)
                 {
                     if (priorElement.GetStockElementLength() != element.GetStockElementLength())
+                    {
                         group++;
+                        groupSpacing += (Math.Sqrt(element.CrossSectionArea) + Math.Sqrt(element.CrossSectionArea)) / Math.PI + instanceSpacing;
+                        instance = 0;
+                    }    
                 }
                 else if (groupingMethod == 1)
                 {
-                    if (priorElement.ProfileName != element.ProfileName)
+                    if (priorElement.CrossSectionArea != element.CrossSectionArea)
+                    {
                         group++;
+                        groupSpacing += (Math.Sqrt(element.CrossSectionArea) + Math.Sqrt(element.CrossSectionArea)) / Math.PI + instanceSpacing;
+                        instance = 0;
+                    }
+                        
                 }
 
-                Plane basePlane = new Plane(new Point3d(instance, 0, group), new Vector3d(0, 1, 0));
+                Plane basePlane = new Plane(new Point3d(-instance-startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1));
                 Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.CrossSectionArea) / Math.PI);
                 Cylinder cylinder = new Cylinder(baseCircle, element.GetStockElementLength());
                 outList.Add(cylinder.ToBrep(true, true));
-                instance = instance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + spacing;
+                visualsColour.Add(ElementCollection.memberFromReusableStockColors[group % ElementCollection.memberFromReusableStockColors.Count]);
 
+                instance = instance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + instanceSpacing;
                 priorElement = element;
                 
             }
@@ -724,6 +746,16 @@ namespace MasterthesisGHA
         }
 
 
+
+        // Private Methods
+        private List<StockElement> getLengthSortedMaterialBank()
+        {
+            return StockElementsInMaterialBank.OrderBy(o => o.GetStockElementLength()).ToList(); ;
+        }
+        private List<StockElement> getAreaSortedMaterialBank()
+        {
+            return StockElementsInMaterialBank.OrderBy(o => o.CrossSectionArea).ToList(); ;
+        }
 
 
     }

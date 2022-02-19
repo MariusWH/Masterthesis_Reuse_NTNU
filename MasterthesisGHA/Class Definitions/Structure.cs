@@ -577,7 +577,8 @@ namespace MasterthesisGHA
 
 
         // Unused
-        private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<Point3d> anchoredPoints, ref List<double> loadList, ref List<Vector3d> loadVecs, ref double E)
+        private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<Point3d> anchoredPoints, ref List<double> loadList, 
+            ref List<Vector3d> loadVecs, ref double E)
         {
             if (lines.Count == 0)
                 throw new Exception("Line Input is not valid!");

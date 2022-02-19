@@ -36,7 +36,26 @@ namespace MasterthesisGHA
         }
 
 
-        // Constructor
+        // Static Methods
+        public static Grasshopper.DataTree<StockElement> GetOutputDataTree(List<List<StockElement>> inputDataTree)
+        {
+            Grasshopper.DataTree<StockElement> dataTree = new Grasshopper.DataTree<StockElement>();
+
+            int outerCount = 0;
+            foreach (List<StockElement> list in inputDataTree)
+            {
+                int innerCount = 0;
+                foreach (StockElement reusableElement in list)
+                {
+                    Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] { outerCount });
+                    dataTree.Insert(reusableElement, path, innerCount);
+                    innerCount++;
+                }
+                outerCount++;
+            }
+            return dataTree;
+        }
+
 
     }
 
@@ -162,7 +181,7 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
-        public virtual void PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
+        public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
             List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
             int elementCounter = 0;
@@ -181,6 +200,7 @@ namespace MasterthesisGHA
                 reusablesSuggestionTree.Add(StockElementSuggestionList);
                 elementCounter++;
             }
+            return reusablesSuggestionTree;
         }
 
 
@@ -661,15 +681,45 @@ namespace MasterthesisGHA
         // Variables
         public List<StockElement> StockElementsInMaterialBank;
 
-        // Constructor
+
+
+        // Constructors
         public MaterialBank() 
             : base()
         {
             StockElementsInMaterialBank = new List<StockElement>();
         }
+        public MaterialBank(List<string> profiles, List<int> quantities, List<double> lengths)
+            :this()
+        {
+            if (quantities.Count != lengths.Count || quantities.Count != profiles.Count)
+                throw new Exception("Profiles, Quantities and Lengths lists needs to be the same length!");
+
+            for (int i = 0; i < quantities.Count; i++)
+            {
+                for (int j = 0; j < quantities[i]; j++)
+                    this.InsertStockElementIntoMaterialBank(new StockElement(profiles[i], lengths[i]));
+            }
+        }
+        public MaterialBank(List<string> commands)
+            :this()
+        {
+            foreach (string command in commands)
+            {
+                string[] commandArray = command.Split('x');
+                int commandQuantities = Convert.ToInt32(commandArray[0]);
+                string commandProfiles = commandArray[1];
+                double commandLengths = Convert.ToDouble(commandArray[2]);
+
+                for (int i = 0; i < commandQuantities; i++)
+                    this.InsertStockElementIntoMaterialBank(new StockElement(commandProfiles, commandLengths));
+            }
+        }
 
 
-        // Replace Elements
+
+
+        // Output Methods
         public string GetMaterialBankInfo()
         {
             string info = "Material Bank:\n";
@@ -681,15 +731,7 @@ namespace MasterthesisGHA
 
 
             return info;
-        }
-        public void InsertStockElementIntoMaterialBank(StockElement stockElement)
-        {
-            StockElementsInMaterialBank.Add(stockElement);
-        }
-        public void RemoveStockElementFromMaterialBank(int stockElementIndex)
-        {
-            StockElementsInMaterialBank.RemoveAt(stockElementIndex);
-        }
+        }     
         public List<Brep> VisualizeMaterialBank(int groupingMethod, out List<System.Drawing.Color> visualsColour)
         {
             if (groupingMethod < 0 || groupingMethod > 1)
@@ -753,16 +795,30 @@ namespace MasterthesisGHA
 
 
 
-        // Private Methods
+        // Private Sorting Methods
         private List<StockElement> getLengthSortedMaterialBank()
         {
             return StockElementsInMaterialBank.OrderBy(o => o.GetStockElementLength()).ToList(); ;
         }
         private List<StockElement> getAreaSortedMaterialBank()
         {
-            return StockElementsInMaterialBank.OrderBy(o => o.CrossSectionArea).ToList(); ;
+            return StockElementsInMaterialBank.OrderBy(o => o.CrossSectionArea).ToList();
+        }
+        private List<StockElement> getUtilizationSortedMaterialBank(double axialForce)
+        {
+            return StockElementsInMaterialBank.OrderBy(o => o.CheckUtilization(axialForce)).ToList(); ;
+        }
+        private void InsertStockElementIntoMaterialBank(StockElement stockElement)
+        {
+            StockElementsInMaterialBank.Add(stockElement);
+        }
+        private void RemoveStockElementFromMaterialBank(int stockElementIndex)
+        {
+            StockElementsInMaterialBank.RemoveAt(stockElementIndex);
         }
 
+
+        // Replace
 
     }
 

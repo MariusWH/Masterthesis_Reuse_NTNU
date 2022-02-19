@@ -359,9 +359,9 @@ namespace MasterthesisGHA
                 throw new Exception("Reusable Length can not be less than zero!");
             ReusableElementLength = newLength;
         }      
-        public double CheckUtilization(double normalForce)
+        public double CheckUtilization(double axialLoad)
         {
-            return normalForce/(CrossSectionArea*YieldStress);
+            return axialLoad/(CrossSectionArea*YieldStress);
         }
 
 

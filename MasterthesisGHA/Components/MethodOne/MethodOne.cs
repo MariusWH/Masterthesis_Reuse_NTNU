@@ -81,51 +81,10 @@ namespace MasterthesisGHA.Components.MethodOne
             truss2D.GetResultVisuals();
             truss2D.GetLoadVisuals();
 
+            List<List<StockElement>> reusablesSuggestionTree = 
+                truss2D.PossibleStockElementForEachInPlaceElement(iMaterialBank);
 
-            
-
-            // Check possible reuse elements for each element in geometry
-
-
-            List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
-            int elementCounter = 0;
-            foreach( InPlaceBarElement2D elementInStructure in truss2D.ElementsInStructure )
-            {                
-                List<StockElement> StockElementSuggestionList = new List<StockElement>();
-                for( int i = 0; i < iMaterialBank.StockElementsInMaterialBank.Count; i++ )
-                {
-                    StockElement stockElement = iMaterialBank.StockElementsInMaterialBank[i];
-
-                    double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if ( stockElement.CheckUtilization(truss2D.N_out[elementCounter]) < 1 
-                        && stockElement.GetStockElementLength() > lengthOfElement )
-                        StockElementSuggestionList.Add(stockElement);
-                }
-                reusablesSuggestionTree.Add(StockElementSuggestionList);
-                elementCounter++;
-            }
-
-            Grasshopper.DataTree<StockElement> dataTree = new Grasshopper.DataTree<StockElement>();
-
-            int outerCount = 0;
-            foreach ( List<StockElement> list in reusablesSuggestionTree )
-            {
-                int innerCount = 0;
-                foreach (StockElement reusableElement in list)
-                {
-                    Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] {outerCount});
-                    dataTree.Insert(reusableElement, path, innerCount);
-                    innerCount++;
-                }
-                outerCount++;
-            }
-                
-                    
-            
-
-
-
-            
+          
 
 
 
@@ -134,7 +93,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetDataList("N", truss2D.N_out);
             DA.SetDataList("Visuals", truss2D.StructureVisuals);
             DA.SetDataList("Colour", truss2D.StructureColors);           
-            DA.SetDataTree(4, dataTree);
+            DA.SetDataTree(4, ElementCollection.GetOutputDataTree(reusablesSuggestionTree));
 
 
             

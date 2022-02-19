@@ -20,11 +20,11 @@ namespace MasterthesisGHA.Components.MethodOne
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddLineParameter("GeometryLines", "GeometryLines", "GeometryLines", GH_ParamAccess.list, new Line());
-            pManager.AddPointParameter("Supports", "Supports", "Supports", GH_ParamAccess.list, new Point3d());
             pManager.AddGenericParameter("ReusableStock", "ReusableStock", "ReusableStock", GH_ParamAccess.list);
             pManager.AddTextParameter("NewElements", "NewElements", "NewElements", GH_ParamAccess.list, "ALL");
 
+            pManager.AddLineParameter("GeometryLines", "GeometryLines", "GeometryLines", GH_ParamAccess.list, new Line());
+            pManager.AddPointParameter("Supports", "Supports", "Supports", GH_ParamAccess.list, new Point3d());
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Distribution Direction", "", "", GH_ParamAccess.item);
@@ -48,15 +48,16 @@ namespace MasterthesisGHA.Components.MethodOne
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUTS
-            List<Line> iGeometryLines = new List<Line>();
-            List<Point3d> iSupports = new List<Point3d>();
             List<OLDReusableElement> iReusableElements = new List<OLDReusableElement>();
             List<string> iNewElementsCatalog = new List<string>();
-
-            DA.GetDataList(0, iGeometryLines);
-            DA.GetDataList(1, iSupports);
-            DA.GetDataList(2, iReusableElements);
-            DA.GetDataList(3, iNewElementsCatalog);
+            List<Line> iGeometryLines = new List<Line>();
+            List<Point3d> iSupports = new List<Point3d>();
+            
+            DA.GetDataList(0, iReusableElements);
+            DA.GetDataList(1, iNewElementsCatalog);
+            DA.GetDataList(2, iGeometryLines);
+            DA.GetDataList(3, iSupports);
+            
 
             double iLineLoadValue = 0;
             Vector3d iLineLoadDirection = new Vector3d();
@@ -73,26 +74,17 @@ namespace MasterthesisGHA.Components.MethodOne
             
 
             // CODE
-            List<double> loadList = new List<double>();
-            List<Vector3d> loadVecs = new List<Vector3d> { new Vector3d(0, 0, 0) };
+            List<string> initialProfiles = new List<string>();
+            foreach (Line line in iGeometryLines)
+                initialProfiles.Add("IPE100");
 
-
-            TrussModel2D truss2D = new TrussModel2D(iGeometryLines, iProfiles, iSupports);
-            truss2D.ApplyNodalLoads(iLoad, iLoadVecs);
+            TrussModel2D truss2D = new TrussModel2D(iGeometryLines, initialProfiles, iSupports);
             truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss2D.Solve();
             truss2D.Retracking();
             truss2D.GetResultVisuals();
             truss2D.GetLoadVisuals();
 
-
-            TrussModel2D trussModel2D = new TrussModel2D(iGeometryLines, areas, iSupports, loadList, loadVecs, e);
-            trussModel2D.Assemble();
-            trussModel2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
-            trussModel2D.Solve();
-            trussModel2D.Retracking();
-            trussModel2D.GetResultVisuals();
-            trussModel2D.GetLoadVisuals();
 
             /*
 

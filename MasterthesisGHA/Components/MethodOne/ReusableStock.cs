@@ -19,8 +19,12 @@ namespace MasterthesisGHA
 
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
-        {
-            pManager.AddTextParameter("ReusableStock", "Reusables", "Input as: Amount x SectionName x Length (ex.: 10 x IPE200 x 1000)", GH_ParamAccess.list, "10 x IPE200 x 1000");
+        {            
+            pManager.AddTextParameter("Section", "SectionName", "SectionName", GH_ParamAccess.list, "IPE200");
+            pManager.AddIntegerParameter("Amount", "Amount", "Amount", GH_ParamAccess.list, 0);
+            pManager.AddNumberParameter("Length", "Length", "Length", GH_ParamAccess.list, 1000);
+            pManager.AddTextParameter("CommandInput", "Command", "Input as: Amount x SectionName x Length (ex.: 10xIPE200x1000)",
+                GH_ParamAccess.list, "0xIPE200x1000");
         }
 
  
@@ -36,60 +40,40 @@ namespace MasterthesisGHA
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUTS
+            List<string> profiles = new List<string>();
+            List<int> quantities = new List<int>();
+            List<double> lengths = new List<double>();
             List<string> inputCommands = new List<string>();
-            DA.GetDataList(0, inputCommands);
 
-
-
-
-
-
-
+            DA.GetDataList(0, profiles);
+            DA.GetDataList(1, quantities);
+            DA.GetDataList(2, lengths);
+            DA.GetDataList(3, inputCommands);
 
 
 
             // CODE
-            string profilesFromFile = "";
-            var assembly = Assembly.GetExecutingAssembly();
-            string resourceName = "MasterthesisGHA.Resources.Profiles.txt";
-            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-            using (StreamReader reader = new StreamReader(stream))
+            if (quantities.Count != lengths.Count || quantities.Count != profiles.Count)
+                throw new Exception("Profiles, Quantities and Lengths lists needs to be the same length!");
+
+            List<StockElement> materialBank = new List<StockElement>();           
+
+            for (int i = 0; i < quantities.Count; i++)
             {
-                profilesFromFile = reader.ReadToEnd();
+                for (int j = 0; j < quantities[i]; j++)
+                    materialBank.Add(new StockElement(profiles[i], lengths[i]));
             }
-            var profilesArray = profilesFromFile.Split('\n');
-            List<string> profiles = new List<string>();
+           
 
-            foreach (string line in profilesArray)
-            {
-                profiles.Add(line);
-            }
-
-
-
-            OLDReusableElement.ResetStatic(); 
-            
             foreach ( string command in inputCommands )
             {
                 string[] commandArray = command.Split('x');
-                int amount = Convert.ToInt32(commandArray[0]);
-                string sectionName = commandArray[1];
-                double length = Convert.ToDouble(commandArray[2]);
-               
-                foreach (string line in profilesArray)
-                {
-                    if(line.Contains(sectionName))
-                    {                       
-                        string[] lineArray = line.Split(',');
-                        double a = Convert.ToDouble(lineArray[1]); // Change file to not contain length
-                        double i = Convert.ToDouble(lineArray[2]);
-                        
-                        for (int j = 0; j < amount; j++)
-                        {
-                            new OLDReusableElement(sectionName, length, a, i, 210e3);
-                        }                      
-                    }                    
-                }  
+                int commandQuantities = Convert.ToInt32(commandArray[0]);
+                string commandProfiles = commandArray[1];
+                double commandLengths = Convert.ToDouble(commandArray[2]);
+
+                for (int i = 0; i < commandQuantities; i++)
+                    materialBank.Add(new StockElement(commandProfiles, commandLengths));                       
             }
 
 
@@ -99,9 +83,9 @@ namespace MasterthesisGHA
 
 
             // OUTPUTS
-            DA.SetDataList(0, OLDReusableElement.MaterialBank);
-            DA.SetData(1, OLDReusableElement.GetDatabaseInfo());
-            DA.SetDataList(2, OLDReusableElement.VisualizeDatabase());
+            DA.SetDataList(0, materialBank);
+            //DA.SetData(1, OLDReusableElement.GetDatabaseInfo());
+            //DA.SetDataList(2, OLDReusableElement.VisualizeDatabase());
 
 
 

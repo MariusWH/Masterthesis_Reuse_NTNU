@@ -18,7 +18,7 @@ namespace MasterthesisGHA
         public override Guid Id => new Guid("5A1A4C41-417D-45B5-9241-68C9AFC9DC4D");
 
         //Return a string identifying you or your company.
-        public override string AuthorName => "";
+        public override string AuthorName => "Marius Werner Henriksen";
 
         //Return a string representing your preferred contact details.
         public override string AuthorContact => "";

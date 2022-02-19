@@ -8,7 +8,7 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA
 {
-    internal abstract class ElementCollection
+    internal abstract class ElementAssembly
     {
         // Static Variables
         protected static System.Drawing.Color supportNodeColor;
@@ -22,7 +22,7 @@ namespace MasterthesisGHA
 
 
         // Static Constructor
-        static ElementCollection()
+        static ElementAssembly()
         {
             supportNodeColor = System.Drawing.Color.Gray;
             freeNodeColor = System.Drawing.Color.AliceBlue;
@@ -61,7 +61,7 @@ namespace MasterthesisGHA
     }
 
 
-    internal abstract class Structure : ElementCollection
+    internal abstract class Structure : ElementAssembly
     {      
         // Variables
         public List<InPlaceElement> ElementsInStructure;
@@ -685,7 +685,7 @@ namespace MasterthesisGHA
 
 
 
-    internal class MaterialBank : ElementCollection
+    internal class MaterialBank : ElementAssembly
     {
         // Variables
         public List<StockElement> StockElementsInMaterialBank;
@@ -770,7 +770,7 @@ namespace MasterthesisGHA
                 Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.CrossSectionArea) / Math.PI);
                 Cylinder cylinder = new Cylinder(baseCircle, element.GetStockElementLength());
                 outList.Add(cylinder.ToBrep(true, true));
-                visualsColour.Add(ElementCollection.memberFromReusableStockColors[group % ElementCollection.memberFromReusableStockColors.Count]);
+                visualsColour.Add(ElementAssembly.memberFromReusableStockColors[group % ElementAssembly.memberFromReusableStockColors.Count]);
 
                 instance = instance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + instanceSpacing;
                 priorElement = element;

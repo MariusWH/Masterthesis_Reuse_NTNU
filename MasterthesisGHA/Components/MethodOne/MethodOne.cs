@@ -82,7 +82,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetDataList("N", truss2D.AxialElementLoad);
             DA.SetDataList("Visuals", truss2D.StructureVisuals);
             DA.SetDataList("Colour", truss2D.StructureColors);    
-            DA.SetDataTree(4, ElementCollection.DataTreeConverter(reusablesSuggestionTree));
+            DA.SetDataTree(4, ElementAssembly.DataTreeConverter(reusablesSuggestionTree));
         }
 
 

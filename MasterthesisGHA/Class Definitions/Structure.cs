@@ -38,6 +38,26 @@ namespace MasterthesisGHA
 
         // Constructor
 
+
+        // Static Methods
+        public static Grasshopper.DataTree<StockElement> DataTreeConverter(List<List<StockElement>> inputTree)
+        {
+            Grasshopper.DataTree<StockElement> dataTree = new Grasshopper.DataTree<StockElement>();
+            int outerCount = 0;
+            foreach (List<StockElement> list in inputTree)
+            {
+                int innerCount = 0;
+                foreach (StockElement reusableElement in list)
+                {
+                    Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] { outerCount });
+                    dataTree.Insert(reusableElement, path, innerCount);
+                    innerCount++;
+                }
+                outerCount++;
+            }
+            return dataTree;
+        }
+
     }
 
 
@@ -52,7 +72,7 @@ namespace MasterthesisGHA
         public Vector<double> GlobalLoadVector;
         public Vector<double> GlobalDisplacementVector;
 
-        public List<double> N_out;
+        public List<double> AxialElementLoad;
 
         public List<System.Drawing.Color> StructureColors;
         public List<Brep> StructureVisuals;
@@ -80,7 +100,7 @@ namespace MasterthesisGHA
             GlobalStiffnessMatrix = Matrix<double>.Build.Dense(dofs, dofs);
             GlobalLoadVector = Vector<double>.Build.Dense(dofs);
             GlobalDisplacementVector = Vector<double>.Build.Dense(dofs);
-            N_out = new List<double>();
+            AxialElementLoad = new List<double>();
 
             // Stiffness Matrix
             UpdateGlobalMatrix();
@@ -153,15 +173,24 @@ namespace MasterthesisGHA
         }
 
 
-        // Virtual Replace Elements
+        // Virtual Replace Elements In Pre-Determined Geometry
         public virtual void InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, int materialBankElementIndex)
         {
             throw new NotImplementedException();
         }
-        public void RemoveStockElementFromStructure()
+        public virtual void RemoveStockElementFromStructure()
         {
             throw new NotImplementedException();
         }
+        public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
+        {
+            throw new NotImplementedException();
+        }
+
+
+
+
+
 
 
     }
@@ -238,11 +267,10 @@ namespace MasterthesisGHA
                     L1 = FreeNodes[element.StartNodeIndex].DistanceTo(FreeNodes[element.EndNodeIndex]);
 
                 double N_element = (element.CrossSectionArea * element.YoungsModulus / L0) * (L1 - L0);
-                N_out.Add(N_element);
+                AxialElementLoad.Add(N_element);
             }
-        }
+        }   
 
-        
 
         // Overriden Methods
         protected override int GetDofsPerNode()
@@ -358,7 +386,7 @@ namespace MasterthesisGHA
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
-                sigma.Add(N_out[i] / ElementsInStructure[i].CrossSectionArea);
+                sigma.Add(AxialElementLoad[i] / ElementsInStructure[i].CrossSectionArea);
                 utilization.Add(sigma[i] / f_dim);
                 //N_out[i] = utilization[i];
 
@@ -406,7 +434,8 @@ namespace MasterthesisGHA
 
         }
 
-        // Replace Element
+
+        // Replace Elements In Pre-Determined Geometry
         public override void InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, int materialBankElementIndex)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
@@ -417,6 +446,28 @@ namespace MasterthesisGHA
 
 
         }
+        public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
+        {
+            List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
+            int elementCounter = 0;
+            foreach (InPlaceBarElement2D elementInStructure in ElementsInStructure)
+            {
+                List<StockElement> StockElementSuggestionList = new List<StockElement>();
+                for (int i = 0; i < materialBank.StockElementsInMaterialBank.Count; i++)
+                {
+                    StockElement stockElement = materialBank.StockElementsInMaterialBank[i];
+
+                    double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
+                    if (stockElement.CheckUtilization(AxialElementLoad[elementCounter]) < 1
+                        && stockElement.GetStockElementLength() > lengthOfElement)
+                        StockElementSuggestionList.Add(stockElement);
+                }
+                reusablesSuggestionTree.Add(StockElementSuggestionList);
+                elementCounter++;
+            }
+            return reusablesSuggestionTree;
+        }
+
 
 
         // Unused Methods
@@ -432,24 +483,7 @@ namespace MasterthesisGHA
             else if (A.Count != lines.Count)
                 throw new Exception("A is wrong size! Input list with same length as Lines or constant value!");
         }
-        public string writeElementOutput()  // "Element #1 {  }"
-        {
-            string output = "ELEMENTS: \n\n";
-            /*
-            foreach (InPlaceBarElement element in ElementsInStructure)
-            {
-                output += "Element #" + element.instanceID + "{ ";
-                output += "E[MPa]=" + element.E + ", ";
-                output += "A[mm^2]=" + element.A + ", ";
-                output += "I[mm^4]=" + element.I + ", ";
-                output += "StartPoint[mm,mm]=(" + element.StartPoint.X + "," + element.StartPoint.Y + ")" + ", ";
-                output += "EndPoint[mm,mm]=(" + element.EndPoint.X + "," + element.EndPoint.Y + ")" + ", ";
-                output += "FreeNodeIndexing[#,#]=(" + element.StartNodeIndex + "," + element.EndNodeIndex + ")";
-                output += " }\n";
-            }
-            */
-            return output;
-        }
+
     }
 
     internal class TrussModel2D : TrussModel3D

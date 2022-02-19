@@ -88,7 +88,7 @@ namespace MasterthesisGHA.Components
             DA.SetData("r", truss2D.GetDisplacementVector());
             DA.SetData("R", truss2D.GetLoadVector());
             DA.SetDataList("Nodes", truss2D.FreeNodes);
-            DA.SetDataList("N", truss2D.AxialElementLoad);
+            DA.SetDataList("N", truss2D.N_out);
             DA.SetDataList("Geometry", truss2D.StructureVisuals );
             DA.SetDataList("Util", truss2D.StructureColors);
             DA.SetDataList("Elements", truss2D.ElementsInStructure);

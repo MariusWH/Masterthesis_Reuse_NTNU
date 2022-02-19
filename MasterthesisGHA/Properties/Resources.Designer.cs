@@ -81,18 +81,31 @@ namespace MasterthesisGHA.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Rect100x100x1000,1000,10000,8333333,210000
-        ///Rect120x100x1000,1000,12000,14400000,210000
-        ///Rect140x100x1000,1000,14000,22866667,210000
-        ///Rect160x100x1000,1000,16000,34133333,210000
-        ///Rect180x100x1000,1000,18000,48600000,210000
-        ///Rect200x100x1000,1000,20000,66666667,210000
-        ///Rect220x100x1000,1000,22000,88733333,210000
-        ///Rect240x100x1000,1000,24000,115200000,210000
-        ///Rect260x100x1000,1000,26000,146466667,210000
-        ///Rect280x100x1000,1000,28000,182933333,210000
-        ///Rect300x100x1000,1000,30000,225000000,210000
-        ///Rect320x100x10 [rest of string was truncated]&quot;;.
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap MaterialBank {
+            get {
+                object obj = ResourceManager.GetObject("MaterialBank", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPE80,764,801000,84890,6727
+        ///IPE100,1032,1710000,159200,11530
+        ///IPE120,1321,3180000,276700,16890
+        ///IPE140,1643,5410000,449200,24010
+        ///IPE160,2009,8690000,683100,35300
+        ///IPE180,2395,13200000,1009000,47230
+        ///IPE200,2848,19400000,1424000,68460
+        ///IPE220,3337,27700000,2049000,89820
+        ///IPE240,3912,38900000,2836000,127400
+        ///IPE270,4595,57900000,4199000,157100
+        ///IPE300,5381,83600000,6038000,197500
+        ///IPE330,6261,117700000,7881000,275900
+        ///IPE360,7273,162700000,10430000,370800
+        ///IPE400,8446,231300000,13180000,504100
+        ///IPE450,9882, [rest of string was truncated]&quot;;.
         /// </summary>
         public static string Profiles {
             get {

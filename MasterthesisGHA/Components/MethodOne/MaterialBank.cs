@@ -8,10 +8,10 @@ using System.Reflection;
 
 namespace MasterthesisGHA
 {
-    public class ReusableStock : GH_Component
+    public class MaterialBankComponent : GH_Component
     {
-        public ReusableStock()
-          : base("Reusable Stock of Elements", "ReusableElements",
+        public MaterialBankComponent()
+          : base("Reusable Stock of Elements", "MaterialBank",
               "Description",
               "Master", "MethodOne")
         {
@@ -107,9 +107,7 @@ namespace MasterthesisGHA
         {
             get
             {
-                //You can add image files to your project resources and access them like this:
-                // return Resources.IconForThisComponent;
-                return null;
+                return Properties.Resources.MaterialBank;
             }
         }
 

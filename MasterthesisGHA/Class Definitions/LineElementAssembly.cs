@@ -8,7 +8,7 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA
 {
-    internal abstract class ElementAssembly
+    internal abstract class ElementCollection
     {
         // Static Variables
         protected static System.Drawing.Color supportNodeColor;
@@ -22,7 +22,7 @@ namespace MasterthesisGHA
 
 
         // Static Constructor
-        static ElementAssembly()
+        static ElementCollection()
         {
             supportNodeColor = System.Drawing.Color.Gray;
             freeNodeColor = System.Drawing.Color.AliceBlue;
@@ -38,30 +38,10 @@ namespace MasterthesisGHA
 
         // Constructor
 
-
-        // Static Methods
-        public static Grasshopper.DataTree<StockElement> DataTreeConverter(List<List<StockElement>> inputTree)
-        {
-            Grasshopper.DataTree<StockElement> dataTree = new Grasshopper.DataTree<StockElement>();
-            int outerCount = 0;
-            foreach (List<StockElement> list in inputTree)
-            {
-                int innerCount = 0;
-                foreach (StockElement reusableElement in list)
-                {
-                    Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] { outerCount });
-                    dataTree.Insert(reusableElement, path, innerCount);
-                    innerCount++;
-                }
-                outerCount++;
-            }
-            return dataTree;
-        }
-
     }
 
 
-    internal abstract class Structure : ElementAssembly
+    internal abstract class Structure : ElementCollection
     {      
         // Variables
         public List<InPlaceElement> ElementsInStructure;
@@ -72,7 +52,7 @@ namespace MasterthesisGHA
         public Vector<double> GlobalLoadVector;
         public Vector<double> GlobalDisplacementVector;
 
-        public List<double> AxialElementLoad;
+        public List<double> N_out;
 
         public List<System.Drawing.Color> StructureColors;
         public List<Brep> StructureVisuals;
@@ -100,7 +80,7 @@ namespace MasterthesisGHA
             GlobalStiffnessMatrix = Matrix<double>.Build.Dense(dofs, dofs);
             GlobalLoadVector = Vector<double>.Build.Dense(dofs);
             GlobalDisplacementVector = Vector<double>.Build.Dense(dofs);
-            AxialElementLoad = new List<double>();
+            N_out = new List<double>();
 
             // Stiffness Matrix
             UpdateGlobalMatrix();
@@ -173,7 +153,7 @@ namespace MasterthesisGHA
         }
 
 
-        // Virtual Replace Elements In Pre-Determined Geometry
+        // Virtual Replace Elements
         public virtual void InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, int materialBankElementIndex)
         {
             throw new NotImplementedException();
@@ -182,15 +162,26 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
-        public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
+        public virtual void PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
-            throw new NotImplementedException();
+            List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
+            int elementCounter = 0;
+            foreach (InPlaceBarElement2D elementInStructure in ElementsInStructure)
+            {
+                List<StockElement> StockElementSuggestionList = new List<StockElement>();
+                for (int i = 0; i < materialBank.StockElementsInMaterialBank.Count; i++)
+                {
+                    StockElement stockElement = materialBank.StockElementsInMaterialBank[i];
+
+                    double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
+                    if (stockElement.CheckUtilization(N_out[elementCounter]) < 1
+                        && stockElement.GetStockElementLength() > lengthOfElement)
+                        StockElementSuggestionList.Add(stockElement);
+                }
+                reusablesSuggestionTree.Add(StockElementSuggestionList);
+                elementCounter++;
+            }
         }
-
-
-
-
-
 
 
     }
@@ -267,7 +258,7 @@ namespace MasterthesisGHA
                     L1 = FreeNodes[element.StartNodeIndex].DistanceTo(FreeNodes[element.EndNodeIndex]);
 
                 double N_element = (element.CrossSectionArea * element.YoungsModulus / L0) * (L1 - L0);
-                AxialElementLoad.Add(N_element);
+                N_out.Add(N_element);
             }
         }   
 
@@ -386,7 +377,7 @@ namespace MasterthesisGHA
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
-                sigma.Add(AxialElementLoad[i] / ElementsInStructure[i].CrossSectionArea);
+                sigma.Add(N_out[i] / ElementsInStructure[i].CrossSectionArea);
                 utilization.Add(sigma[i] / f_dim);
                 //N_out[i] = utilization[i];
 
@@ -435,7 +426,7 @@ namespace MasterthesisGHA
         }
 
 
-        // Replace Elements In Pre-Determined Geometry
+        // Replace Element
         public override void InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, int materialBankElementIndex)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
@@ -446,27 +437,7 @@ namespace MasterthesisGHA
 
 
         }
-        public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
-        {
-            List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
-            int elementCounter = 0;
-            foreach (InPlaceBarElement2D elementInStructure in ElementsInStructure)
-            {
-                List<StockElement> StockElementSuggestionList = new List<StockElement>();
-                for (int i = 0; i < materialBank.StockElementsInMaterialBank.Count; i++)
-                {
-                    StockElement stockElement = materialBank.StockElementsInMaterialBank[i];
-
-                    double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if (stockElement.CheckUtilization(AxialElementLoad[elementCounter]) < 1
-                        && stockElement.GetStockElementLength() > lengthOfElement)
-                        StockElementSuggestionList.Add(stockElement);
-                }
-                reusablesSuggestionTree.Add(StockElementSuggestionList);
-                elementCounter++;
-            }
-            return reusablesSuggestionTree;
-        }
+        
 
 
 
@@ -685,7 +656,7 @@ namespace MasterthesisGHA
 
 
 
-    internal class MaterialBank : ElementAssembly
+    internal class MaterialBank : ElementCollection
     {
         // Variables
         public List<StockElement> StockElementsInMaterialBank;
@@ -770,7 +741,7 @@ namespace MasterthesisGHA
                 Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.CrossSectionArea) / Math.PI);
                 Cylinder cylinder = new Cylinder(baseCircle, element.GetStockElementLength());
                 outList.Add(cylinder.ToBrep(true, true));
-                visualsColour.Add(ElementAssembly.memberFromReusableStockColors[group % ElementAssembly.memberFromReusableStockColors.Count]);
+                visualsColour.Add(ElementCollection.memberFromReusableStockColors[group % ElementCollection.memberFromReusableStockColors.Count]);
 
                 instance = instance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + instanceSpacing;
                 priorElement = element;

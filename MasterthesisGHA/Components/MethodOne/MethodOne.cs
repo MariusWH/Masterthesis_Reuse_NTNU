@@ -9,16 +9,20 @@ namespace MasterthesisGHA.Components.MethodOne
 
     public class MethodOne : GH_Component
     {
+
         public MethodOne()
           : base("MethodOne", "MethodOne",
               "Description",
               "Master", "MethodOne")
         {
         }
+
+
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
             pManager.AddTextParameter("NewElements", "NewElements", "NewElements", GH_ParamAccess.list, "ALL");
+
             pManager.AddLineParameter("GeometryLines", "GeometryLines", "GeometryLines", GH_ParamAccess.list, new Line());
             pManager.AddPointParameter("Supports", "Supports", "Supports", GH_ParamAccess.list, new Point3d());
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
@@ -26,12 +30,16 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddVectorParameter("Distribution Direction", "", "", GH_ParamAccess.item);
             pManager.AddLineParameter("LoadLines", "LoadLines", "LoadLines", GH_ParamAccess.list);
         }
+
+
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
             pManager.AddBrepParameter("Visuals", "Visuals", "Visuals", GH_ParamAccess.list);
-            pManager.AddColourParameter("Colour", "Colour", "Colour", GH_ParamAccess.list);            
+            pManager.AddColourParameter("Colour", "Colour", "Colour", GH_ParamAccess.list);
+            
+
             pManager.AddGenericParameter("ReplacementSuggestions", "", "", GH_ParamAccess.tree);
 
         }
@@ -73,16 +81,64 @@ namespace MasterthesisGHA.Components.MethodOne
             truss2D.GetResultVisuals();
             truss2D.GetLoadVisuals();
 
-            List<List<StockElement>> reusablesSuggestionTree = 
-                truss2D.PossibleStockElementForEachInPlaceElement(iMaterialBank);
 
+            
+
+            // Check possible reuse elements for each element in geometry
+
+
+            List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
+            int elementCounter = 0;
+            foreach( InPlaceBarElement2D elementInStructure in truss2D.ElementsInStructure )
+            {                
+                List<StockElement> StockElementSuggestionList = new List<StockElement>();
+                for( int i = 0; i < iMaterialBank.StockElementsInMaterialBank.Count; i++ )
+                {
+                    StockElement stockElement = iMaterialBank.StockElementsInMaterialBank[i];
+
+                    double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
+                    if ( stockElement.CheckUtilization(truss2D.N_out[elementCounter]) < 1 
+                        && stockElement.GetStockElementLength() > lengthOfElement )
+                        StockElementSuggestionList.Add(stockElement);
+                }
+                reusablesSuggestionTree.Add(StockElementSuggestionList);
+                elementCounter++;
+            }
+
+            Grasshopper.DataTree<StockElement> dataTree = new Grasshopper.DataTree<StockElement>();
+
+            int outerCount = 0;
+            foreach ( List<StockElement> list in reusablesSuggestionTree )
+            {
+                int innerCount = 0;
+                foreach (StockElement reusableElement in list)
+                {
+                    Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] {outerCount});
+                    dataTree.Insert(reusableElement, path, innerCount);
+                    innerCount++;
+                }
+                outerCount++;
+            }
                 
+                    
+            
+
+
+
+            
+
+
+
             // OUTPUTS
             DA.SetData("Info", truss2D.PrintInfo());
-            DA.SetDataList("N", truss2D.AxialElementLoad);
+            DA.SetDataList("N", truss2D.N_out);
             DA.SetDataList("Visuals", truss2D.StructureVisuals);
-            DA.SetDataList("Colour", truss2D.StructureColors);    
-            DA.SetDataTree(4, ElementAssembly.DataTreeConverter(reusablesSuggestionTree));
+            DA.SetDataList("Colour", truss2D.StructureColors);           
+            DA.SetDataTree(4, dataTree);
+
+
+            
+
         }
 
 
@@ -95,6 +151,8 @@ namespace MasterthesisGHA.Components.MethodOne
                 return null;
             }
         }
+
+
         public override Guid ComponentGuid
         {
             get { return new Guid("DAA23F40-0F0C-4E67-ADD5-2AE99E9AFC20"); }

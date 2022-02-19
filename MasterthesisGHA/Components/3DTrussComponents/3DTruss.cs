@@ -83,7 +83,7 @@ namespace MasterthesisGHA
             DA.SetData("K", truss3D.GetStiffnessMatrix());
             DA.SetData("r", truss3D.GetDisplacementVector());
             DA.SetData("R", truss3D.GetLoadVector());
-            DA.SetDataList("N", truss3D.AxialElementLoad);
+            DA.SetDataList("N", truss3D.N_out);
             DA.SetDataList("Nodes", truss3D.FreeNodes);
             DA.SetDataList("Geometry", truss3D.StructureVisuals);
             DA.SetDataList("Util", truss3D.StructureColors);

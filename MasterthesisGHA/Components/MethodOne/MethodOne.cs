@@ -16,8 +16,6 @@ namespace MasterthesisGHA.Components.MethodOne
               "Master", "MethodOne")
         {
         }
-
-
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
@@ -30,18 +28,18 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddVectorParameter("Distribution Direction", "", "", GH_ParamAccess.item);
             pManager.AddLineParameter("LoadLines", "LoadLines", "LoadLines", GH_ParamAccess.list);
         }
-
-
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
             pManager.AddBrepParameter("Visuals", "Visuals", "Visuals", GH_ParamAccess.list);
-            pManager.AddColourParameter("Colour", "Colour", "Colour", GH_ParamAccess.list);
-            
-
+            pManager.AddColourParameter("Colour", "Colour", "Colour", GH_ParamAccess.list);          
             pManager.AddGenericParameter("ReplacementSuggestions", "", "", GH_ParamAccess.tree);
 
+            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
+            pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
+            pManager.AddBrepParameter("StockVisuals", "StockVisuals", "StockVisuals", GH_ParamAccess.list);
+            pManager.AddColourParameter("StockColour", "StockColour", "StockColour", GH_ParamAccess.list);
         }
 
 
@@ -78,25 +76,29 @@ namespace MasterthesisGHA.Components.MethodOne
             truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss2D.Solve();
             truss2D.Retracking();
+
+            MaterialBank outMaterialBank = new MaterialBank() + iMaterialBank;
+            truss2D.InsertMaterialBank(ref outMaterialBank);
+            truss2D.Solve();
+            truss2D.Retracking();
             truss2D.GetResultVisuals();
             truss2D.GetLoadVisuals();
-
-            List<List<StockElement>> reusablesSuggestionTree = 
-                truss2D.PossibleStockElementForEachInPlaceElement(iMaterialBank);
-
-          
-
+            
 
 
             // OUTPUTS
-            DA.SetData("Info", truss2D.PrintInfo());
-            DA.SetDataList("N", truss2D.N_out);
+            DA.SetData("Info", truss2D.PrintStructureInfo());
+            DA.SetDataList("N", truss2D.ElementUtilization);
             DA.SetDataList("Visuals", truss2D.StructureVisuals);
             DA.SetDataList("Colour", truss2D.StructureColors);           
-            DA.SetDataTree(4, ElementCollection.GetOutputDataTree(reusablesSuggestionTree));
+            //DA.SetDataTree(4, ElementCollection.GetOutputDataTree(reusablesSuggestionTree));
 
+            List<System.Drawing.Color> colors;
+            DA.SetData(5, outMaterialBank);
+            DA.SetData(6, outMaterialBank.GetMaterialBankInfo());
+            DA.SetDataList(7, outMaterialBank.VisualizeMaterialBank(0, out colors));
+            DA.SetDataList(8, colors);
 
-            
 
         }
 
@@ -110,8 +112,6 @@ namespace MasterthesisGHA.Components.MethodOne
                 return null;
             }
         }
-
-
         public override Guid ComponentGuid
         {
             get { return new Guid("DAA23F40-0F0C-4E67-ADD5-2AE99E9AFC20"); }

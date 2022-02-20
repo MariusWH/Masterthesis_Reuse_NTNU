@@ -20,7 +20,7 @@ namespace MasterthesisGHA
         public double AreaMomentOfInertiaZZ;
         public double PolarMomentOfInertia;
         public double YoungsModulus;
-        protected double YieldStress;
+        public double YieldStress;
 
         // Static Variables
         protected static Dictionary<string, double> CrossSectionAreaDictionary;
@@ -136,11 +136,13 @@ namespace MasterthesisGHA
         }
 
         // Constructor (From Material Bank)
-        public InPlaceElement(ref MaterialBank materialBank, int materialBankItemIndex, Point3d startPoint, Point3d endPoint)
-            : base(materialBank.StockElementsInMaterialBank[materialBankItemIndex].ProfileName)
+        public InPlaceElement(StockElement stockElement, InPlaceElement inPlaceElement)
+            : base(stockElement.ProfileName)
         {
-            StartPoint = startPoint;
-            EndPoint = endPoint;
+            StartPoint = inPlaceElement.StartPoint;
+            EndPoint = inPlaceElement.EndPoint;
+            StartNodeIndex = inPlaceElement.StartNodeIndex;
+            EndNodeIndex = inPlaceElement.EndNodeIndex;
             IsFromMaterialBank = true;
 
             UpdateLocalStiffnessMatrix();
@@ -197,14 +199,27 @@ namespace MasterthesisGHA
         {
 
         }
-        public InPlaceBarElement3D(ref MaterialBank materialBank, int materialBankItemIndex, Point3d startPoint, Point3d endPoint)
-            : base(ref materialBank, materialBankItemIndex, startPoint, endPoint)
+        public InPlaceBarElement3D(StockElement stockElement, InPlaceElement inPlaceElement)
+            : base(stockElement, inPlaceElement)
         {
 
         }
 
 
         // Overriden Methods
+        public override string getElementInfo()
+        {
+            string info = "InPlaceBarElement3D{ ";
+            info += "{start=" + getStartPoint().ToString() + "}, ";
+            info += "{end=" + getEndPoint().ToString() + "}, ";
+            info += "{startIndex=" + getStartNodeIndex().ToString() + "}, ";
+            info += "{endIndex=" + getEndNodeIndex().ToString() + "}, ";
+            info += "{A=" + CrossSectionArea + "}, ";
+            info += "{E=" + YoungsModulus + "}";
+            info += " }";
+
+            return info;
+        }
         protected override void UpdateNodes(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, Point3d startPoint, Point3d endPoint)
         {
             if (!SupportNodes.Contains(startPoint))
@@ -286,14 +301,27 @@ namespace MasterthesisGHA
         {
 
         }
-        public InPlaceBarElement2D(ref MaterialBank materialBank, int materialBankItemIndex, Point3d startPoint, Point3d endPoint)
-            : base(ref materialBank, materialBankItemIndex, startPoint, endPoint)
+        public InPlaceBarElement2D(StockElement stockElement, InPlaceElement inPlaceElement)
+            : base(stockElement, inPlaceElement)
         {
 
         }
 
 
         // Overriden Methods
+        public override string getElementInfo()
+        {
+            string info = "InPlaceBarElement2D{ ";
+            info += "{start=" + getStartPoint().ToString() + "}, ";
+            info += "{end=" + getEndPoint().ToString() + "}, ";
+            info += "{startIndex=" + getStartNodeIndex().ToString() + "}, ";
+            info += "{endIndex=" + getEndNodeIndex().ToString() + "}, ";
+            info += "{A=" + CrossSectionArea + "}, ";
+            info += "{E=" + YoungsModulus + "}";
+            info += " }";
+
+            return info;
+        }
         protected override void UpdateLocalStiffnessMatrix()
         {
             double dz = getEndPoint().Z - getStartPoint().Z;

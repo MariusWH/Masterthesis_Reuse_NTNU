@@ -352,6 +352,7 @@ namespace MasterthesisGHA
     {
         // Variables (Not inherited)
         private double ReusableElementLength;
+        public bool IsInStructure;
 
 
 
@@ -360,6 +361,7 @@ namespace MasterthesisGHA
             : base(profileName)
         {
             ReusableElementLength = reusableElementLength;
+            IsInStructure = false;
         }
 
 

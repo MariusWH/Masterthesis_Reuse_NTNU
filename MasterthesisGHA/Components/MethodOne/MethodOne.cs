@@ -18,6 +18,8 @@ namespace MasterthesisGHA.Components.MethodOne
         }
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
+            pManager.AddBooleanParameter("InserMaterialBank", "Insert", "Insert", GH_ParamAccess.item);
+
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
             pManager.AddTextParameter("NewElements", "NewElements", "NewElements", GH_ParamAccess.list, "ALL");
 
@@ -47,6 +49,7 @@ namespace MasterthesisGHA.Components.MethodOne
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUTS
+            bool insert = false;
             MaterialBank iMaterialBank = new MaterialBank();
             List<string> iNewElementsCatalog = new List<string>();
             List<Line> iGeometryLines = new List<Line>();
@@ -56,14 +59,15 @@ namespace MasterthesisGHA.Components.MethodOne
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
 
-            DA.GetData(0, ref iMaterialBank);
-            DA.GetDataList(1, iNewElementsCatalog);
-            DA.GetDataList(2, iGeometryLines);
-            DA.GetDataList(3, iSupports);
-            DA.GetData(4, ref iLineLoadValue);
-            DA.GetData(5, ref iLineLoadDirection);
-            DA.GetData(6, ref iLineLoadDistribution);
-            DA.GetDataList(7, iLinesToLoad);
+            DA.GetData(0, ref insert);
+            DA.GetData(1, ref iMaterialBank);
+            DA.GetDataList(2, iNewElementsCatalog);
+            DA.GetDataList(3, iGeometryLines);
+            DA.GetDataList(4, iSupports);
+            DA.GetData(5, ref iLineLoadValue);
+            DA.GetData(6, ref iLineLoadDirection);
+            DA.GetData(7, ref iLineLoadDistribution);
+            DA.GetDataList(8, iLinesToLoad);
 
             
 
@@ -77,13 +81,28 @@ namespace MasterthesisGHA.Components.MethodOne
             truss2D.Solve();
             truss2D.Retracking();
 
-            MaterialBank outMaterialBank = new MaterialBank() + iMaterialBank;
-            truss2D.InsertMaterialBank(ref outMaterialBank);
+
+            MaterialBank inputMaterialBank = iMaterialBank.DeepCopy();
+            MaterialBank outMaterialBank;
+            
+            if (insert)
+                truss2D.InsertMaterialBank( inputMaterialBank, out outMaterialBank);
+            else
+            {
+                outMaterialBank = iMaterialBank.DeepCopy();
+                outMaterialBank.ResetMaterialBank();
+                outMaterialBank.UpdateVisuals();
+            }
+                
+
             truss2D.Solve();
             truss2D.Retracking();
             truss2D.GetResultVisuals();
             truss2D.GetLoadVisuals();
+
             
+            
+
 
 
             // OUTPUTS
@@ -93,11 +112,11 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetDataList("Colour", truss2D.StructureColors);           
             //DA.SetDataTree(4, ElementCollection.GetOutputDataTree(reusablesSuggestionTree));
 
-            List<System.Drawing.Color> colors;
+
             DA.SetData(5, outMaterialBank);
             DA.SetData(6, outMaterialBank.GetMaterialBankInfo());
-            DA.SetDataList(7, outMaterialBank.VisualizeMaterialBank(0, out colors));
-            DA.SetDataList(8, colors);
+            DA.SetDataList(7, outMaterialBank.MaterialBankVisuals);
+            DA.SetDataList(8, outMaterialBank.MaterialBankColors);
 
 
         }

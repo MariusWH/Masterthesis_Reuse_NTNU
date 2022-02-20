@@ -18,7 +18,8 @@ namespace MasterthesisGHA
         protected static System.Drawing.Color underUtilizedMemberColor;
         
         public static System.Drawing.Color memberFromReusableStockColor;
-        public static List<System.Drawing.Color> memberFromReusableStockColors;
+        public static System.Drawing.Color insertedMaterialBankColor;
+        public static List<System.Drawing.Color> materialBankColors;
 
 
         // Static Constructor
@@ -31,7 +32,8 @@ namespace MasterthesisGHA
             underUtilizedMemberColor = System.Drawing.Color.Green;
             
             memberFromReusableStockColor = System.Drawing.Color.Blue;
-            memberFromReusableStockColors = new List<System.Drawing.Color> 
+            insertedMaterialBankColor = System.Drawing.Color.Black;
+            materialBankColors = new List<System.Drawing.Color> 
             {   
                 System.Drawing.Color.LightBlue, 
                 System.Drawing.Color.LightGreen,
@@ -202,7 +204,7 @@ namespace MasterthesisGHA
 
 
         // Method One
-        public virtual void InsertMaterialBank(ref MaterialBank materialBank)
+        public virtual void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             throw new NotImplementedException();
         }
@@ -495,8 +497,10 @@ namespace MasterthesisGHA
 
 
         // Method One
-        public override void InsertMaterialBank(ref MaterialBank materialBank)
+        public override void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
+            materialBank.ResetMaterialBank();
+            
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
 
             List<StockElement> tempStockElementList = new List<StockElement>();
@@ -508,11 +512,11 @@ namespace MasterthesisGHA
                 int index = tempStockElementList.Count;
                 while (index-- != 0)
                     if (InsertStockElementIntoStructure(i, ref materialBank, tempStockElementList[index]))
-                        break;
-                
-                //mostUtilized = tempStockElementList.Last();
+                        break;                
 
             }
+            materialBank.UpdateVisuals();
+            remainingMaterialBank = materialBank.DeepCopy();
 
         }
 
@@ -747,6 +751,7 @@ namespace MasterthesisGHA
                 InPlaceElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
+                
                 return true;
             }
         
@@ -789,7 +794,10 @@ namespace MasterthesisGHA
     {
         // Variables
         public List<StockElement> StockElementsInMaterialBank;
+        public List<StockElement> StockElementsInStructure;
 
+        public List<System.Drawing.Color> MaterialBankColors;
+        public List<Brep> MaterialBankVisuals;
 
 
         // Constructors
@@ -797,6 +805,10 @@ namespace MasterthesisGHA
             : base()
         {
             StockElementsInMaterialBank = new List<StockElement>();
+            StockElementsInStructure = new List<StockElement>();
+            
+            MaterialBankColors = new List<System.Drawing.Color>();
+            MaterialBankVisuals = new List<Brep>();
         }
         public MaterialBank(List<StockElement> stockElements)
             :this()
@@ -828,6 +840,7 @@ namespace MasterthesisGHA
                 for (int i = 0; i < commandQuantities; i++)
                     this.InsertStockElementIntoMaterialBank(new StockElement(commandProfiles, commandLengths));
             }
+
         }
 
 
@@ -836,11 +849,33 @@ namespace MasterthesisGHA
         public static MaterialBank operator +(MaterialBank materialBankA, MaterialBank materialBankB)
         {
             MaterialBank returnMateralBank = new MaterialBank();
+
             returnMateralBank.StockElementsInMaterialBank.AddRange(materialBankA.StockElementsInMaterialBank);
             returnMateralBank.StockElementsInMaterialBank.AddRange(materialBankB.StockElementsInMaterialBank);
+
+            returnMateralBank.StockElementsInStructure.AddRange(materialBankA.StockElementsInStructure);
+            returnMateralBank.StockElementsInStructure.AddRange(materialBankB.StockElementsInStructure);
+
+            returnMateralBank.MaterialBankColors.AddRange(materialBankA.MaterialBankColors);
+            returnMateralBank.MaterialBankColors.AddRange(materialBankB.MaterialBankColors);
+
+            returnMateralBank.MaterialBankVisuals.AddRange(materialBankA.MaterialBankVisuals);
+            returnMateralBank.MaterialBankVisuals.AddRange(materialBankB.MaterialBankVisuals);
+
             return returnMateralBank;
         }
-            
+
+        // Deep Copy
+        public MaterialBank DeepCopy()
+        {
+            MaterialBank returnMateralBank = new MaterialBank();
+            returnMateralBank.StockElementsInMaterialBank.AddRange(StockElementsInMaterialBank);
+            returnMateralBank.StockElementsInStructure.AddRange(StockElementsInStructure);
+            returnMateralBank.MaterialBankColors.AddRange(MaterialBankColors);
+            returnMateralBank.MaterialBankVisuals.AddRange(MaterialBankVisuals);
+            return returnMateralBank;
+        }
+
 
 
 
@@ -857,32 +892,35 @@ namespace MasterthesisGHA
 
             return info;
         }     
-        public List<Brep> VisualizeMaterialBank(int groupingMethod, out List<System.Drawing.Color> visualsColour)
+        public List<Brep> UpdateVisuals(int groupingMethod =  0)
         {
             if (groupingMethod < 0 || groupingMethod > 1)
                 throw new Exception("Grouping Methods are: \n0 - By Length \n1 - By Area");
+            else if (StockElementsInMaterialBank.Count == 0)
+                return new List<Brep>();
 
-            List<Brep> outList = new List<Brep>();
-            visualsColour = new List<System.Drawing.Color>();
+            List<Brep> visuals = new List<Brep>();
+            List<System.Drawing.Color> colors = new List<System.Drawing.Color>();
+            
             int group = 0;
             double groupSpacing = 0;
-            double instance = 0;
+            double unusedInstance = 0;
+            double usedInstance = 0;
             double instanceSpacing = 100;
-            double startSpacing = 1000;
+            double startSpacing = 100;
 
-            List<StockElement> sortedMaterialBank = new List<StockElement>();
             if (groupingMethod == 0)
             {
-                sortedMaterialBank = getLengthSortedMaterialBank();
+                sortMaterialBankByLength();
             }
             else if (groupingMethod == 1)
             {
-                sortedMaterialBank = getAreaSortedMaterialBank();
+                sortMaterialBankByArea();
             }
 
 
-            StockElement priorElement = sortedMaterialBank[0];
-            foreach (StockElement element in sortedMaterialBank)
+            StockElement priorElement = StockElementsInMaterialBank[0];
+            foreach (StockElement element in StockElementsInMaterialBank)
             {
                 if (groupingMethod == 0)
                 {
@@ -890,7 +928,8 @@ namespace MasterthesisGHA
                     {
                         group++;
                         groupSpacing += (Math.Sqrt(element.CrossSectionArea) + Math.Sqrt(element.CrossSectionArea)) / Math.PI + instanceSpacing;
-                        instance = 0;
+                        unusedInstance = 0;
+                        usedInstance = 0;
                     }    
                 }
                 else if (groupingMethod == 1)
@@ -899,28 +938,62 @@ namespace MasterthesisGHA
                     {
                         group++;
                         groupSpacing += (Math.Sqrt(element.CrossSectionArea) + Math.Sqrt(element.CrossSectionArea)) / Math.PI + instanceSpacing;
-                        instance = 0;
+                        unusedInstance = 0;
+                        usedInstance = 0;
                     }
                         
                 }
 
-                Plane basePlane = new Plane(new Point3d(-instance-startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1));
+
+                Plane basePlane = new Plane();
+                colors.Add(ElementCollection.materialBankColors[group % ElementCollection.materialBankColors.Count]);
+
+                if ( element.IsInStructure)
+                {
+                    //colors.Add(ElementCollection.insertedMaterialBankColor);
+                    basePlane = new Plane(new Point3d(usedInstance + startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1));
+                    usedInstance = usedInstance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + instanceSpacing;
+                    colors[colors.Count - 1] = System.Drawing.Color.FromArgb(50, colors[colors.Count - 1]);
+                }
+                else
+                {
+                    //colors.Add(ElementCollection.materialBankColors[group % ElementCollection.materialBankColors.Count]);
+                    basePlane = new Plane(new Point3d(-unusedInstance - startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1));
+                    unusedInstance = unusedInstance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + instanceSpacing;                   
+                }
+
                 Circle baseCircle = new Circle(basePlane, Math.Sqrt(element.CrossSectionArea) / Math.PI);
                 Cylinder cylinder = new Cylinder(baseCircle, element.GetStockElementLength());
-                outList.Add(cylinder.ToBrep(true, true));
-                visualsColour.Add(ElementCollection.memberFromReusableStockColors[group % ElementCollection.memberFromReusableStockColors.Count]);
+                visuals.Add(cylinder.ToBrep(true, true));
+                
 
-                instance = instance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + instanceSpacing;
                 priorElement = element;
                 
             }
 
-            return outList;
+
+
+
+            MaterialBankVisuals = visuals;
+            MaterialBankColors = colors;
+
+            return visuals;
         }
 
 
 
         // Sorting Methods
+        public void sortMaterialBankByLength()
+        {
+            StockElementsInMaterialBank = getLengthSortedMaterialBank();
+        }
+        public void sortMaterialBankByArea()
+        {
+            StockElementsInMaterialBank = getAreaSortedMaterialBank();
+        }
+
+
+
         public List<StockElement> getLengthSortedMaterialBank()
         {
             return StockElementsInMaterialBank.OrderBy(o => o.GetStockElementLength()).ToList(); ;
@@ -934,26 +1007,70 @@ namespace MasterthesisGHA
             if (axialForce == 0)
                 return StockElementsInMaterialBank.OrderBy(o => -o.CrossSectionArea).ToList();
             else
-                return StockElementsInMaterialBank.OrderBy(o => Math.Abs( o.CheckUtilization(axialForce) )).ToList(); ;
+                return StockElementsInMaterialBank.OrderBy(o => Math.Abs( o.CheckUtilization(axialForce) )).ToList();
+        }
+
+        public List<StockElement> getLengthSortedMaterialBank(List<StockElement> stockElements)
+        {
+            return stockElements.OrderBy(o => o.GetStockElementLength()).ToList(); ;
+        }
+        public List<StockElement> getAreaSortedMaterialBank(List<StockElement> stockElements)
+        {
+            return stockElements.OrderBy(o => o.CrossSectionArea).ToList();
+        }
+        public List<StockElement> getUtilizationSortedMaterialBank(List<StockElement> stockElements, double axialForce)
+        {
+            if (axialForce == 0)
+                return stockElements.OrderBy(o => -o.CrossSectionArea).ToList();
+            else
+                return stockElements.OrderBy(o => Math.Abs(o.CheckUtilization(axialForce))).ToList();
         }
 
 
 
 
         // Replace Methods
+        public void ResetMaterialBank()
+        {
+            foreach (StockElement stockElement in StockElementsInMaterialBank)
+                stockElement.IsInStructure = false;
+        }
         private void InsertStockElementIntoMaterialBank(StockElement stockElement)
         {
             StockElementsInMaterialBank.Add(stockElement);
         }
         public bool RemoveStockElementFromMaterialBank(StockElement stockElement)
         {
-            int index = StockElementsInMaterialBank.IndexOf(stockElement);
+            //int index = StockElementsInMaterialBank.IndexOf(stockElement);
+            int index = StockElementsInMaterialBank.FindIndex(o => stockElement == o && !o.IsInStructure);
             if ( index == -1 )
                 return false;
             else
             {
-                StockElementsInMaterialBank.RemoveAt(
-                    StockElementsInMaterialBank.FindIndex(o => stockElement.getElementInfo() == o.getElementInfo()));
+                /*
+                Brep insertItem = MaterialBankVisuals[index];
+
+                MaterialBankVisuals.RemoveAt(index);
+                MaterialBankColors.RemoveAt(index);
+                MaterialBankVisuals.Add(insertItem);
+                MaterialBankColors.Add(insertedMaterialBankColor);
+                */
+
+                //int sortedIndex = StockElementsInMaterialBank.FindIndex(o => stockElement.getElementInfo() == o.getElementInfo());
+
+
+                //StockElementsInStructure.Add(stockElement);               
+                //StockElementsInMaterialBank.RemoveAt(index);
+
+                StockElementsInMaterialBank[index].IsInStructure = true;
+
+                
+                    
+                    
+                    //StockElementsInMaterialBank.FindIndex(o => stockElement.getElementInfo() == o.getElementInfo()));
+
+                
+                
                 return true;
             }
 

@@ -54,13 +54,13 @@ namespace MasterthesisGHA
             MaterialBank materialBankB = new MaterialBank(inputCommands);
             MaterialBank materialBank = materialBankA + materialBankB;
 
+            materialBank.UpdateVisuals(0);
 
             // OUTPUTS
-            List<System.Drawing.Color> colors;
             DA.SetData(0, materialBank);
             DA.SetData(1, materialBank.GetMaterialBankInfo());
-            DA.SetDataList(2, materialBank.VisualizeMaterialBank(0, out colors));
-            DA.SetDataList(3, colors);
+            DA.SetDataList(2, materialBank.MaterialBankVisuals);
+            DA.SetDataList(3, materialBank.MaterialBankColors);
 
         }
 

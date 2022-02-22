@@ -35,6 +35,7 @@ namespace MasterthesisGHA
             insertedMaterialBankColor = System.Drawing.Color.Black;
             materialBankColors = new List<System.Drawing.Color> 
             {   
+                /*
                 System.Drawing.Color.LightBlue, 
                 System.Drawing.Color.LightGreen,
                 System.Drawing.Color.LightSalmon,
@@ -43,6 +44,14 @@ namespace MasterthesisGHA
                 System.Drawing.Color.LightSeaGreen,
                 System.Drawing.Color.LightPink,
                 System.Drawing.Color.LightGoldenrodYellow,
+                */
+                System.Drawing.Color.Aqua,
+                System.Drawing.Color.Green,
+                System.Drawing.Color.Salmon,
+                System.Drawing.Color.Yellow,
+                System.Drawing.Color.SkyBlue,
+                System.Drawing.Color.SeaGreen,
+                System.Drawing.Color.Pink
             };
         }
 
@@ -142,7 +151,29 @@ namespace MasterthesisGHA
                 r_out[i, 0] = GlobalDisplacementVector[i];
             return r_out;
         }
-
+        public double GetNewMass()
+        {
+            double mass = 0;
+            foreach (InPlaceElement element in ElementsInStructure)
+                if (!element.IsFromMaterialBank)
+                    mass += element.getMass();
+            return mass;
+        }
+        public double GetReusedMass()
+        {
+            double mass = 0;
+            foreach (InPlaceElement element in ElementsInStructure)
+                if (element.IsFromMaterialBank)
+                    mass += element.getMass();
+            return mass;
+        }
+        public double GetTotalMass()
+        {
+            double mass = 0;
+            foreach (InPlaceElement element in ElementsInStructure)
+                mass += element.getMass();
+            return mass;
+        }
 
         // Virtual Methods
         protected virtual void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
@@ -286,10 +317,19 @@ namespace MasterthesisGHA
                 ElementAxialForce.Add((element.CrossSectionArea * element.YoungsModulus) * (L1 - L0)/L0);
                 ElementUtilization.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
             }
-        }   
+        }
 
 
         // Overriden Methods
+        public override string PrintStructureInfo()
+        {
+            string info = "3D Truss Structure:\n";
+            foreach (InPlaceBarElement3D inPlaceBarElement3D in ElementsInStructure)
+            {
+                info += "\n" + inPlaceBarElement3D.getElementInfo();
+            }
+            return info;
+        }
         protected override int GetDofsPerNode()
         {
             return 3;
@@ -452,25 +492,48 @@ namespace MasterthesisGHA
 
 
         }
-        public override string PrintStructureInfo()
-        {
-            string info = "3D Truss Structure:\n";
-            foreach (InPlaceBarElement3D inPlaceBarElement3D in ElementsInStructure)
-            {
-                info += "\n" + inPlaceBarElement3D.getElementInfo();
-            }
-            return info;
-        }
+        
 
 
         // Replace Element
+        public override void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        {
+            materialBank.ResetMaterialBank();
+
+            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
+
+            List<StockElement> tempStockElementList = new List<StockElement>();
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                tempStockElementList = new MaterialBank(possibleStockElements[i])
+                    .getUtilizationSortedMaterialBank(ElementAxialForce[i]);
+
+                int index = tempStockElementList.Count;
+                while (index-- != 0)
+                    if (InsertStockElementIntoStructure(i, ref materialBank, tempStockElementList[index]))
+                        break;
+
+            }
+            materialBank.UpdateVisuals();
+            remainingMaterialBank = materialBank.DeepCopy();
+
+        }
         public override bool InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
         {
-            throw new NotImplementedException();
-        }
-        public override void RemoveStockElementFromStructure()
-        {
-            throw new NotImplementedException();
+            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            {
+                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+            }
+            else if (materialBank.RemoveStockElementFromMaterialBank(stockElement))
+            {
+                InPlaceElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
+                ElementsInStructure.RemoveAt(inPlaceElementIndex);
+                ElementsInStructure.Insert(inPlaceElementIndex, temp);
+
+                return true;
+            }
+
+            return false;
         }
         public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
@@ -493,33 +556,7 @@ namespace MasterthesisGHA
             }
             return reusablesSuggestionTree;
         }
-
-
-
-        // Method One
-        public override void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
-        {
-            materialBank.ResetMaterialBank();
-            
-            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
-
-            List<StockElement> tempStockElementList = new List<StockElement>();
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                tempStockElementList = new MaterialBank(possibleStockElements[i])
-                    .getUtilizationSortedMaterialBank(ElementAxialForce[i]);
-
-                int index = tempStockElementList.Count;
-                while (index-- != 0)
-                    if (InsertStockElementIntoStructure(i, ref materialBank, tempStockElementList[index]))
-                        break;                
-
-            }
-            materialBank.UpdateVisuals();
-            remainingMaterialBank = materialBank.DeepCopy();
-
-        }
-
+        
 
 
         // Unused Methods
@@ -546,10 +583,18 @@ namespace MasterthesisGHA
         {
 
         }
-        
-        
+
 
         // Overriden Methods
+        public override string PrintStructureInfo()
+        {
+            string info = "2D Truss Structure:\n";
+            foreach (InPlaceBarElement2D inPlaceBarElement2D in ElementsInStructure)
+            {
+                info += "\n" + inPlaceBarElement2D.getElementInfo();
+            }
+            return info;
+        }
         protected override int GetDofsPerNode()
         {
             return 2;
@@ -684,107 +729,7 @@ namespace MasterthesisGHA
             else if (A.Count != lines.Count)
                 throw new Exception("A is wrong size! Input list with same length as Lines or constant value!");
         }
-        public void Assemble()
-        {
-            foreach (InPlaceElement element in ElementsInStructure)
-            {
-                double dz = element.getEndPoint().Z - element.getStartPoint().Z;
-                double dx = element.getEndPoint().X - element.getStartPoint().X;
-                double rad = Math.Atan2(dz, dx);
-                double EAL = (element.CrossSectionArea * element.YoungsModulus / element.getStartPoint().DistanceTo(element.getEndPoint()));
-                double cc = Math.Cos(rad) * Math.Cos(rad) * EAL;
-                double ss = Math.Sin(rad) * Math.Sin(rad) * EAL;
-                double sc = Math.Sin(rad) * Math.Cos(rad) * EAL;
-
-                int startIndex = element.getStartNodeIndex();
-                int endIndex = element.getEndNodeIndex();
-
-                if (startIndex != -1)
-                {
-                    GlobalStiffnessMatrix[2 * startIndex, 2 * startIndex] += cc;
-                    GlobalStiffnessMatrix[2 * startIndex + 1, 2 * startIndex + 1] += ss;
-                    GlobalStiffnessMatrix[2 * startIndex + 1, 2 * startIndex] += sc;
-                    GlobalStiffnessMatrix[2 * startIndex, 2 * startIndex + 1] += sc;
-                }
-                if (endIndex != -1)
-                {
-                    GlobalStiffnessMatrix[2 * endIndex, 2 * endIndex] += cc;
-                    GlobalStiffnessMatrix[2 * endIndex + 1, 2 * endIndex + 1] += ss;
-                    GlobalStiffnessMatrix[2 * endIndex + 1, 2 * endIndex] += sc;
-                    GlobalStiffnessMatrix[2 * endIndex, 2 * endIndex + 1] += sc;
-                }
-                if (startIndex != -1 && endIndex != -1)
-                {
-                    GlobalStiffnessMatrix[2 * startIndex, 2 * endIndex] += -cc;
-                    GlobalStiffnessMatrix[2 * startIndex + 1, 2 * endIndex + 1] += -ss;
-                    GlobalStiffnessMatrix[2 * startIndex + 1, 2 * endIndex] += -sc;
-                    GlobalStiffnessMatrix[2 * startIndex, 2 * endIndex + 1] += -sc;
-
-                    GlobalStiffnessMatrix[2 * endIndex, 2 * startIndex] += -cc;
-                    GlobalStiffnessMatrix[2 * endIndex + 1, 2 * startIndex + 1] += -ss;
-                    GlobalStiffnessMatrix[2 * endIndex + 1, 2 * startIndex] += -sc;
-                    GlobalStiffnessMatrix[2 * endIndex, 2 * startIndex + 1] += -sc;
-                }
-            }
-        }      
-        public override string PrintStructureInfo()
-        {
-            string info = "2D Truss Structure:\n";
-            foreach (InPlaceBarElement2D inPlaceBarElement2D in ElementsInStructure)
-            {
-                info += "\n" + inPlaceBarElement2D.getElementInfo();
-            }
-            return info;
-        }
-
-
-
-        // Replace Element Overriden
-        public override bool InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
-        {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
-            {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
-            }        
-            else if ( materialBank.RemoveStockElementFromMaterialBank(stockElement) )
-            {
-                InPlaceElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
-                ElementsInStructure.RemoveAt(inPlaceElementIndex);
-                ElementsInStructure.Insert(inPlaceElementIndex, temp);
-                
-                return true;
-            }
-        
-            return false;
-        }
-        public override void RemoveStockElementFromStructure()
-        {
-            throw new NotImplementedException();
-        }
-        public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
-        {
-            List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
-            int elementCounter = 0;
-            foreach (InPlaceBarElement2D elementInStructure in ElementsInStructure)
-            {
-                List<StockElement> StockElementSuggestionList = new List<StockElement>();
-                for (int i = 0; i < materialBank.StockElementsInMaterialBank.Count; i++)
-                {
-                    StockElement stockElement = materialBank.StockElementsInMaterialBank[i];
-
-                    double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if (stockElement.CheckUtilization(ElementAxialForce[elementCounter]) < 1
-                        && stockElement.GetStockElementLength() > lengthOfElement)
-                        StockElementSuggestionList.Add(stockElement);
-                }
-                reusablesSuggestionTree.Add(StockElementSuggestionList);
-                elementCounter++;
-            }
-            return reusablesSuggestionTree;
-        }
-
-
-
+       
 
     }
 
@@ -794,8 +739,6 @@ namespace MasterthesisGHA
     {
         // Variables
         public List<StockElement> StockElementsInMaterialBank;
-        public List<StockElement> StockElementsInStructure;
-
         public List<System.Drawing.Color> MaterialBankColors;
         public List<Brep> MaterialBankVisuals;
 
@@ -805,8 +748,6 @@ namespace MasterthesisGHA
             : base()
         {
             StockElementsInMaterialBank = new List<StockElement>();
-            StockElementsInStructure = new List<StockElement>();
-            
             MaterialBankColors = new List<System.Drawing.Color>();
             MaterialBankVisuals = new List<Brep>();
         }
@@ -849,28 +790,22 @@ namespace MasterthesisGHA
         public static MaterialBank operator +(MaterialBank materialBankA, MaterialBank materialBankB)
         {
             MaterialBank returnMateralBank = new MaterialBank();
-
             returnMateralBank.StockElementsInMaterialBank.AddRange(materialBankA.StockElementsInMaterialBank);
             returnMateralBank.StockElementsInMaterialBank.AddRange(materialBankB.StockElementsInMaterialBank);
-
-            returnMateralBank.StockElementsInStructure.AddRange(materialBankA.StockElementsInStructure);
-            returnMateralBank.StockElementsInStructure.AddRange(materialBankB.StockElementsInStructure);
-
             returnMateralBank.MaterialBankColors.AddRange(materialBankA.MaterialBankColors);
             returnMateralBank.MaterialBankColors.AddRange(materialBankB.MaterialBankColors);
-
             returnMateralBank.MaterialBankVisuals.AddRange(materialBankA.MaterialBankVisuals);
             returnMateralBank.MaterialBankVisuals.AddRange(materialBankB.MaterialBankVisuals);
 
             return returnMateralBank;
         }
 
+        
         // Deep Copy
         public MaterialBank DeepCopy()
         {
             MaterialBank returnMateralBank = new MaterialBank();
             returnMateralBank.StockElementsInMaterialBank.AddRange(StockElementsInMaterialBank);
-            returnMateralBank.StockElementsInStructure.AddRange(StockElementsInStructure);
             returnMateralBank.MaterialBankColors.AddRange(MaterialBankColors);
             returnMateralBank.MaterialBankVisuals.AddRange(MaterialBankVisuals);
             return returnMateralBank;
@@ -883,12 +818,8 @@ namespace MasterthesisGHA
         public string GetMaterialBankInfo()
         {
             string info = "Material Bank:\n";
-
             foreach ( StockElement stockElement in StockElementsInMaterialBank )
-            {
                 info += "\n" + stockElement.getElementInfo();
-            }
-
 
             return info;
         }     
@@ -927,7 +858,7 @@ namespace MasterthesisGHA
                     if (priorElement.GetStockElementLength() != element.GetStockElementLength())
                     {
                         group++;
-                        groupSpacing += (Math.Sqrt(element.CrossSectionArea) + Math.Sqrt(element.CrossSectionArea)) / Math.PI + instanceSpacing;
+                        groupSpacing += (Math.Sqrt(element.CrossSectionArea) + Math.Sqrt(element.CrossSectionArea)) / Math.PI + 2*instanceSpacing;
                         unusedInstance = 0;
                         usedInstance = 0;
                     }    
@@ -937,7 +868,7 @@ namespace MasterthesisGHA
                     if (priorElement.CrossSectionArea != element.CrossSectionArea)
                     {
                         group++;
-                        groupSpacing += (Math.Sqrt(element.CrossSectionArea) + Math.Sqrt(element.CrossSectionArea)) / Math.PI + instanceSpacing;
+                        groupSpacing += (Math.Sqrt(element.CrossSectionArea) + Math.Sqrt(element.CrossSectionArea)) / Math.PI + 2*instanceSpacing;
                         unusedInstance = 0;
                         usedInstance = 0;
                     }
@@ -950,14 +881,12 @@ namespace MasterthesisGHA
 
                 if ( element.IsInStructure)
                 {
-                    //colors.Add(ElementCollection.insertedMaterialBankColor);
                     basePlane = new Plane(new Point3d(usedInstance + startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1));
                     usedInstance = usedInstance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + instanceSpacing;
                     colors[colors.Count - 1] = System.Drawing.Color.FromArgb(50, colors[colors.Count - 1]);
                 }
                 else
                 {
-                    //colors.Add(ElementCollection.materialBankColors[group % ElementCollection.materialBankColors.Count]);
                     basePlane = new Plane(new Point3d(-unusedInstance - startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1));
                     unusedInstance = unusedInstance + 2 * Math.Sqrt(element.CrossSectionArea) / Math.PI + instanceSpacing;                   
                 }

@@ -4,51 +4,53 @@ using System.Collections.Generic;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 
-namespace MasterthesisGHA.Components.MethodOne
-{ 
-
-    public class MethodOne : GH_Component
+namespace MasterthesisGHA.Components.ParametricOptimization
+{
+    public class ParametricOptimization : GH_Component
     {
-
-        public MethodOne()
-          : base("MethodOne", "MethodOne",
+        /// <summary>
+        /// Initializes a new instance of the MyComponent1 class.
+        /// </summary>
+        public ParametricOptimization()
+          : base("ParametricOptimization", "ParametricOptimization",
               "Description",
-              "Master", "MethodOne")
+              "Master", "MethodTwo")
         {
         }
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddBooleanParameter("InserMaterialBank", "Insert", "Insert", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("2D/3D", "2D/3D", "2D (false) /3D (true)", GH_ParamAccess.item, false);
+            pManager.AddBooleanParameter("InserMaterialBank", "Insert", "Insert Material Bank (true)", GH_ParamAccess.item, false);
 
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
             pManager.AddTextParameter("NewElements", "NewElements", "NewElements", GH_ParamAccess.list, "ALL");
 
-            pManager.AddLineParameter("GeometryLines", "GeometryLines", "GeometryLines", GH_ParamAccess.list, new Line());
-            pManager.AddPointParameter("Supports", "Supports", "Supports", GH_ParamAccess.list, new Point3d());
+            pManager.AddLineParameter("Structure Lines", "GeometryLines", "GeometryLines", GH_ParamAccess.list, new Line());
+            pManager.AddPointParameter("Structure Supports", "Supports", "Supports", GH_ParamAccess.list, new Point3d());
+
+            pManager.AddLineParameter("Load Lines", "LoadLines", "LoadLines", GH_ParamAccess.list);
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
-            pManager.AddVectorParameter("Distribution Direction", "", "", GH_ParamAccess.item);
-            pManager.AddLineParameter("LoadLines", "LoadLines", "LoadLines", GH_ParamAccess.list);
+            pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
-            pManager.AddNumberParameter("N", "N", "N", GH_ParamAccess.list);
-            pManager.AddBrepParameter("Visuals", "Visuals", "Visuals", GH_ParamAccess.list);
-            pManager.AddColourParameter("Colour", "Colour", "Colour", GH_ParamAccess.list);          
-            pManager.AddGenericParameter("ReplacementSuggestions", "", "", GH_ParamAccess.tree);
-
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
-            pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
+
+            pManager.AddBrepParameter("Visuals", "Visuals", "Visuals", GH_ParamAccess.list);
+            pManager.AddColourParameter("Colour", "Colour", "Colour", GH_ParamAccess.list);
+
+            pManager.AddTextParameter("MaterialBankInfo", "Info", "Info", GH_ParamAccess.item);
             pManager.AddBrepParameter("StockVisuals", "StockVisuals", "StockVisuals", GH_ParamAccess.list);
             pManager.AddColourParameter("StockColour", "StockColour", "StockColour", GH_ParamAccess.list);
         }
-
 
         /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUTS
+            bool is3D = false;
             bool insert = false;
             MaterialBank iMaterialBank = new MaterialBank();
             List<string> iNewElementsCatalog = new List<string>();
@@ -59,65 +61,65 @@ namespace MasterthesisGHA.Components.MethodOne
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
 
-            DA.GetData(0, ref insert);
-            DA.GetData(1, ref iMaterialBank);
-            DA.GetDataList(2, iNewElementsCatalog);
-            DA.GetDataList(3, iGeometryLines);
-            DA.GetDataList(4, iSupports);
-            DA.GetData(5, ref iLineLoadValue);
-            DA.GetData(6, ref iLineLoadDirection);
-            DA.GetData(7, ref iLineLoadDistribution);
-            DA.GetDataList(8, iLinesToLoad);
+            DA.GetData(0, ref is3D);
+            DA.GetData(1, ref insert);
+            DA.GetData(2, ref iMaterialBank);
+            DA.GetDataList(3, iNewElementsCatalog);
+            DA.GetDataList(4, iGeometryLines);
+            DA.GetDataList(5, iSupports);
+            DA.GetDataList(6, iLinesToLoad);
+            DA.GetData(7, ref iLineLoadValue);
+            DA.GetData(8, ref iLineLoadDirection);
+            DA.GetData(9, ref iLineLoadDistribution);
 
-            
+
+
 
             // CODE
             List<string> initialProfiles = new List<string>();
             foreach (Line line in iGeometryLines)
                 initialProfiles.Add("IPE100");
 
-            TrussModel2D truss2D = new TrussModel2D(iGeometryLines, initialProfiles, iSupports);
-            truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
-            truss2D.Solve();
-            truss2D.Retracking();
-
-
+            TrussModel3D truss;
             MaterialBank inputMaterialBank = iMaterialBank.DeepCopy();
             MaterialBank outMaterialBank;
-            
+
+            if (!is3D)
+                truss = new TrussModel2D(iGeometryLines, initialProfiles, iSupports);
+            else
+                truss = new TrussModel3D(iGeometryLines, initialProfiles, iSupports);
+
+            truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
+            truss.Solve();
+            truss.Retracking();
+
             if (insert)
-                truss2D.InsertMaterialBank( inputMaterialBank, out outMaterialBank);
+                truss.InsertMaterialBank(inputMaterialBank, out outMaterialBank);
             else
             {
                 outMaterialBank = iMaterialBank.DeepCopy();
                 outMaterialBank.ResetMaterialBank();
                 outMaterialBank.UpdateVisuals();
             }
-                
 
-            truss2D.Solve();
-            truss2D.Retracking();
-            truss2D.GetResultVisuals();
-            truss2D.GetLoadVisuals();
 
-            
-            
+            truss.Solve();
+            truss.Retracking();
+            truss.GetResultVisuals();
+            truss.GetLoadVisuals();
+
+
 
 
 
             // OUTPUTS
-            DA.SetData("Info", truss2D.PrintStructureInfo());
-            DA.SetDataList("N", truss2D.ElementUtilization);
-            DA.SetDataList("Visuals", truss2D.StructureVisuals);
-            DA.SetDataList("Colour", truss2D.StructureColors);           
-            //DA.SetDataTree(4, ElementCollection.GetOutputDataTree(reusablesSuggestionTree));
-
+            DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo());
+            DA.SetDataList("Visuals", truss.StructureVisuals);
+            DA.SetDataList("Colour", truss.StructureColors);
 
             DA.SetData(5, outMaterialBank);
-            DA.SetData(6, outMaterialBank.GetMaterialBankInfo());
             DA.SetDataList(7, outMaterialBank.MaterialBankVisuals);
             DA.SetDataList(8, outMaterialBank.MaterialBankColors);
-
 
         }
 
@@ -131,9 +133,10 @@ namespace MasterthesisGHA.Components.MethodOne
                 return null;
             }
         }
+
         public override Guid ComponentGuid
         {
-            get { return new Guid("DAA23F40-0F0C-4E67-ADD5-2AE99E9AFC20"); }
+            get { return new Guid("4CD0D13F-BEA8-4FEB-8C85-ABF21D0CA584"); }
         }
     }
 }

@@ -171,6 +171,11 @@ namespace MasterthesisGHA
         {
             return LocalStiffnessMatrix;
         }
+        public virtual double getMass()
+        {
+            double density = 7800 / 1e9;
+            return CrossSectionArea * StartPoint.DistanceTo(EndPoint) * density;
+        }
 
 
         // Virtual Methods

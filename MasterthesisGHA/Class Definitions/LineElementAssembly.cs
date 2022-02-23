@@ -21,7 +21,6 @@ namespace MasterthesisGHA
         public static System.Drawing.Color insertedMaterialBankColor;
         public static List<System.Drawing.Color> materialBankColors;
 
-
         // Static Constructor
         static ElementCollection()
         {
@@ -55,7 +54,6 @@ namespace MasterthesisGHA
             };
         }
 
-
         // Static Methods
         public static Grasshopper.DataTree<StockElement> GetOutputDataTree(List<List<StockElement>> inputDataTree)
         {
@@ -75,9 +73,12 @@ namespace MasterthesisGHA
             }
             return dataTree;
         }
-
-
     }
+
+
+
+
+
 
     internal abstract class Structure : ElementCollection
     {      
@@ -95,7 +96,6 @@ namespace MasterthesisGHA
 
         public List<System.Drawing.Color> StructureColors;
         public List<Brep> StructureVisuals;
-
 
         // Constructors
         static Structure()
@@ -126,7 +126,6 @@ namespace MasterthesisGHA
             RecalculateGlobalMatrix();
 
         }
-
 
         // Get Functions
         public Matrix GetStiffnessMatrix()
@@ -194,8 +193,6 @@ namespace MasterthesisGHA
             throw new NotImplementedException();           
         }
 
-
-
         // Virtual Structural Analysis Methods
         protected virtual void RecalculateGlobalMatrix()
         {
@@ -218,7 +215,6 @@ namespace MasterthesisGHA
             throw new NotImplementedException();
         }
 
-
         // Virtual Replace Elements
         public virtual bool InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
         {
@@ -233,15 +229,18 @@ namespace MasterthesisGHA
             throw new NotImplementedException();
         }
 
-
         // Method One
         public virtual void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             throw new NotImplementedException();
         }
-
-
     }
+
+
+
+
+
+
 
     internal class TrussModel3D : Structure
     {
@@ -252,7 +251,6 @@ namespace MasterthesisGHA
             
 
         }
-
 
         // New Methods
         protected override void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
@@ -318,7 +316,6 @@ namespace MasterthesisGHA
                 ElementUtilization.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
             }
         }
-
 
         // Overriden Methods
         public override string PrintStructureInfo()
@@ -493,30 +490,22 @@ namespace MasterthesisGHA
 
         }
         
-
-
-        // Replace Element
+        // Insert Material Bank Methods
         public override void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             materialBank.ResetMaterialBank();
-
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
-
-            List<StockElement> tempStockElementList = new List<StockElement>();
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
-                tempStockElementList = new MaterialBank(possibleStockElements[i])
+                List<StockElement> tempStockElementList = new MaterialBank(possibleStockElements[i])
                     .getUtilizationSortedMaterialBank(ElementAxialForce[i]);
-
                 int index = tempStockElementList.Count;
                 while (index-- != 0)
                     if (InsertStockElementIntoStructure(i, ref materialBank, tempStockElementList[index]))
                         break;
-
             }
             materialBank.UpdateVisuals();
             remainingMaterialBank = materialBank.DeepCopy();
-
         }
         public override bool InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
         {
@@ -557,8 +546,6 @@ namespace MasterthesisGHA
             return reusablesSuggestionTree;
         }
         
-
-
         // Unused Methods
         private void VerifyElementProperties(ref List<Line> lines, ref List<double> A, ref double E)
         {
@@ -575,6 +562,12 @@ namespace MasterthesisGHA
 
     }
 
+
+
+
+
+
+
     internal class TrussModel2D : TrussModel3D
     {   
         // Constructors
@@ -583,7 +576,6 @@ namespace MasterthesisGHA
         {
 
         }
-
 
         // Overriden Methods
         public override string PrintStructureInfo()
@@ -707,8 +699,6 @@ namespace MasterthesisGHA
             }
         }
 
-
-
         // Unused
         private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<Point3d> anchoredPoints, ref List<double> loadList, 
             ref List<Vector3d> loadVecs, ref double E)
@@ -729,9 +719,11 @@ namespace MasterthesisGHA
             else if (A.Count != lines.Count)
                 throw new Exception("A is wrong size! Input list with same length as Lines or constant value!");
         }
-       
-
     }
+
+
+
+
 
 
 
@@ -741,7 +733,6 @@ namespace MasterthesisGHA
         public List<StockElement> StockElementsInMaterialBank;
         public List<System.Drawing.Color> MaterialBankColors;
         public List<Brep> MaterialBankVisuals;
-
 
         // Constructors
         public MaterialBank() 
@@ -784,8 +775,6 @@ namespace MasterthesisGHA
 
         }
 
-
-
         // Operator Overloads
         public static MaterialBank operator +(MaterialBank materialBankA, MaterialBank materialBankB)
         {
@@ -799,7 +788,6 @@ namespace MasterthesisGHA
 
             return returnMateralBank;
         }
-
         
         // Deep Copy
         public MaterialBank DeepCopy()
@@ -810,9 +798,6 @@ namespace MasterthesisGHA
             returnMateralBank.MaterialBankVisuals.AddRange(MaterialBankVisuals);
             return returnMateralBank;
         }
-
-
-
 
         // Output Methods
         public string GetMaterialBankInfo()
@@ -909,8 +894,6 @@ namespace MasterthesisGHA
             return visuals;
         }
 
-
-
         // Sorting Methods
         public void sortMaterialBankByLength()
         {
@@ -920,8 +903,6 @@ namespace MasterthesisGHA
         {
             StockElementsInMaterialBank = getAreaSortedMaterialBank();
         }
-
-
 
         public List<StockElement> getLengthSortedMaterialBank()
         {
@@ -954,9 +935,6 @@ namespace MasterthesisGHA
             else
                 return stockElements.OrderBy(o => Math.Abs(o.CheckUtilization(axialForce))).ToList();
         }
-
-
-
 
         // Replace Methods
         public void ResetMaterialBank()
@@ -1004,9 +982,6 @@ namespace MasterthesisGHA
             }
 
         }
-
-
-
     }
 
 

@@ -8,7 +8,7 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA
 {
-    internal abstract class ElementCollection
+    public abstract class ElementCollection
     {
         // Static Variables
         protected static System.Drawing.Color supportNodeColor;
@@ -17,33 +17,33 @@ namespace MasterthesisGHA
         protected static System.Drawing.Color overUtilizedMemberColor;
         protected static System.Drawing.Color underUtilizedMemberColor;
         
-        public static System.Drawing.Color memberFromReusableStockColor;
-        public static System.Drawing.Color insertedMaterialBankColor;
+        public static System.Drawing.Color reuseMemberColor;
+        public static System.Drawing.Color newMemeberColorColor;
+
         public static List<System.Drawing.Color> materialBankColors;
 
         // Static Constructor
         static ElementCollection()
         {
-            supportNodeColor = System.Drawing.Color.Gray;
-            freeNodeColor = System.Drawing.Color.AliceBlue;
-            loadArrowColor = System.Drawing.Color.White;
+            System.Drawing.Color darkerGrey = System.Drawing.Color.FromArgb(100, 100, 100);
+
+            supportNodeColor = darkerGrey;
+            freeNodeColor = System.Drawing.Color.DarkGray;
+            loadArrowColor = darkerGrey;
+
             overUtilizedMemberColor = System.Drawing.Color.Red;
             underUtilizedMemberColor = System.Drawing.Color.Green;
             
-            memberFromReusableStockColor = System.Drawing.Color.Blue;
-            insertedMaterialBankColor = System.Drawing.Color.Black;
+            reuseMemberColor = System.Drawing.Color.Blue;
             materialBankColors = new List<System.Drawing.Color> 
-            {   
-                /*
-                System.Drawing.Color.LightBlue, 
-                System.Drawing.Color.LightGreen,
-                System.Drawing.Color.LightSalmon,
+            {                  
+                System.Drawing.Color.DeepSkyBlue, 
                 System.Drawing.Color.LightYellow,
-                System.Drawing.Color.LightSkyBlue,
-                System.Drawing.Color.LightSeaGreen,
-                System.Drawing.Color.LightPink,
-                System.Drawing.Color.LightGoldenrodYellow,
-                */
+                System.Drawing.Color.Salmon,
+                System.Drawing.Color.MediumPurple,
+                System.Drawing.Color.LightGreen
+
+                /*
                 System.Drawing.Color.Aqua,
                 System.Drawing.Color.Green,
                 System.Drawing.Color.Salmon,
@@ -51,6 +51,7 @@ namespace MasterthesisGHA
                 System.Drawing.Color.SkyBlue,
                 System.Drawing.Color.SeaGreen,
                 System.Drawing.Color.Pink
+                */
             };
         }
 
@@ -80,13 +81,13 @@ namespace MasterthesisGHA
 
 
 
-    internal abstract class Structure : ElementCollection
+    public abstract class Structure : ElementCollection
     {      
         // Variables
-        public List<InPlaceElement> ElementsInStructure;
+        public List<InPlaceElement> ElementsInStructure;        
         public List<Point3d> FreeNodes;
         public List<Point3d> SupportNodes;
-
+        
         public Matrix<double> GlobalStiffnessMatrix;
         public Vector<double> GlobalLoadVector;
         public Vector<double> GlobalDisplacementVector;
@@ -97,17 +98,22 @@ namespace MasterthesisGHA
         public List<System.Drawing.Color> StructureColors;
         public List<Brep> StructureVisuals;
 
+        public double StructureSize;
+        public double StructureLoad;
+
+
         // Constructors
         static Structure()
         {
-            
         }
         public Structure(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
         {           
             StructureVisuals = new List<Brep>();
             StructureColors = new List<System.Drawing.Color>();
+            StructureSize = 1e6;
+            StructureLoad = 1e5;
 
-            VerifyModel(ref lines, ref supportPoints);
+            VerifyModel(ref lines, ref supportPoints);           
 
             ElementsInStructure = new List<InPlaceElement>();
             FreeNodes = new List<Point3d>();
@@ -174,6 +180,7 @@ namespace MasterthesisGHA
             return mass;
         }
 
+
         // Virtual Methods
         protected virtual void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
         {
@@ -206,13 +213,34 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
-        public virtual void GetLoadVisuals()
+        public virtual void GetLoadVisuals(double size = -1, double load = -1)
         {
             throw new NotImplementedException();
         }
         public virtual void GetResultVisuals()
         {
             throw new NotImplementedException();
+        }
+        public virtual void NormalizeVisuals()
+        {
+            double xMin = FreeNodes[0].X;
+            double xMax = FreeNodes[0].X;
+            double yMin = FreeNodes[0].Y;
+            double yMax = FreeNodes[0].Y;
+            double zMin = FreeNodes[0].Z;
+            double zMax = FreeNodes[0].Z;
+
+            foreach ( Point3d point in FreeNodes)
+            {
+                xMin = Math.Min(xMin, point.X);
+                xMax = Math.Max(xMax, point.X);
+                yMin = Math.Min(yMin, point.Y);
+                yMax = Math.Max(yMax, point.Y);
+                zMin = Math.Min(zMin, point.Z);
+                zMax = Math.Max(zMax, point.Z);
+            }
+
+            StructureSize = Math.Sqrt((xMax - xMin) * (xMax - xMin) + (yMax - yMin) * (yMax - yMin) + (zMax - zMin) * (zMax - zMin));
         }
 
         // Virtual Replace Elements
@@ -242,7 +270,7 @@ namespace MasterthesisGHA
 
 
 
-    internal class TrussModel3D : Structure
+    public class TrussModel3D : Structure
     {
         // Constructors
         public TrussModel3D(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
@@ -300,6 +328,7 @@ namespace MasterthesisGHA
         {
             foreach (InPlaceBarElement3D element in ElementsInStructure)
             {
+
                 double L0 = element.StartPoint.DistanceTo(element.EndPoint);
                 double L1 = 0;
 
@@ -407,28 +436,63 @@ namespace MasterthesisGHA
                 }
             }           
         }
-        public override void GetLoadVisuals()
+        public override void GetLoadVisuals(double size = -1, double load = -1)
         {
+            if (size != -1)
+                StructureSize = size;
+            if (load != -1)
+                StructureLoad = load;
+
+            int dofsPerNode = GetDofsPerNode();
+            Vector<double> pointLoadVector = Vector<double>.Build.Dense(3 * FreeNodes.Count);
+            Vector<double> momentLoadVector = Vector<double>.Build.Dense(3 * FreeNodes.Count);
+
+            switch (dofsPerNode)
+            {
+                case 3:
+                    pointLoadVector = GlobalLoadVector;
+                    break;
+
+                case 2:
+                    for(int i = 0; i < FreeNodes.Count; i++)
+                    {
+                        pointLoadVector[3 * i] = GlobalLoadVector[2 * i];
+                        pointLoadVector[3 * i + 2] = GlobalLoadVector[2 * i + 1];
+                    }
+                    break;
+            }
+
+            dofsPerNode = 3;
             for (int i = 0; i < FreeNodes.Count; i++)
             {
-                int dofsPerNode = GetDofsPerNode();
-                Vector3d dir = new Vector3d(GlobalLoadVector[dofsPerNode * i], GlobalLoadVector[dofsPerNode * i + 1],
-                    GlobalLoadVector[dofsPerNode * i + 2]);
+                Vector3d dir = new Vector3d(
+                    pointLoadVector[dofsPerNode * i], 
+                    pointLoadVector[dofsPerNode * i + 1],
+                    pointLoadVector[dofsPerNode * i + 2]);
+
+                double arrowLength = Math.Sqrt(
+                    pointLoadVector[dofsPerNode * i] * pointLoadVector[dofsPerNode * i] + 
+                    pointLoadVector[dofsPerNode * i + 1] * pointLoadVector[dofsPerNode * i + 1] + 
+                    pointLoadVector[dofsPerNode * i + 2] * pointLoadVector[dofsPerNode * i + 2]) * 
+                    StructureSize / StructureLoad * 5e-4;
+                    
                 dir.Unitize();
-                double arrowLength = Math.Sqrt(GlobalLoadVector[dofsPerNode * i] * GlobalLoadVector[dofsPerNode * i]
-                    + GlobalLoadVector[dofsPerNode * i + 1] * GlobalLoadVector[dofsPerNode * i + 1]
-                    + GlobalLoadVector[dofsPerNode * i + 2] * GlobalLoadVector[dofsPerNode * i + 2]) / 100;
-                double lineRadius = 20;
+                double lineRadius = 10;
+                double coneHeight = 6 * lineRadius;
+                double coneRadius = 3 * lineRadius;
 
                 Point3d startPoint = FreeNodes[i];
                 Point3d endPoint = FreeNodes[i] + new Point3d(dir * arrowLength);
-                Point3d arrowBase = endPoint + dir * 4 * lineRadius;
-
+                Point3d arrowBase = endPoint + dir * coneHeight;
                 Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
+                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(
+                    pointLoadVector[dofsPerNode * i], 
+                    pointLoadVector[dofsPerNode * i + 1],
+                    pointLoadVector[dofsPerNode * i + 2])), 
+                    -coneHeight, coneRadius);
+                
                 StructureVisuals.Add(loadCylinder.ToBrep(true, true));
                 StructureColors.Add(Structure.loadArrowColor);
-
-                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(GlobalLoadVector[dofsPerNode * i], GlobalLoadVector[dofsPerNode * i + 1], GlobalLoadVector[dofsPerNode * i + 2])), -4 * lineRadius, 2 * lineRadius);
                 StructureVisuals.Add(arrow.ToBrep(true));
                 StructureColors.Add(Structure.loadArrowColor);
             }
@@ -445,7 +509,7 @@ namespace MasterthesisGHA
                 utilization.Add(sigma[i] / f_dim);
 
                 if ( ElementsInStructure[i].IsFromMaterialBank )
-                    StructureColors.Add(memberFromReusableStockColor);
+                    StructureColors.Add(reuseMemberColor);
                 else if (utilization[i] > 1 || utilization[i] < -1)
                     StructureColors.Add(overUtilizedMemberColor);
                 else
@@ -568,7 +632,7 @@ namespace MasterthesisGHA
 
 
 
-    internal class TrussModel2D : TrussModel3D
+    public class TrussModel2D : TrussModel3D
     {   
         // Constructors
         public TrussModel2D(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
@@ -671,8 +735,15 @@ namespace MasterthesisGHA
                 }
             }
         }
-        public override void GetLoadVisuals()
+        /*
+        public override void GetLoadVisuals(double size = -1, double load = -1)
         {
+            if (size != -1)
+                StructureSize = size;
+            if (load != -1)
+                StructureLoad = load;
+
+
             for (int i = 0; i < FreeNodes.Count; i++)
             {
                 int dofsPerNode = GetDofsPerNode();
@@ -680,10 +751,8 @@ namespace MasterthesisGHA
                 Vector3d dir = new Vector3d(GlobalLoadVector[dofsPerNode * i], 0, GlobalLoadVector[dofsPerNode * i + 1]);
                 dir.Unitize();
                 double arrowLength = Math.Sqrt(GlobalLoadVector[dofsPerNode * i] * GlobalLoadVector[dofsPerNode * i] +
-                    GlobalLoadVector[dofsPerNode * i + 1] * GlobalLoadVector[dofsPerNode * i + 1]) / 100;
+                    GlobalLoadVector[dofsPerNode * i + 1] * GlobalLoadVector[dofsPerNode * i + 1]) * StructureSize / StructureLoad * 1e-3;
                 double lineRadius = 20;
-
-                System.Drawing.Color loadColor = System.Drawing.Color.AliceBlue;
 
                 Point3d startPoint = FreeNodes[i];
                 Point3d endPoint = FreeNodes[i] + new Point3d(dir * arrowLength);
@@ -691,13 +760,15 @@ namespace MasterthesisGHA
 
                 Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
                 StructureVisuals.Add(loadCylinder.ToBrep(true, true));
-                StructureColors.Add(loadColor);
+                StructureColors.Add(loadArrowColor);
 
                 Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(GlobalLoadVector[dofsPerNode * i], 0, GlobalLoadVector[dofsPerNode * i + 1])), -4 * lineRadius, 2 * lineRadius);
                 StructureVisuals.Add(arrow.ToBrep(true));
-                StructureColors.Add(loadColor);
+                StructureColors.Add(loadArrowColor);
             }
         }
+        */
+        
 
         // Unused
         private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<Point3d> anchoredPoints, ref List<double> loadList, 
@@ -727,7 +798,7 @@ namespace MasterthesisGHA
 
 
 
-    internal class MaterialBank : ElementCollection
+    public class MaterialBank : ElementCollection
     {
         // Variables
         public List<StockElement> StockElementsInMaterialBank;
@@ -884,9 +955,6 @@ namespace MasterthesisGHA
                 priorElement = element;
                 
             }
-
-
-
 
             MaterialBankVisuals = visuals;
             MaterialBankColors = colors;

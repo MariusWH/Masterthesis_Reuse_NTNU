@@ -6,17 +6,22 @@ using Rhino.Geometry;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics;
 
-
+/*
 namespace MasterthesisGHA.Components
 {
     public class Truss2D : GH_Component
     {
+        // Stored Variables
+        public double trussSize;
+        public double maxLoad;
 
         public Truss2D()
           : base("2D Truss Analysis", "2D Truss",
               "Minimal Finite Element Analysis of 2D Truss",
               "Master", "FEA")
         {
+            trussSize = -1;
+            maxLoad = -1;
         }
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
@@ -29,6 +34,7 @@ namespace MasterthesisGHA.Components
             pManager.AddVectorParameter("Load Direction","","",GH_ParamAccess.item);
             pManager.AddVectorParameter("Distribution Direction","","",GH_ParamAccess.item);
             pManager.AddLineParameter("Elements","","",GH_ParamAccess.list);
+            pManager.AddBooleanParameter("NormalizeVisuals", "NormalizeVisuals", "NormalizeVisuals", GH_ParamAccess.item, false);
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
@@ -59,6 +65,7 @@ namespace MasterthesisGHA.Components
             Vector3d iLineLoadDirection = new Vector3d();
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
+            bool normalizeVisuals = false;
 
             DA.GetDataList(0, iLines);
             DA.GetDataList(1, iProfiles);
@@ -69,6 +76,7 @@ namespace MasterthesisGHA.Components
             DA.GetData(6, ref iLineLoadDirection);
             DA.GetData(7, ref iLineLoadDistribution);
             DA.GetDataList(8, iLinesToLoad);
+            DA.GetData(9, ref normalizeVisuals);
 
            
             // CODE
@@ -77,8 +85,20 @@ namespace MasterthesisGHA.Components
             truss2D.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss2D.Solve();
             truss2D.Retracking();
+
+
+            if (normalizeVisuals)
+            {
+                trussSize = truss2D.StructureSize;
+                maxLoad = truss2D.GlobalLoadVector.AbsoluteMaximum();
+            }
+                
+
+
             truss2D.GetResultVisuals();
-            truss2D.GetLoadVisuals();
+            truss2D.GetLoadVisuals(trussSize, maxLoad);
+
+            
                        
             
             // OUTPUT
@@ -111,6 +131,7 @@ namespace MasterthesisGHA.Components
 
     }
 }
+*/
 
 
 

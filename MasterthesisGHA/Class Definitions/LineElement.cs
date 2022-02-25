@@ -104,11 +104,11 @@ namespace MasterthesisGHA
 
 
 
-    internal abstract class InPlaceElement : AbstractLineElement
+    public abstract class InPlaceElement : AbstractLineElement
     {
         // Variables (Not inherited)
-        public Point3d StartPoint;
-        public Point3d EndPoint;
+        public readonly Point3d StartPoint;
+        public readonly Point3d EndPoint;
         public int StartNodeIndex;
         public int EndNodeIndex;
         public Matrix<double> LocalStiffnessMatrix;
@@ -195,7 +195,10 @@ namespace MasterthesisGHA
 
     }
 
-    internal class InPlaceBarElement3D : InPlaceElement
+
+
+
+    public class InPlaceBarElement3D : InPlaceElement
     {
         // Constructor
         public InPlaceBarElement3D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint,
@@ -297,7 +300,7 @@ namespace MasterthesisGHA
 
     }
 
-    internal class InPlaceBarElement2D : InPlaceBarElement3D
+    public class InPlaceBarElement2D : InPlaceBarElement3D
     {
         // Constructor
         public InPlaceBarElement2D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, 
@@ -353,7 +356,7 @@ namespace MasterthesisGHA
 
 
 
-    internal class StockElement : AbstractLineElement
+    public class StockElement : AbstractLineElement
     {
         // Variables (Not inherited)
         private double ReusableElementLength;

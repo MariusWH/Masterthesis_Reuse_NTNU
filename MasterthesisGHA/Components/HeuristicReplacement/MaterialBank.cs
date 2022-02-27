@@ -30,6 +30,7 @@ namespace MasterthesisGHA
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddBrepParameter("StockVisuals", "StockVisuals", "StockVisuals", GH_ParamAccess.list);
             pManager.AddColourParameter("StockColour", "StockColour", "StockColour", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Mass", "Material Bank Mass", "Initial mass of all elements in Material Bank", GH_ParamAccess.item);
         }
 
 
@@ -47,8 +48,6 @@ namespace MasterthesisGHA
             DA.GetDataList(2, lengths);
             DA.GetDataList(3, inputCommands);
 
-
-
             // CODE
             MaterialBank materialBankA = new MaterialBank(profiles, quantities, lengths);
             MaterialBank materialBankB = new MaterialBank(inputCommands);
@@ -61,7 +60,7 @@ namespace MasterthesisGHA
             DA.SetData(1, materialBank.GetMaterialBankInfo());
             DA.SetDataList(2, materialBank.MaterialBankVisuals);
             DA.SetDataList(3, materialBank.MaterialBankColors);
-
+            DA.SetData(4, materialBank.GetMaterialBankMass());
         }
 
 

@@ -244,7 +244,11 @@ namespace MasterthesisGHA
         }
 
         // Virtual Replace Elements
-        public virtual bool InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
+        public virtual bool InsertStockElementIntoStructureAndForgetCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
+        {
+            throw new NotImplementedException();
+        }
+        public virtual bool InsertStockElementIntoStructureAndKeepCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
         {
             throw new NotImplementedException();
         }
@@ -576,11 +580,11 @@ namespace MasterthesisGHA
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
                 List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[i])
-                    .getUtilizationSortedMaterialBank(ElementAxialForce[i]);
+                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[i]);
                 int index = sortedStockElementList.Count;
                 while (index-- != 0)
                 {
-                    if (InsertStockElementIntoStructure(i, ref materialBank, sortedStockElementList[index]))
+                    if (InsertStockElementIntoStructureAndKeepCutOff(i, ref materialBank, sortedStockElementList[index]))
                     {
                         break;
                     }
@@ -599,12 +603,12 @@ namespace MasterthesisGHA
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
                 List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[i])
-                    .getUtilizationSortedMaterialBank(ElementAxialForce[i]);
+                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[i]);
                 int index = sortedStockElementList.Count;
                 bool insertNew = true;
                 while (index-- != 0)
                 {
-                    if (InsertStockElementIntoStructure(i, ref materialBank, sortedStockElementList[index]))
+                    if (InsertStockElementIntoStructureAndForgetCutOff(i, ref materialBank, sortedStockElementList[index]))
                     {
                         insertNew = false;
                         break;
@@ -626,7 +630,7 @@ namespace MasterthesisGHA
         }
 
 
-        public override bool InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
+        public override bool InsertStockElementIntoStructureAndForgetCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
             {
@@ -641,6 +645,22 @@ namespace MasterthesisGHA
             }
             return false;
         }
+        public override bool InsertStockElementIntoStructureAndKeepCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
+        {
+            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            {
+                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+            }
+            else if (materialBank.ReduceStockElementInMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex]))
+            {
+                InPlaceElement temp = new InPlaceBarElement3D(stockElement, ElementsInStructure[inPlaceElementIndex]);
+                ElementsInStructure.RemoveAt(inPlaceElementIndex);
+                ElementsInStructure.Insert(inPlaceElementIndex, temp);
+                return true;
+            }
+            return false;
+        }
+
         public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
             List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
@@ -840,13 +860,28 @@ namespace MasterthesisGHA
 
 
         // Insert Material Bank Methods
-        public override bool InsertStockElementIntoStructure(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
+        public override bool InsertStockElementIntoStructureAndForgetCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
             {
                 throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
             }
             else if (materialBank.RemoveStockElementFromMaterialBank(stockElement))
+            {
+                InPlaceElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
+                ElementsInStructure.RemoveAt(inPlaceElementIndex);
+                ElementsInStructure.Insert(inPlaceElementIndex, temp);
+                return true;
+            }
+            return false;
+        }
+        public override bool InsertStockElementIntoStructureAndKeepCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
+        {
+            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            {
+                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+            }
+            else if (materialBank.ReduceStockElementInMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex]))
             {
                 InPlaceElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
@@ -1104,12 +1139,14 @@ namespace MasterthesisGHA
         {
             return StockElementsInMaterialBank.OrderBy(o => o.CrossSectionArea).ToList();
         }
-        public List<StockElement> getUtilizationSortedMaterialBank(double axialForce)
+        public List<StockElement> getUtilizationThenLengthSortedMaterialBank(double axialForce)
         {
             if (axialForce == 0)
-                return StockElementsInMaterialBank.OrderBy(o => -o.CrossSectionArea).ToList();
+                return StockElementsInMaterialBank.OrderBy(o => -o.CrossSectionArea).
+                    ThenBy(o => -o.GetStockElementLength()).ToList();
             else
-                return StockElementsInMaterialBank.OrderBy(o => Math.Abs( o.CheckUtilization(axialForce) )).ToList();
+                return StockElementsInMaterialBank.OrderBy(o => Math.Abs( o.CheckUtilization(axialForce) )).
+                    ThenBy(o => -o.GetStockElementLength()).ToList();
         }
 
         public List<StockElement> getLengthSortedMaterialBank(List<StockElement> stockElements)
@@ -1149,6 +1186,41 @@ namespace MasterthesisGHA
                 return true;
             }
         }
+        public bool ReduceStockElementInMaterialBank(StockElement stockElement, InPlaceElement inPlaceElement)
+        {
+            int index = StockElementsInMaterialBank.FindIndex(o => stockElement == o && !o.IsInStructure);
+            if (index == -1)
+                return false;
+            else
+            {
+                StockElement temp = stockElement.DeepCopy();
+
+                StockElement cutOffPart = new StockElement(temp.ProfileName, 
+                    temp.GetStockElementLength() - inPlaceElement.StartPoint.DistanceTo(inPlaceElement.EndPoint));
+                cutOffPart.IsInStructure = false;
+
+                StockElement insertPart = new StockElement(temp.ProfileName,
+                    inPlaceElement.StartPoint.DistanceTo(inPlaceElement.EndPoint));
+                insertPart.IsInStructure = true;
+
+                StockElementsInMaterialBank[index] = insertPart;
+                StockElementsInMaterialBank.Add(cutOffPart);
+
+                return true;
+            }
+        }
+
+        // LCA
+        public double GetMaterialBankMass()
+        {
+            double mass = 0;
+            foreach ( StockElement stockElement in StockElementsInMaterialBank)
+            {
+                mass += stockElement.getMass();
+            }
+            return mass;
+        }
+
     }
 
 

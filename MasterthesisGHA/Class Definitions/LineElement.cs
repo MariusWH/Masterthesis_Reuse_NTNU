@@ -366,8 +366,6 @@ namespace MasterthesisGHA
         private double ReusableElementLength;
         public bool IsInStructure;
 
-
-
         // Constructor
         public StockElement(string profileName, double reusableElementLength)
             : base(profileName)
@@ -375,7 +373,6 @@ namespace MasterthesisGHA
             ReusableElementLength = reusableElementLength;
             IsInStructure = false;
         }
-
 
         // Methods
         public override string getElementInfo()
@@ -405,8 +402,17 @@ namespace MasterthesisGHA
         {
             return axialLoad/(CrossSectionArea*YieldStress);
         }
+        public virtual double getMass()
+        {
+            double density = 7800 / 1e9;
+            return CrossSectionArea * ReusableElementLength * density;
+        }
 
-
+        // Copy
+        public StockElement DeepCopy()
+        {
+            return new StockElement(this.ProfileName, this.ReusableElementLength);
+        }
 
     }
 

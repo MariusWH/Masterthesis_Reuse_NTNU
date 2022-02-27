@@ -23,10 +23,10 @@ namespace MasterthesisGHA
         public double YieldStress;
 
         // Static Variables
-        protected static Dictionary<string, double> CrossSectionAreaDictionary;
-        protected static Dictionary<string, double> AreaMomentOfInertiaYYDictionary;
-        protected static Dictionary<string, double> AreaMomentOfInertiaZZDictionary;
-        protected static Dictionary<string, double> PolarMomentOfInertiaDictionary;
+        public static Dictionary<string, double> CrossSectionAreaDictionary;
+        public static Dictionary<string, double> AreaMomentOfInertiaYYDictionary;
+        public static Dictionary<string, double> AreaMomentOfInertiaZZDictionary;
+        public static Dictionary<string, double> PolarMomentOfInertiaDictionary;
 
 
         // Constructor        
@@ -49,13 +49,11 @@ namespace MasterthesisGHA
         }
 
 
-
         // Get functions
         public virtual string getElementInfo()
         {
             return "Not Implemented";
         }
-
 
 
         // Static Constructor and Methods
@@ -97,6 +95,12 @@ namespace MasterthesisGHA
                 PolarMomentOfInertiaDictionary.Add(name, it);
 
             }
+        }
+        public static List<string> GetCrossSectionAreaSortedProfilesList()
+        {
+            List<string> profiles = CrossSectionAreaDictionary.Keys.ToList();
+            profiles.OrderBy(o => CrossSectionAreaDictionary[o]);
+            return profiles;
         }
 
 

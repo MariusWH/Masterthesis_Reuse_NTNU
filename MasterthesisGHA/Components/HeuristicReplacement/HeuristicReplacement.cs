@@ -19,7 +19,8 @@ namespace MasterthesisGHA.Components.MethodOne
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddBooleanParameter("2D/3D", "2D/3D", "2D (false) /3D (true)", GH_ParamAccess.item, false);
-            pManager.AddBooleanParameter("InserMaterialBank", "Insert", "Insert Material Bank (true)", GH_ParamAccess.item, false);
+            pManager.AddBooleanParameter("InserMaterialBank", "InsertMB", "Insert Material Bank (true)", GH_ParamAccess.item, false);
+            pManager.AddBooleanParameter("InserNewElements", "InsertNew", "Insert New Elements (true)", GH_ParamAccess.item, false);
 
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
             pManager.AddTextParameter("NewElements", "NewElements", "NewElements", GH_ParamAccess.list, "ALL");
@@ -55,7 +56,8 @@ namespace MasterthesisGHA.Components.MethodOne
         {
             // INPUTS
             bool is3D = false;
-            bool insert = false;
+            bool insertMaterialBank = false;
+            bool insertNewElements = false;
             MaterialBank iMaterialBank = new MaterialBank();
             List<string> iNewElementsCatalog = new List<string>();
             List<Line> iGeometryLines = new List<Line>();
@@ -66,15 +68,16 @@ namespace MasterthesisGHA.Components.MethodOne
             List<Line> iLinesToLoad = new List<Line>();
 
             DA.GetData(0, ref is3D);
-            DA.GetData(1, ref insert);
-            DA.GetData(2, ref iMaterialBank);
-            DA.GetDataList(3, iNewElementsCatalog);
-            DA.GetDataList(4, iGeometryLines);
-            DA.GetDataList(5, iSupports);
-            DA.GetDataList(6, iLinesToLoad);
-            DA.GetData(7, ref iLineLoadValue);
-            DA.GetData(8, ref iLineLoadDirection);
-            DA.GetData(9, ref iLineLoadDistribution);
+            DA.GetData(1, ref insertMaterialBank);
+            DA.GetData(2, ref insertNewElements);
+            DA.GetData(3, ref iMaterialBank);
+            DA.GetDataList(4, iNewElementsCatalog);
+            DA.GetDataList(5, iGeometryLines);
+            DA.GetDataList(6, iSupports);
+            DA.GetDataList(7, iLinesToLoad);
+            DA.GetData(8, ref iLineLoadValue);
+            DA.GetData(9, ref iLineLoadDirection);
+            DA.GetData(10, ref iLineLoadDistribution);
             
 
 
@@ -82,7 +85,7 @@ namespace MasterthesisGHA.Components.MethodOne
             // CODE
             List<string> initialProfiles = new List<string>();
             foreach (Line line in iGeometryLines)
-                initialProfiles.Add("IPE100");
+                initialProfiles.Add("IPE600");
 
             TrussModel3D truss;
             MaterialBank inputMaterialBank = iMaterialBank.DeepCopy();
@@ -97,8 +100,17 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Solve();
             truss.Retracking();
 
-            if (insert)
+            if (insertMaterialBank && insertNewElements)
+                truss.InsertMaterialBankOrNewElements(inputMaterialBank, out outMaterialBank);
+            else if (insertMaterialBank)
                 truss.InsertMaterialBank(inputMaterialBank, out outMaterialBank);
+            else if (insertNewElements)
+            {
+                truss.InsertNewElements();
+                outMaterialBank = iMaterialBank.DeepCopy();
+                outMaterialBank.ResetMaterialBank();
+                outMaterialBank.UpdateVisuals();
+            }         
             else
             {
                 outMaterialBank = iMaterialBank.DeepCopy();

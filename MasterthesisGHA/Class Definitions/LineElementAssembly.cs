@@ -30,6 +30,7 @@ namespace MasterthesisGHA
             supportNodeColor = darkerGrey;
             freeNodeColor = System.Drawing.Color.DarkGray;
             loadArrowColor = darkerGrey;
+            //loadArrowColor = System.Drawing.Color.White;
 
             overUtilizedMemberColor = System.Drawing.Color.Red;
             underUtilizedMemberColor = System.Drawing.Color.Green;

@@ -86,21 +86,16 @@ namespace MasterthesisGHA
         // Variables
         public List<InPlaceElement> ElementsInStructure;        
         public List<Point3d> FreeNodes;
-        public List<Point3d> SupportNodes;
-        
+        public List<Point3d> SupportNodes;       
         public Matrix<double> GlobalStiffnessMatrix;
         public Vector<double> GlobalLoadVector;
         public Vector<double> GlobalDisplacementVector;
-
         public List<double> ElementAxialForce;
         public List<double> ElementUtilization;
-
         public List<System.Drawing.Color> StructureColors;
         public List<Brep> StructureVisuals;
-
         public double StructureSize;
         public double StructureLoad;
-
 
         // Constructors
         static Structure()
@@ -180,7 +175,6 @@ namespace MasterthesisGHA
             return mass;
         }
 
-
         // Virtual Methods
         protected virtual void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
         {
@@ -199,6 +193,7 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();           
         }
+
 
         // Virtual Structural Analysis Methods
         protected virtual void RecalculateGlobalMatrix()
@@ -243,41 +238,87 @@ namespace MasterthesisGHA
             StructureSize = Math.Sqrt((xMax - xMin) * (xMax - xMin) + (yMax - yMin) * (yMax - yMin) + (zMax - zMin) * (zMax - zMin));
         }
 
-        // Virtual Replace Elements
-        public virtual bool InsertStockElementIntoStructureAndForgetCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
+
+        // Linear Element Replacement Methods
+        public void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            throw new NotImplementedException();
+            materialBank.ResetMaterialBank();
+            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
+            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[i])
+                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[i]);
+                int index = sortedStockElementList.Count;
+                while (index-- != 0)
+                {
+                    if (InsertStockElement(i, ref materialBank, sortedStockElementList[index], true))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            materialBank.UpdateVisuals();
+            remainingMaterialBank = materialBank.DeepCopy();
         }
-        public virtual bool InsertStockElementIntoStructureAndKeepCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
+        public void InsertNewElements()
         {
-            throw new NotImplementedException();
+            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+                InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
         }
-        public virtual void RemoveStockElementFromStructure()
+        public void InsertMaterialBankThenNewElements(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            throw new NotImplementedException();
+            materialBank.ResetMaterialBank();
+            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
+            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[i])
+                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[i]);
+                int index = sortedStockElementList.Count;
+                bool insertNew = true;
+                while (index-- != 0)
+                {
+                    if (InsertStockElement(i, ref materialBank, sortedStockElementList[index]))
+                    {
+                        insertNew = false;
+                        break;
+                    }
+                }
+                if (insertNew)
+                    InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
+            }
+
+            materialBank.UpdateVisuals();
+            remainingMaterialBank = materialBank.DeepCopy();
         }
+
+
+        // Virtual Element Replacement Functions
         public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
             throw new NotImplementedException();
         }
-        public virtual void InsertNewElementIntoStrucutre(int inPlaceElementIndex, List<string> criteraSortedNewElements, double criteria)
+        public virtual bool InsertStockElement(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement, bool keepCutOff = true)
         {
             throw new NotImplementedException();
         }
-
-        // Method One
-        public virtual void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        /*
+        public virtual bool InsertStockElementAndKeepCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
         {
             throw new NotImplementedException();
-        }
-        public virtual void InsertNewElements()
+        }    
+        */
+        public virtual void InsertNewElement(int inPlaceElementIndex, List<string> criteraSortedNewElements, double criteria)
         {
             throw new NotImplementedException();
-        }
-        public virtual void InsertMaterialBankOrNewElements(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
-        {
-            throw new NotImplementedException();
-        }
+        }      
+        
     }
 
 
@@ -296,7 +337,7 @@ namespace MasterthesisGHA
 
         }
 
-        // New Methods
+        // General Methods
         protected override void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
         {
             if (lines.Count == 0)
@@ -315,6 +356,21 @@ namespace MasterthesisGHA
                 ElementsInStructure.Add(new InPlaceBarElement3D(ref FreeNodes, ref SupportNodes, profileNames[i], startPoint, endPoint));
             }
         }
+        public override string PrintStructureInfo()
+        {
+            string info = "3D Truss Structure:\n";
+            foreach (InPlaceBarElement3D inPlaceBarElement3D in ElementsInStructure)
+            {
+                info += "\n" + inPlaceBarElement3D.getElementInfo();
+            }
+            return info;
+        }
+        protected override int GetDofsPerNode()
+        {
+            return 3;
+        }       
+        
+        // Structural Analysis
         public void ApplyNodalLoads(List<double> loadList, List<Vector3d> loadVecs)
         {
             int dofsPerNode = GetDofsPerNode();
@@ -332,7 +388,7 @@ namespace MasterthesisGHA
                     loadList[dofsPerNode * i + 1] += loadVecs[i].Y;
                     loadList[dofsPerNode * i + 2] += loadVecs[i].Z;
                 }
-            
+
             GlobalLoadVector = Vector<double>.Build.Dense(dofs);
             for (int i = 0; i < FreeNodes.Count; i++)
                 for (int j = 0; j < dofsPerNode; j++)
@@ -340,42 +396,6 @@ namespace MasterthesisGHA
 
 
         }
-        public void Retracking()
-        {
-            foreach (InPlaceBarElement3D element in ElementsInStructure)
-            {
-
-                double L0 = element.StartPoint.DistanceTo(element.EndPoint);
-                double L1 = 0;
-
-                if (element.StartNodeIndex == -1 && element.EndNodeIndex == -1)
-                    L1 = L0;
-                else if (element.EndNodeIndex == -1)
-                    L1 = FreeNodes[element.StartNodeIndex].DistanceTo(element.EndPoint);
-                else if (element.StartNodeIndex == -1)
-                    L1 = element.StartPoint.DistanceTo(FreeNodes[element.EndNodeIndex]);
-                else
-                    L1 = FreeNodes[element.StartNodeIndex].DistanceTo(FreeNodes[element.EndNodeIndex]);
-
-                ElementAxialForce.Add((element.CrossSectionArea * element.YoungsModulus) * (L1 - L0)/L0);
-                ElementUtilization.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
-            }
-        }
-
-        // Overriden Methods
-        public override string PrintStructureInfo()
-        {
-            string info = "3D Truss Structure:\n";
-            foreach (InPlaceBarElement3D inPlaceBarElement3D in ElementsInStructure)
-            {
-                info += "\n" + inPlaceBarElement3D.getElementInfo();
-            }
-            return info;
-        }
-        protected override int GetDofsPerNode()
-        {
-            return 3;
-        }       
         public override void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
         {
             loadDirection.Unitize();
@@ -388,9 +408,9 @@ namespace MasterthesisGHA
                     {
                         if (element.StartNodeIndex != -1)
                         {
-                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex] 
+                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex]
                                 += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[0] / 2;
-                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex + 1] 
+                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex + 1]
                                 += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[1] / 2;
                             GlobalLoadVector[dofsPerNode * element.StartNodeIndex + 2]
                                 += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[2] / 2;
@@ -398,9 +418,9 @@ namespace MasterthesisGHA
 
                         if (element.EndNodeIndex != -1)
                         {
-                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex] 
+                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex]
                                 += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[0] / 2;
-                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex + 1] 
+                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex + 1]
                                 += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[1] / 2;
                             GlobalLoadVector[dofsPerNode * element.EndNodeIndex + 2]
                                 += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[2] / 2;
@@ -408,16 +428,6 @@ namespace MasterthesisGHA
                     }
                 }
             }
-        }
-        public override void Solve()
-        {
-            GlobalDisplacementVector = GlobalStiffnessMatrix.Solve(GlobalLoadVector);
-            int dofsPerNode = GetDofsPerNode();
-            
-            for (int i = 0; i < FreeNodes.Count; i++)
-                FreeNodes[i] += new Point3d(GlobalDisplacementVector[dofsPerNode * i], 
-                    GlobalDisplacementVector[dofsPerNode * i + 1], GlobalDisplacementVector[dofsPerNode * i + 2]);
-
         }
         protected override void RecalculateGlobalMatrix()
         {
@@ -450,8 +460,42 @@ namespace MasterthesisGHA
 
                     }
                 }
-            }           
+            }
         }
+        public override void Solve()
+        {
+            GlobalDisplacementVector = GlobalStiffnessMatrix.Solve(GlobalLoadVector);
+            int dofsPerNode = GetDofsPerNode();
+
+            for (int i = 0; i < FreeNodes.Count; i++)
+                FreeNodes[i] += new Point3d(GlobalDisplacementVector[dofsPerNode * i],
+                    GlobalDisplacementVector[dofsPerNode * i + 1], GlobalDisplacementVector[dofsPerNode * i + 2]);
+
+        }
+        public void Retracking()
+        {
+            foreach (InPlaceBarElement3D element in ElementsInStructure)
+            {
+
+                double L0 = element.StartPoint.DistanceTo(element.EndPoint);
+                double L1 = 0;
+
+                if (element.StartNodeIndex == -1 && element.EndNodeIndex == -1)
+                    L1 = L0;
+                else if (element.EndNodeIndex == -1)
+                    L1 = FreeNodes[element.StartNodeIndex].DistanceTo(element.EndPoint);
+                else if (element.StartNodeIndex == -1)
+                    L1 = element.StartPoint.DistanceTo(FreeNodes[element.EndNodeIndex]);
+                else
+                    L1 = FreeNodes[element.StartNodeIndex].DistanceTo(FreeNodes[element.EndNodeIndex]);
+
+                ElementAxialForce.Add((element.CrossSectionArea * element.YoungsModulus) * (L1 - L0) / L0);
+                ElementUtilization.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
+            }
+        }
+
+
+        // Visuals
         public override void GetLoadVisuals(double size = -1, double load = -1)
         {
             if (size != -1)
@@ -470,7 +514,7 @@ namespace MasterthesisGHA
                     break;
 
                 case 2:
-                    for(int i = 0; i < FreeNodes.Count; i++)
+                    for (int i = 0; i < FreeNodes.Count; i++)
                     {
                         pointLoadVector[3 * i] = GlobalLoadVector[2 * i];
                         pointLoadVector[3 * i + 2] = GlobalLoadVector[2 * i + 1];
@@ -482,16 +526,16 @@ namespace MasterthesisGHA
             for (int i = 0; i < FreeNodes.Count; i++)
             {
                 Vector3d dir = new Vector3d(
-                    pointLoadVector[dofsPerNode * i], 
+                    pointLoadVector[dofsPerNode * i],
                     pointLoadVector[dofsPerNode * i + 1],
                     pointLoadVector[dofsPerNode * i + 2]);
 
                 double arrowLength = Math.Sqrt(
-                    pointLoadVector[dofsPerNode * i] * pointLoadVector[dofsPerNode * i] + 
-                    pointLoadVector[dofsPerNode * i + 1] * pointLoadVector[dofsPerNode * i + 1] + 
-                    pointLoadVector[dofsPerNode * i + 2] * pointLoadVector[dofsPerNode * i + 2]) * 
+                    pointLoadVector[dofsPerNode * i] * pointLoadVector[dofsPerNode * i] +
+                    pointLoadVector[dofsPerNode * i + 1] * pointLoadVector[dofsPerNode * i + 1] +
+                    pointLoadVector[dofsPerNode * i + 2] * pointLoadVector[dofsPerNode * i + 2]) *
                     StructureSize / StructureLoad * 5e-4;
-                    
+
                 dir.Unitize();
                 double lineRadius = 10;
                 double coneHeight = 6 * lineRadius;
@@ -502,11 +546,11 @@ namespace MasterthesisGHA
                 Point3d arrowBase = endPoint + dir * coneHeight;
                 Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
                 Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(
-                    pointLoadVector[dofsPerNode * i], 
+                    pointLoadVector[dofsPerNode * i],
                     pointLoadVector[dofsPerNode * i + 1],
-                    pointLoadVector[dofsPerNode * i + 2])), 
+                    pointLoadVector[dofsPerNode * i + 2])),
                     -coneHeight, coneRadius);
-                
+
                 StructureVisuals.Add(loadCylinder.ToBrep(true, true));
                 StructureColors.Add(Structure.loadArrowColor);
                 StructureVisuals.Add(arrow.ToBrep(true));
@@ -524,7 +568,7 @@ namespace MasterthesisGHA
                 sigma.Add(ElementAxialForce[i] / ElementsInStructure[i].CrossSectionArea);
                 utilization.Add(sigma[i] / f_dim);
 
-                if ( ElementsInStructure[i].IsFromMaterialBank )
+                if (ElementsInStructure[i].IsFromMaterialBank)
                     StructureColors.Add(reuseMemberColor);
                 else if (utilization[i] > 1 || utilization[i] < -1)
                     StructureColors.Add(overUtilizedMemberColor);
@@ -571,96 +615,6 @@ namespace MasterthesisGHA
         }
 
         // Insert Material Bank Methods
-        public override void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
-        {
-            materialBank.ResetMaterialBank();
-            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
-            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
-
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[i])
-                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[i]);
-                int index = sortedStockElementList.Count;
-                while (index-- != 0)
-                {
-                    if (InsertStockElementIntoStructureAndKeepCutOff(i, ref materialBank, sortedStockElementList[index]))
-                    {
-                        break;
-                    }
-                }
-            }
-
-            materialBank.UpdateVisuals();
-            remainingMaterialBank = materialBank.DeepCopy();
-        }
-        public override void InsertMaterialBankOrNewElements(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
-        {
-            materialBank.ResetMaterialBank();
-            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
-            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
-
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[i])
-                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[i]);
-                int index = sortedStockElementList.Count;
-                bool insertNew = true;
-                while (index-- != 0)
-                {
-                    if (InsertStockElementIntoStructureAndForgetCutOff(i, ref materialBank, sortedStockElementList[index]))
-                    {
-                        insertNew = false;
-                        break;
-                    }
-                }
-                if (insertNew)
-                    InsertNewElementIntoStrucutre(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
-            }
-
-            materialBank.UpdateVisuals();
-            remainingMaterialBank = materialBank.DeepCopy();
-        }
-        public override void InsertNewElements()
-        {
-            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
-
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-                InsertNewElementIntoStrucutre(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
-        }
-
-
-        public override bool InsertStockElementIntoStructureAndForgetCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
-        {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
-            {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
-            }
-            else if (materialBank.RemoveStockElementFromMaterialBank(stockElement))
-            {
-                InPlaceElement temp = new InPlaceBarElement3D(stockElement, ElementsInStructure[inPlaceElementIndex]);
-                ElementsInStructure.RemoveAt(inPlaceElementIndex);
-                ElementsInStructure.Insert(inPlaceElementIndex, temp);
-                return true;
-            }
-            return false;
-        }
-        public override bool InsertStockElementIntoStructureAndKeepCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
-        {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
-            {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
-            }
-            else if (materialBank.ReduceStockElementInMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex]))
-            {
-                InPlaceElement temp = new InPlaceBarElement3D(stockElement, ElementsInStructure[inPlaceElementIndex]);
-                ElementsInStructure.RemoveAt(inPlaceElementIndex);
-                ElementsInStructure.Insert(inPlaceElementIndex, temp);
-                return true;
-            }
-            return false;
-        }
-
         public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
             List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
@@ -682,7 +636,22 @@ namespace MasterthesisGHA
             }
             return reusablesSuggestionTree;
         }
-        public override void InsertNewElementIntoStrucutre(int inPlaceElementIndex, List<string> areaSortedNewElements, double minimumArea)
+        public override bool InsertStockElement(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement, bool keepCutOff = true)
+        {
+            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            {
+                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+            }
+            else if (materialBank.RemoveStockElementFromMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex], keepCutOff))
+            {
+                InPlaceElement temp = new InPlaceBarElement3D(stockElement, ElementsInStructure[inPlaceElementIndex]);
+                ElementsInStructure.RemoveAt(inPlaceElementIndex);
+                ElementsInStructure.Insert(inPlaceElementIndex, temp);
+                return true;
+            }
+            return false;
+        }
+        public override void InsertNewElement(int inPlaceElementIndex, List<string> areaSortedNewElements, double minimumArea)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
             {
@@ -698,21 +667,6 @@ namespace MasterthesisGHA
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
             }
         }
-        
-        // Unused Methods
-        private void VerifyElementProperties(ref List<Line> lines, ref List<double> A, ref double E)
-        {
-            if (A.Count == 1)
-            {
-                List<double> iA_constValue = new List<double>();
-                for (int i = 0; i < lines.Count; i++)
-                    iA_constValue.Add(A[0]);
-                A = iA_constValue;
-            }
-            else if (A.Count != lines.Count)
-                throw new Exception("A is wrong size! Input list with same length as Lines or constant value!");
-        }
-
     }
 
 
@@ -824,72 +778,8 @@ namespace MasterthesisGHA
                 }
             }
         }
-        /*
-        public override void GetLoadVisuals(double size = -1, double load = -1)
-        {
-            if (size != -1)
-                StructureSize = size;
-            if (load != -1)
-                StructureLoad = load;
-
-
-            for (int i = 0; i < FreeNodes.Count; i++)
-            {
-                int dofsPerNode = GetDofsPerNode();
-
-                Vector3d dir = new Vector3d(GlobalLoadVector[dofsPerNode * i], 0, GlobalLoadVector[dofsPerNode * i + 1]);
-                dir.Unitize();
-                double arrowLength = Math.Sqrt(GlobalLoadVector[dofsPerNode * i] * GlobalLoadVector[dofsPerNode * i] +
-                    GlobalLoadVector[dofsPerNode * i + 1] * GlobalLoadVector[dofsPerNode * i + 1]) * StructureSize / StructureLoad * 1e-3;
-                double lineRadius = 20;
-
-                Point3d startPoint = FreeNodes[i];
-                Point3d endPoint = FreeNodes[i] + new Point3d(dir * arrowLength);
-                Point3d arrowBase = endPoint + dir * 4 * lineRadius;
-
-                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
-                StructureVisuals.Add(loadCylinder.ToBrep(true, true));
-                StructureColors.Add(loadArrowColor);
-
-                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(GlobalLoadVector[dofsPerNode * i], 0, GlobalLoadVector[dofsPerNode * i + 1])), -4 * lineRadius, 2 * lineRadius);
-                StructureVisuals.Add(arrow.ToBrep(true));
-                StructureColors.Add(loadArrowColor);
-            }
-        }
-        */
-
 
         // Insert Material Bank Methods
-        public override bool InsertStockElementIntoStructureAndForgetCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
-        {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
-            {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
-            }
-            else if (materialBank.RemoveStockElementFromMaterialBank(stockElement))
-            {
-                InPlaceElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
-                ElementsInStructure.RemoveAt(inPlaceElementIndex);
-                ElementsInStructure.Insert(inPlaceElementIndex, temp);
-                return true;
-            }
-            return false;
-        }
-        public override bool InsertStockElementIntoStructureAndKeepCutOff(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement)
-        {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
-            {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
-            }
-            else if (materialBank.ReduceStockElementInMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex]))
-            {
-                InPlaceElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
-                ElementsInStructure.RemoveAt(inPlaceElementIndex);
-                ElementsInStructure.Insert(inPlaceElementIndex, temp);
-                return true;
-            }
-            return false;
-        }
         public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
             List<List<StockElement>> reusablesSuggestionTree = new List<List<StockElement>>();
@@ -911,7 +801,22 @@ namespace MasterthesisGHA
             }
             return reusablesSuggestionTree;
         }
-        public override void InsertNewElementIntoStrucutre(int inPlaceElementIndex, List<string> areaSortedNewElements, double minimumArea)
+        public override bool InsertStockElement(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement, bool keepCutOff = true)
+        {
+            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            {
+                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+            }
+            else if (materialBank.RemoveStockElementFromMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex], keepCutOff))
+            {
+                InPlaceElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
+                ElementsInStructure.RemoveAt(inPlaceElementIndex);
+                ElementsInStructure.Insert(inPlaceElementIndex, temp);
+                return true;
+            }
+            return false;
+        }      
+        public override void InsertNewElement(int inPlaceElementIndex, List<string> areaSortedNewElements, double minimumArea)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
             {
@@ -927,7 +832,6 @@ namespace MasterthesisGHA
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
             }
         }
-
 
         // Unused
         private void CheckInputs(ref List<Line> lines, ref List<double> A, ref List<Point3d> anchoredPoints, ref List<double> loadList, 
@@ -1175,16 +1079,31 @@ namespace MasterthesisGHA
         {
             StockElementsInMaterialBank.Add(stockElement);
         }
-        public bool RemoveStockElementFromMaterialBank(StockElement stockElement)
+        public bool RemoveStockElementFromMaterialBank(StockElement stockElement, InPlaceElement inPlaceElement, bool keepCutOff)
         {
             int index = StockElementsInMaterialBank.FindIndex(o => stockElement == o && !o.IsInStructure);
             if ( index == -1 )
+            {
                 return false;
+            }  
+            else if (keepCutOff)
+            {
+                StockElement temp = stockElement.DeepCopy();
+                StockElement cutOffPart = new StockElement(temp.ProfileName,
+                    temp.GetStockElementLength() - inPlaceElement.StartPoint.DistanceTo(inPlaceElement.EndPoint));
+                cutOffPart.IsInStructure = false;
+                StockElement insertPart = new StockElement(temp.ProfileName,
+                    inPlaceElement.StartPoint.DistanceTo(inPlaceElement.EndPoint));
+                insertPart.IsInStructure = true;
+
+                StockElementsInMaterialBank[index] = insertPart;
+                StockElementsInMaterialBank.Add(cutOffPart);
+            }
             else
             {
-                StockElementsInMaterialBank[index].IsInStructure = true;
-                return true;
+                StockElementsInMaterialBank[index].IsInStructure = true;             
             }
+            return true;
         }
         public bool ReduceStockElementInMaterialBank(StockElement stockElement, InPlaceElement inPlaceElement)
         {

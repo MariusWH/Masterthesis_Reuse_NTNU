@@ -101,7 +101,7 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Retracking();
 
             if (insertMaterialBank && insertNewElements)
-                truss.InsertMaterialBankOrNewElements(inputMaterialBank, out outMaterialBank);
+                truss.InsertMaterialBankThenNewElements(inputMaterialBank, out outMaterialBank);
             else if (insertMaterialBank)
                 truss.InsertMaterialBank(inputMaterialBank, out outMaterialBank);
             else if (insertNewElements)

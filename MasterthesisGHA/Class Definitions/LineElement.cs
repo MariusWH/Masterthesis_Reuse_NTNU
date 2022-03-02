@@ -102,8 +102,6 @@ namespace MasterthesisGHA
             profiles.OrderBy(o => CrossSectionAreaDictionary[o]);
             return profiles;
         }
-
-
     }
 
 
@@ -174,6 +172,22 @@ namespace MasterthesisGHA
         public virtual Matrix<double> getLocalStiffnessMatrix()
         {
             return LocalStiffnessMatrix;
+        }
+        public virtual double CheckUtilization(double axialLoad)
+        {
+            return Math.Abs( axialLoad / (CrossSectionArea * YieldStress) );
+        }
+        public virtual double CheckAxialBuckling(double axialLoad)
+        {
+            double minAreaMomentOfInertia = Math.Min(AreaMomentOfInertiaYY, AreaMomentOfInertiaZZ);
+            double effectiveLoadFactor = 1.0;
+            double eulerCriticalLoad = (Math.PI * Math.PI * YoungsModulus * minAreaMomentOfInertia)
+                / (effectiveLoadFactor * StartPoint.DistanceTo(EndPoint));
+            
+            if (axialLoad > 0)
+                return 0;
+            else
+                return -axialLoad / eulerCriticalLoad;
         }
         public virtual double getMass()
         {
@@ -301,8 +315,10 @@ namespace MasterthesisGHA
             return elementLength * elementDirectionMathNet.ConjugateDotProduct(projectionDirectionMathNet);
         }
 
-
     }
+
+
+
 
     public class InPlaceBarElement2D : InPlaceBarElement3D
     {
@@ -401,6 +417,18 @@ namespace MasterthesisGHA
         public double CheckUtilization(double axialLoad)
         {
             return axialLoad/(CrossSectionArea*YieldStress);
+        }
+        public double CheckAxialBuckling(double axialLoad, double inPlaceLength)
+        {
+            double weakI = Math.Min(AreaMomentOfInertiaYY, AreaMomentOfInertiaZZ);
+            double effectiveLoadFactor = 1.0;
+            double eulerCriticalLoad = (Math.PI * Math.PI * YoungsModulus * weakI)
+                / (effectiveLoadFactor * inPlaceLength);
+
+            if (axialLoad > 0)
+                return 0;
+            else
+                return -axialLoad / eulerCriticalLoad;
         }
         public virtual double getMass()
         {

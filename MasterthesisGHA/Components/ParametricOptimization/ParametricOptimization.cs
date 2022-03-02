@@ -8,14 +8,18 @@ namespace MasterthesisGHA.Components.ParametricOptimization
 {
     public class ParametricOptimization : GH_Component
     {
-        /// <summary>
-        /// Initializes a new instance of the MyComponent1 class.
-        /// </summary>
+        // Stored variables
+        double structureSize;
+        double maxDisplacement;
+
+
         public ParametricOptimization()
           : base("ParametricOptimization", "ParametricOptimization",
               "Description",
               "Master", "MethodTwo")
         {
+            structureSize = 10000;
+            maxDisplacement = 10;
         }
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
@@ -105,7 +109,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
 
             truss.Solve();
             truss.Retracking();
-            truss.GetResultVisuals();
+            truss.GetResultVisuals(0, structureSize, maxDisplacement);
             truss.GetLoadVisuals();
 
 

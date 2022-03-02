@@ -11,6 +11,7 @@ namespace MasterthesisGHA
         // Stored Variables
         public double trussSize;
         public double maxLoad;
+        public double maxDisplacement;
 
         public TrussSolver()
           : base("Truss Matrix Structural Analysis", "Truss MSA",
@@ -19,14 +20,41 @@ namespace MasterthesisGHA
         {
             trussSize = -1;
             maxLoad = -1;
+            maxDisplacement = -1;
         }
         public TrussSolver(string name, string nickname, string description, string category, string subCategory)
             : base(name, nickname, description, category, subCategory)
         {
 
         }
+       
+        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        {
+            pManager.AddBooleanParameter("3D/2D", "3D/2D", "3D/2D", GH_ParamAccess.item, true);
+            pManager.AddLineParameter("Line Geometry", "Geometry", "Geometry as list of lines", GH_ParamAccess.list);
+            pManager.AddTextParameter("Bar Profiles", "Profiles", "Profile of each geometry line member as list", GH_ParamAccess.list);
+            pManager.AddPointParameter("Support Points", "Supports", "Pinned support points restricted from translation but free to rotate", GH_ParamAccess.list);
+            pManager.AddNumberParameter("List Loading [N]", "ListLoad", "Nodal loads by numeric values (x1, y1, x2, y2, ..)", GH_ParamAccess.list, new List<double> { 0 });
+            pManager.AddVectorParameter("Vector Loading [N]", "VectorLoad", "Nodal loads by vector input", GH_ParamAccess.list, new Vector3d(0, 0, 0));
+            pManager.AddNumberParameter("Line Load Value", "LL Value", "", GH_ParamAccess.item);
+            pManager.AddVectorParameter("Line Load Direction", "LL Direction", "", GH_ParamAccess.item);
+            pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item);
+            pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
+            pManager.AddBooleanParameter("NormalizeVisuals", "NormalizeVisuals", "Use button to normalize the visuals output", GH_ParamAccess.item, true);
+        }
+        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        {
+            pManager.AddPointParameter("Free Nodes", "Nodes", "Free nodes as list of points", GH_ParamAccess.list);
+            pManager.AddMatrixParameter("Stiffness Matrix", "K", "Stiffness matrix as matrix", GH_ParamAccess.item);
+            pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
+            pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);           
+            pManager.AddBrepParameter("Geometry Visuals", "Visuals", "Geometry visuals as list of brep", GH_ParamAccess.list);
+            pManager.AddColourParameter("Color Visuals", "Color", "Color visuals as list of colors", GH_ParamAccess.list);
+
+        }
         protected virtual void SetInputs(IGH_DataAccess DA, out bool is3d, out List<Line> iLines, out List<string> iProfiles, out List<Point3d> iAnchoredPoints, out List<double> iLoad,
-            out List<Vector3d> iLoadVecs, out double iLineLoadValue, out Vector3d iLineLoadDirection, out Vector3d iLineLoadDistribution, out List<Line> iLinesToLoad, out bool normalizeVisuals)
+           out List<Vector3d> iLoadVecs, out double iLineLoadValue, out Vector3d iLineLoadDirection, out Vector3d iLineLoadDistribution, out List<Line> iLinesToLoad, out bool normalizeVisuals)
         {
             is3d = true;
             iLines = new List<Line>();
@@ -58,37 +86,9 @@ namespace MasterthesisGHA
             DA.SetData(1, truss.GetStiffnessMatrix());
             DA.SetData(2, truss.GetDisplacementVector());
             DA.SetData(3, truss.GetLoadVector());
-            DA.SetDataList(4, truss.ElementAxialForce);           
+            DA.SetDataList(4, truss.ElementAxialForce);
             DA.SetDataList(5, truss.StructureVisuals);
             DA.SetDataList(6, truss.StructureColors);
-        }
-
-
-
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
-        {
-            pManager.AddBooleanParameter("3D/2D", "3D/2D", "3D/2D", GH_ParamAccess.item, true);
-            pManager.AddLineParameter("Line Geometry", "Geometry", "Geometry as list of lines", GH_ParamAccess.list);
-            pManager.AddTextParameter("Bar Profiles", "Profiles", "Profile of each geometry line member as list", GH_ParamAccess.list);
-            pManager.AddPointParameter("Support Points", "Supports", "Pinned support points restricted from translation but free to rotate", GH_ParamAccess.list);
-            pManager.AddNumberParameter("List Loading [N]", "ListLoad", "Nodal loads by numeric values (x1, y1, x2, y2, ..)", GH_ParamAccess.list, new List<double> { 0 });
-            pManager.AddVectorParameter("Vector Loading [N]", "VectorLoad", "Nodal loads by vector input", GH_ParamAccess.list, new Vector3d(0, 0, 0));
-            pManager.AddNumberParameter("Line Load Value", "LL Value", "", GH_ParamAccess.item);
-            pManager.AddVectorParameter("Line Load Direction", "LL Direction", "", GH_ParamAccess.item);
-            pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item);
-            pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
-            pManager.AddBooleanParameter("NormalizeVisuals", "NormalizeVisuals", "Use button to normalize the visuals output", GH_ParamAccess.item, false);
-        }
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
-        {
-            pManager.AddPointParameter("Free Nodes", "Nodes", "Free nodes as list of points", GH_ParamAccess.list);
-            pManager.AddMatrixParameter("Stiffness Matrix", "K", "Stiffness matrix as matrix", GH_ParamAccess.item);
-            pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
-            pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);           
-            pManager.AddBrepParameter("Geometry Visuals", "Visuals", "Geometry visuals as list of brep", GH_ParamAccess.list);
-            pManager.AddColourParameter("Color Visuals", "Color", "Color visuals as list of colors", GH_ParamAccess.list);
-
         }
 
 
@@ -99,7 +99,6 @@ namespace MasterthesisGHA
             SetInputs(DA, out bool is3d, out List<Line> iLines, out List<string> iProfiles, out List<Point3d> iAnchoredPoints, out List<double> iLoad,
             out List<Vector3d> iLoadVecs, out double iLineLoadValue, out Vector3d iLineLoadDirection, out Vector3d iLineLoadDistribution, 
             out List<Line> iLinesToLoad, out bool normalizeVisuals);
-
 
 
             // CODE
@@ -123,10 +122,11 @@ namespace MasterthesisGHA
             {
                 trussSize = truss.StructureSize;
                 maxLoad = truss.GlobalLoadVector.AbsoluteMaximum();
+                maxDisplacement = truss.GlobalDisplacementVector.AbsoluteMaximum();
             }
 
-            truss.GetResultVisuals();
-            truss.GetLoadVisuals(trussSize, maxLoad);
+            truss.GetResultVisuals(0, trussSize, maxDisplacement);
+            truss.GetLoadVisuals(trussSize, maxLoad, maxDisplacement);
 
 
             // OUTPUT

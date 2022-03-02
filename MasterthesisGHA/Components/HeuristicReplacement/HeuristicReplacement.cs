@@ -5,16 +5,22 @@ using Grasshopper.Kernel;
 using Rhino.Geometry;
 
 namespace MasterthesisGHA.Components.MethodOne
-{ 
-
+{
     public class HeuristicReplacement : GH_Component
     {
+        // Stored Variables
+        public double trussSize;
+        public double maxLoad;
+        public double maxDisplacement;
 
         public HeuristicReplacement()
           : base("HeuristicReplacement", "Heuristic",
               "A Best-Fit Heuristic Method for inserting a defined Material Bank into a pre-defined structur geometry",
               "Master", "MethodOne")
         {
+            trussSize = -1;
+            maxLoad = -1;
+            maxDisplacement = -1;
         }
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
@@ -32,7 +38,9 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
-            
+
+            pManager.AddBooleanParameter("NormalizeVisuals", "NormalizeVisuals", "Use button to normalize the visuals output", GH_ParamAccess.item, true);
+
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
@@ -66,6 +74,7 @@ namespace MasterthesisGHA.Components.MethodOne
             Vector3d iLineLoadDirection = new Vector3d();
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
+            bool normalizeVisuals = false;
 
             DA.GetData(0, ref is3D);
             DA.GetData(1, ref insertMaterialBank);
@@ -78,6 +87,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(8, ref iLineLoadValue);
             DA.GetData(9, ref iLineLoadDirection);
             DA.GetData(10, ref iLineLoadDistribution);
+            DA.GetData(11, ref normalizeVisuals);
             
 
 
@@ -120,8 +130,17 @@ namespace MasterthesisGHA.Components.MethodOne
 
             truss.Solve();
             truss.Retracking();
-            truss.GetResultVisuals();
-            truss.GetLoadVisuals();
+
+
+            if (normalizeVisuals)
+            {
+                trussSize = truss.StructureSize;
+                maxLoad = truss.GlobalLoadVector.AbsoluteMaximum();
+                maxDisplacement = truss.GlobalDisplacementVector.AbsoluteMaximum();
+            }
+
+            truss.GetResultVisuals(0, trussSize, maxDisplacement);
+            truss.GetLoadVisuals(trussSize, maxLoad, maxDisplacement);
         
 
 

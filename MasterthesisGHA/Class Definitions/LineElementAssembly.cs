@@ -350,8 +350,62 @@ namespace MasterthesisGHA
         public virtual void InsertNewElement(int inPlaceElementIndex, List<string> criteraSortedNewElements, double criteria)
         {
             throw new NotImplementedException();
-        }      
-        
+        }
+
+
+        // LCA Optimum Replacement
+        public void emissionReductionRank(MaterialBank materialBank, double distanceFabrication, double distanceBuilding, 
+            double distanceRecycling)
+        {
+            //Definerer ytre liste som inneholder reusable stock
+            //Ytre liste som inneholder elements in structure
+            //definerer indre liste (liste inni elements in structure) som skal inneholde LCA verdiene i matrisa
+
+            InsertNewElements();
+
+            Matrix<double> emissionReductionMatrix = Matrix<double>.Build.Dense(ElementsInStructure.Count, 
+                materialBank.StockElementsInMaterialBank.Count);
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                List<StockElement> A = materialBank.StockElementsInMaterialBank;
+                for (int j = 0; j < A.Count; j++)
+                {
+                    InPlaceElement element = ElementsInStructure[i];
+                    StockElement stockElement = A[j];
+
+                    double reuseLength = element.getInPlaceElementLength();
+                    double wasteLength = stockElement.GetStockElementLength() - element.getInPlaceElementLength();
+
+                    if (wasteLength < 0)
+                    {
+                        emissionReductionMatrix[i, j] = -1;
+                    }
+                    else
+                    {
+                        emissionReductionMatrix[i, j] =
+                            0.957 * element.getMass() +
+                            0.00011  * element.getMass() * distanceBuilding +
+                            0.110 * element.getMass()
+                            - (
+                            0.287*stockElement.getMass() +
+                            0.81*stockElement.getMass(wasteLength) +
+                            0.110*stockElement.getMass(reuseLength) +
+                            0.0011*stockElement.getMass() * distanceFabrication +
+                            0.0011*stockElement.getMass(reuseLength) * distanceBuilding +
+                            0.00011*stockElement.getMass(wasteLength) * distanceRecycling
+                            );
+                    }      
+                }
+            }
+
+
+            //Lage rank//
+
+
+        }
+
+
     }
 
 
@@ -621,7 +675,8 @@ namespace MasterthesisGHA
                 StructureColors.Add(Structure.loadArrowColor);
             }
         }
-        public override void GetResultVisuals(int colorTheme, double size = -1, double maxDisplacement = -1)
+       /*
+        public override void GetResultVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, int colorTheme, double size = -1, double maxDisplacement = -1)
         {
             double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
             double nodeRadius = getStructureSizeFactor(5e-3, size);
@@ -677,7 +732,8 @@ namespace MasterthesisGHA
                 StructureColors.Add(Structure.freeNodeColor);
             }
 
-        }
+
+        }*/
 
 
         // Insert Material Bank Methods

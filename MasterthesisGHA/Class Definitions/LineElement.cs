@@ -194,6 +194,10 @@ namespace MasterthesisGHA
             double density = 7800 / 1e9;
             return CrossSectionArea * StartPoint.DistanceTo(EndPoint) * density;
         }
+        public virtual double getInPlaceElementLength()
+        {
+            return StartPoint.DistanceTo(EndPoint);
+        }
 
 
         // Virtual Methods
@@ -434,6 +438,11 @@ namespace MasterthesisGHA
         {
             double density = 7800 / 1e9;
             return CrossSectionArea * ReusableElementLength * density;
+        }
+        public virtual double getMass(double length)
+        {
+            double density = 7800 / 1e9;
+            return CrossSectionArea * length * density;
         }
 
         // Copy

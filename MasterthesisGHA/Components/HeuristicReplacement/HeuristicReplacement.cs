@@ -39,7 +39,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
 
-            pManager.AddBooleanParameter("NormalizeVisuals", "NormalizeVisuals", "Use button to normalize the visuals output", GH_ParamAccess.item, true);
+            pManager.AddBooleanParameter("NormalizeVisuals", "NormalizeVisuals", "Use button to normalize the visuals output", GH_ParamAccess.item, false);
 
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
@@ -134,9 +134,9 @@ namespace MasterthesisGHA.Components.MethodOne
 
             if (normalizeVisuals)
             {
-                trussSize = truss.StructureSize;
-                maxLoad = truss.GlobalLoadVector.AbsoluteMaximum();
-                maxDisplacement = truss.GlobalDisplacementVector.AbsoluteMaximum();
+                trussSize = truss.GetStructureSize();
+                maxLoad = truss.GetMaxLoad();
+                maxDisplacement = truss.GetMaxDisplacement();
             }
 
             truss.GetResultVisuals(0, trussSize, maxDisplacement);

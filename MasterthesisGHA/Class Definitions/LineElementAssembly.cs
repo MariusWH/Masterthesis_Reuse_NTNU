@@ -32,7 +32,7 @@ namespace MasterthesisGHA
 
             supportNodeColor = darkerGrey;
             freeNodeColor = System.Drawing.Color.DarkGray;
-            loadArrowColor = darkerGrey;
+            loadArrowColor = System.Drawing.Color.White;
 
             verifiedMemberColor = System.Drawing.Color.White;
             verifiedMemberColor = System.Drawing.Color.Green;
@@ -171,6 +171,64 @@ namespace MasterthesisGHA
                 mass += element.getMass();
             return mass;
         }
+        public double GetStructureSize()
+        {
+            double xMin = FreeNodes[0].X;
+            double xMax = FreeNodes[0].X;
+            double yMin = FreeNodes[0].Y;
+            double yMax = FreeNodes[0].Y;
+            double zMin = FreeNodes[0].Z;
+            double zMax = FreeNodes[0].Z;
+
+            foreach (Point3d point in FreeNodes)
+            {
+                xMin = Math.Min(xMin, point.X);
+                xMax = Math.Max(xMax, point.X);
+                yMin = Math.Min(yMin, point.Y);
+                yMax = Math.Max(yMax, point.Y);
+                zMin = Math.Min(zMin, point.Z);
+                zMax = Math.Max(zMax, point.Z);
+            }
+
+            return Math.Sqrt(
+                (xMax - xMin) * (xMax - xMin) +
+                (yMax - yMin) * (yMax - yMin) +
+                (zMax - zMin) * (zMax - zMin) );
+        }
+        public double GetMaxLoad()
+        {
+            int dofsPerNode = GetDofsPerNode();
+            double max = 0;
+            double temp;
+
+            for (int i = 0; i < dofsPerNode * FreeNodes.Count; i += dofsPerNode)
+            {
+                temp = 0;
+                for (int j = 0; j < dofsPerNode; j++)
+                {
+                    temp += GlobalLoadVector[i + j] * GlobalLoadVector[i + j];
+                }
+                max = Math.Max(max, Math.Sqrt(temp));
+            }
+            return max;
+        }
+        public double GetMaxDisplacement()
+        {
+            int dofsPerNode = GetDofsPerNode();
+            double max = 0;
+            double temp;
+
+            for (int i = 0; i < dofsPerNode * FreeNodes.Count; i += dofsPerNode)
+            {
+                temp = 0;
+                for (int j = 0; j < dofsPerNode; j++)
+                {
+                    temp += GlobalDisplacementVector[i + j] * GlobalDisplacementVector[i + j];
+                }
+                max = Math.Max(max, Math.Sqrt(temp));
+            }
+            return max;
+        }
 
         // Virtual Methods
         protected virtual void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
@@ -218,27 +276,8 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
-        /*public virtual void SetStructureSize()
-        {
-            double xMin = FreeNodes[0].X;
-            double xMax = FreeNodes[0].X;
-            double yMin = FreeNodes[0].Y;
-            double yMax = FreeNodes[0].Y;
-            double zMin = FreeNodes[0].Z;
-            double zMax = FreeNodes[0].Z;
 
-            foreach ( Point3d point in FreeNodes)
-            {
-                xMin = Math.Min(xMin, point.X);
-                xMax = Math.Max(xMax, point.X);
-                yMin = Math.Min(yMin, point.Y);
-                yMax = Math.Max(yMax, point.Y);
-                zMin = Math.Min(zMin, point.Z);
-                zMax = Math.Max(zMax, point.Z);
-            }
-
-            StructureSize = Math.Sqrt((xMax - xMin) * (xMax - xMin) + (yMax - yMin) * (yMax - yMin) + (zMax - zMin) * (zMax - zMin));
-        }*/
+        
 
         // Linear Element Replacement Method
         public void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
@@ -490,6 +529,18 @@ namespace MasterthesisGHA
         }
 
         // Visuals
+        protected double getStructureSizeFactor(double factorOfLength, double structureSize)
+        {
+            return factorOfLength * structureSize;
+        }
+        protected double getDisplacementFactor(double factorOfLength, double structureSize, double maxDisplacement )
+        {
+            return factorOfLength * structureSize / maxDisplacement;
+        }
+        protected double getLoadFactor(double factorOfLength, double structureSize, double maxLoad)
+        {
+            return factorOfLength * structureSize / maxLoad;
+        }
         public override void UpdateNodesVisuals()
         {
             double maxDisplacement = GlobalDisplacementVector.AbsoluteMaximum();
@@ -508,14 +559,9 @@ namespace MasterthesisGHA
         }
         public override void GetLoadVisuals(double size = -1, double maxLoad = -1, double maxDisplacement = -1)
         {
-            /*
-            if (size != -1)
-                StructureSize = size;
-            if (maxLoad != -1)
-                StructureLoad = maxLoad;
-            */
+            double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
+            double loadLineRadius = getStructureSizeFactor(2e-3, size);
 
-            double displacementFactor = 0.0005 * size / maxDisplacement;
             List<Point3d> freeNodeDisplacement = new List<Point3d>();
             for (int j = 0; j < FreeNodes.Count; j++)
             {
@@ -553,17 +599,16 @@ namespace MasterthesisGHA
                     pointLoadVector[dofsPerNode * i] * pointLoadVector[dofsPerNode * i] +
                     pointLoadVector[dofsPerNode * i + 1] * pointLoadVector[dofsPerNode * i + 1] +
                     pointLoadVector[dofsPerNode * i + 2] * pointLoadVector[dofsPerNode * i + 2]) *
-                    size / maxLoad * 5e-4;
+                    getLoadFactor(0.1,size, maxLoad);
 
-                dir.Unitize();
-                double lineRadius = 10;
-                double coneHeight = 6 * lineRadius;
-                double coneRadius = 3 * lineRadius;
+                dir.Unitize();                
+                double coneHeight = 6 * loadLineRadius;
+                double coneRadius = 3 * loadLineRadius;
 
                 Point3d startPoint = new Point3d( FreeNodesInitial[i] + freeNodeDisplacement[i] );
                 Point3d endPoint = startPoint + new Point3d(dir * arrowLength);
                 Point3d arrowBase = endPoint + dir * coneHeight;
-                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), lineRadius), startPoint.DistanceTo(endPoint));
+                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), loadLineRadius), startPoint.DistanceTo(endPoint));
                 Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(
                     pointLoadVector[dofsPerNode * i],
                     pointLoadVector[dofsPerNode * i + 1],
@@ -578,23 +623,17 @@ namespace MasterthesisGHA
         }
         public override void GetResultVisuals(int colorTheme, double size = -1, double maxDisplacement = -1)
         {
-            double displacementFactor = 0.0005 * size / maxDisplacement;
-            List<Point3d> freeNodeDisplacement = new List<Point3d>();
+            double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
+            double nodeRadius = getStructureSizeFactor(5e-3, size);
+            List<Point3d> normalizedNodeDisplacement = new List<Point3d>();
             for (int j = 0; j < FreeNodes.Count; j++)
             {
-                freeNodeDisplacement.Add(displacementFactor * (new Point3d(FreeNodes[j] - FreeNodesInitial[j])));
+                normalizedNodeDisplacement.Add(displacementFactor * (new Point3d(FreeNodes[j] - FreeNodesInitial[j])));
             }
-
-            double f_dim = 355;
-            List<double> sigma = new List<double>();
-            List<double> utilization = new List<double>();
-
+           
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
-                sigma.Add(ElementAxialForce[i] / ElementsInStructure[i].CrossSectionArea);
-                utilization.Add(sigma[i] / f_dim);
-
                 if (ElementsInStructure[i].IsFromMaterialBank)
                     StructureColors.Add(reuseMemberColor);
                 else if (ElementsInStructure[i].CheckAxialBuckling(ElementAxialForce[i]) > 1)
@@ -604,24 +643,23 @@ namespace MasterthesisGHA
                 else
                     StructureColors.Add(verifiedMemberColor);
 
-
                 Point3d startOfElement = ElementsInStructure[i].getStartPoint();
                 int startNodeIndex = ElementsInStructure[i].getStartNodeIndex();
                 if (startNodeIndex != -1)
-                    startOfElement += freeNodeDisplacement[startNodeIndex];
+                    startOfElement += normalizedNodeDisplacement[startNodeIndex];
                     
                 Point3d endOfElement = ElementsInStructure[i].getEndPoint();
                 int endNodeIndex = ElementsInStructure[i].getEndNodeIndex();
                 if (endNodeIndex != -1)
-                    endOfElement += freeNodeDisplacement[endNodeIndex];
+                    endOfElement += normalizedNodeDisplacement[endNodeIndex];
 
                 Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)), startOfElement.DistanceTo(endOfElement));
                 StructureVisuals.Add(cylinder.ToBrep(true, true));
             }
 
+            
             foreach (Point3d supportNode in SupportNodes)
-            {
-                double nodeRadius = 40;
+            {               
                 Sphere nodeSphere = new Sphere(supportNode, nodeRadius);
                 StructureVisuals.Add(nodeSphere.ToBrep());
                 StructureColors.Add(Structure.supportNodeColor);
@@ -634,8 +672,7 @@ namespace MasterthesisGHA
 
             for (int i = 0; i < FreeNodesInitial.Count; i++)
             {
-                double nodeRadius = 40;
-                Sphere nodeSphere = new Sphere(FreeNodesInitial[i]+freeNodeDisplacement[i], nodeRadius);
+                Sphere nodeSphere = new Sphere(FreeNodesInitial[i]+normalizedNodeDisplacement[i], nodeRadius);
                 StructureVisuals.Add(nodeSphere.ToBrep());
                 StructureColors.Add(Structure.freeNodeColor);
             }
@@ -696,7 +733,6 @@ namespace MasterthesisGHA
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
             }
         }
-
 
     }
 

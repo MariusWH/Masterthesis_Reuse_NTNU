@@ -120,9 +120,9 @@ namespace MasterthesisGHA
 
             if (normalizeVisuals)
             {
-                trussSize = truss.StructureSize;
-                maxLoad = truss.GlobalLoadVector.AbsoluteMaximum();
-                maxDisplacement = truss.GlobalDisplacementVector.AbsoluteMaximum();
+                trussSize = truss.GetStructureSize();
+                maxLoad = truss.GetMaxLoad();
+                maxDisplacement = truss.GetMaxDisplacement();
             }
 
             truss.GetResultVisuals(0, trussSize, maxDisplacement);

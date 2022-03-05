@@ -90,8 +90,6 @@ namespace MasterthesisGHA
         public List<double> ElementUtilization;
         public List<System.Drawing.Color> StructureColors;
         public List<Brep> StructureVisuals;
-        public double StructureSize;
-        public double StructureLoad;
 
         // Constructors
         static Structure()
@@ -110,15 +108,11 @@ namespace MasterthesisGHA
             ElementUtilization = new List<double>();
             StructureColors = new List<System.Drawing.Color>();
             StructureVisuals = new List<Brep>();
-            StructureSize = 0;
-            StructureLoad = 0;
     }
         public Structure(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
         {           
             StructureVisuals = new List<Brep>();
             StructureColors = new List<System.Drawing.Color>();
-            StructureSize = 1e6;
-            StructureLoad = 1e5;
             FreeNodesInitial = new List<Point3d>();
 
             VerifyModel(ref lines, ref supportPoints);           
@@ -265,11 +259,6 @@ namespace MasterthesisGHA
             throw new NotImplementedException();           
         }
 
-        // Virtual Visuals Methods
-        public virtual void UpdateNodesVisuals()
-        {
-            throw new NotImplementedException();
-        }
 
         // Virtual Structural Analysis Methods
         protected virtual void RecalculateGlobalMatrix()
@@ -288,13 +277,16 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
-        public virtual void GetResultVisuals(int colorTheme, double size = -1, double maxDisplacement = -1)
+        public virtual void GetResultVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, int colorTheme, double size = -1, double maxDisplacement = -1)
         {
             throw new NotImplementedException();
+        }     
+        public virtual void GetVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, int colorTheme, double size, double maxDisplacement, double maxLoad)
+        {
+            geometry = new List<Brep>();
+            color = new List<System.Drawing.Color>();
         }
-
         
-
         // Linear Element Replacement Method
         public void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
@@ -586,22 +578,6 @@ namespace MasterthesisGHA
         {
             return factorOfLength * structureSize / maxLoad;
         }
-        public override void UpdateNodesVisuals()
-        {
-            double maxDisplacement = GlobalDisplacementVector.AbsoluteMaximum();
-            int dofsPerNode = GetDofsPerNode();
-            FreeNodesInitial = new List<Point3d>(FreeNodes.Count);
-
-            for (int i = 0; i < FreeNodes.Count; i++)
-            {
-                FreeNodesInitial[i] += new Point3d(
-                    GlobalDisplacementVector[dofsPerNode * i],
-                    GlobalDisplacementVector[dofsPerNode * i + 1],
-                    GlobalDisplacementVector[dofsPerNode * i + 2]
-                    );
-            }
-                
-        }
         public override void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1)
         {
             geometry = new List<Brep>();
@@ -723,29 +699,32 @@ namespace MasterthesisGHA
                     endOfElement += normalizedNodeDisplacement[endNodeIndex];
 
                 Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)), startOfElement.DistanceTo(endOfElement));
-                StructureVisuals.Add(cylinder.ToBrep(true, true));
+                geometry.Add(cylinder.ToBrep(true, true));
+                
             }
 
             
             foreach (Point3d supportNode in SupportNodes)
             {               
                 Sphere nodeSphere = new Sphere(supportNode, nodeRadius);
-                StructureVisuals.Add(nodeSphere.ToBrep());
-                StructureColors.Add(Structure.supportNodeColor);
+                geometry.Add(nodeSphere.ToBrep());
+                color.Add(Structure.supportNodeColor);
 
                 Plane conePlane = new Plane(supportNode + new Point3d(0, 0, -nodeRadius), new Vector3d(0, 0, -1));
                 Cone pinnedCone = new Cone(conePlane, 2 * nodeRadius, 2 * nodeRadius);
-                StructureVisuals.Add(pinnedCone.ToBrep(true));
-                StructureColors.Add(Structure.supportNodeColor);
+                geometry.Add(pinnedCone.ToBrep(true));
+                color.Add(Structure.supportNodeColor);
             }
 
             for (int i = 0; i < FreeNodesInitial.Count; i++)
             {
                 Sphere nodeSphere = new Sphere(FreeNodesInitial[i]+normalizedNodeDisplacement[i], nodeRadius);
-                StructureVisuals.Add(nodeSphere.ToBrep());
-                StructureColors.Add(Structure.freeNodeColor);
+                geometry.Add(nodeSphere.ToBrep());
+                color.Add(Structure.freeNodeColor);
             }
 
+            StructureColors.AddRange(color);
+            StructureVisuals.AddRange(geometry);
 
         }
 

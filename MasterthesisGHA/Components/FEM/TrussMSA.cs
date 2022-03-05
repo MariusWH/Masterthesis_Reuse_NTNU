@@ -40,7 +40,6 @@ namespace MasterthesisGHA
             pManager.AddVectorParameter("Line Load Direction", "LL Direction", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item);
             pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
-            pManager.AddBooleanParameter("NormalizeVisuals", "NormalizeVisuals", "Use button to normalize the visuals output", GH_ParamAccess.item, true);
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
@@ -49,12 +48,11 @@ namespace MasterthesisGHA
             pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
             pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);           
-            pManager.AddBrepParameter("Geometry Visuals", "Visuals", "Geometry visuals as list of brep", GH_ParamAccess.list);
-            pManager.AddColourParameter("Color Visuals", "Color", "Color visuals as list of colors", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
 
         }
         protected virtual void SetInputs(IGH_DataAccess DA, out bool is3d, out List<Line> iLines, out List<string> iProfiles, out List<Point3d> iAnchoredPoints, out List<double> iLoad,
-           out List<Vector3d> iLoadVecs, out double iLineLoadValue, out Vector3d iLineLoadDirection, out Vector3d iLineLoadDistribution, out List<Line> iLinesToLoad, out bool normalizeVisuals)
+           out List<Vector3d> iLoadVecs, out double iLineLoadValue, out Vector3d iLineLoadDirection, out Vector3d iLineLoadDistribution, out List<Line> iLinesToLoad)
         {
             is3d = true;
             iLines = new List<Line>();
@@ -66,7 +64,6 @@ namespace MasterthesisGHA
             iLineLoadDirection = new Vector3d();
             iLineLoadDistribution = new Vector3d();
             iLinesToLoad = new List<Line>();
-            normalizeVisuals = false;
 
             DA.GetData(0, ref is3d);
             DA.GetDataList(1, iLines);
@@ -78,17 +75,10 @@ namespace MasterthesisGHA
             DA.GetData(7, ref iLineLoadDirection);
             DA.GetData(8, ref iLineLoadDistribution);
             DA.GetDataList(9, iLinesToLoad);
-            DA.GetData(10, ref normalizeVisuals);
         }
         protected virtual void SetOutputs(IGH_DataAccess DA, Structure truss)
         {
-            DA.SetDataList(0, truss.FreeNodes);
-            DA.SetData(1, truss.GetStiffnessMatrix());
-            DA.SetData(2, truss.GetDisplacementVector());
-            DA.SetData(3, truss.GetLoadVector());
-            DA.SetDataList(4, truss.ElementAxialForce);
-            DA.SetDataList(5, truss.StructureVisuals);
-            DA.SetDataList(6, truss.StructureColors);
+            
         }
 
 
@@ -98,7 +88,7 @@ namespace MasterthesisGHA
             // INPUT
             SetInputs(DA, out bool is3d, out List<Line> iLines, out List<string> iProfiles, out List<Point3d> iAnchoredPoints, out List<double> iLoad,
             out List<Vector3d> iLoadVecs, out double iLineLoadValue, out Vector3d iLineLoadDirection, out Vector3d iLineLoadDistribution, 
-            out List<Line> iLinesToLoad, out bool normalizeVisuals);
+            out List<Line> iLinesToLoad);
 
 
             // CODE
@@ -118,19 +108,15 @@ namespace MasterthesisGHA
             truss.Solve();
             truss.Retracking();
 
-            if (normalizeVisuals)
-            {
-                trussSize = truss.GetStructureSize();
-                maxLoad = truss.GetMaxLoad();
-                maxDisplacement = truss.GetMaxDisplacement();
-            }
-
-            truss.GetResultVisuals(0, trussSize, maxDisplacement);
-            truss.GetLoadVisuals(trussSize, maxLoad, maxDisplacement);
 
 
             // OUTPUT
-            SetOutputs(DA, truss);
+            DA.SetDataList(0, truss.FreeNodes);
+            DA.SetData(1, truss.GetStiffnessMatrix());
+            DA.SetData(2, truss.GetDisplacementVector());
+            DA.SetData(3, truss.GetLoadVector());
+            DA.SetDataList(4, truss.ElementAxialForce);
+            DA.SetData(5, truss);
         }
 
 

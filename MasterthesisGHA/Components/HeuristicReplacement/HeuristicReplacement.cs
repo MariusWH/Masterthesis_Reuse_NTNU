@@ -47,10 +47,7 @@ namespace MasterthesisGHA.Components.MethodOne
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddTextParameter("Info", "Info", "", GH_ParamAccess.item);
-            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "", GH_ParamAccess.item);
-
-            pManager.AddBrepParameter("Visuals", "Visuals", "", GH_ParamAccess.list);
-            pManager.AddColourParameter("Color", "Color", "", GH_ParamAccess.list);          
+            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "", GH_ParamAccess.item);       
 
             pManager.AddBrepParameter("StockVisuals", "StockVisuals", "", GH_ParamAccess.list);
             pManager.AddColourParameter("StockColour", "StockColour", "", GH_ParamAccess.list);
@@ -134,32 +131,17 @@ namespace MasterthesisGHA.Components.MethodOne
 
             truss.Solve();
             truss.Retracking();
-
-
-            if (normalizeVisuals || firstRun)
-            {
-                firstRun = false;
-                trussSize = truss.GetStructureSize();
-                maxLoad = truss.GetMaxLoad();
-                maxDisplacement = truss.GetMaxDisplacement();
-            }
-
-            truss.GetResultVisuals(0, trussSize, maxDisplacement);
-            truss.GetLoadVisuals(trussSize, maxLoad, maxDisplacement);
-        
-
+  
 
             // OUTPUTS
             DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo());
-            DA.SetData(1, outMaterialBank);
-            DA.SetDataList("Visuals", truss.StructureVisuals);
-            DA.SetDataList("Colour", truss.StructureColors);           
-            DA.SetDataList(4, outMaterialBank.MaterialBankVisuals);
-            DA.SetDataList(5, outMaterialBank.MaterialBankColors);
-            DA.SetData(6, truss.GetTotalMass());
-            DA.SetData(7, truss.GetReusedMass());
-            DA.SetData(8, truss.GetNewMass());
-            DA.SetData(9, truss);
+            DA.SetData(1, outMaterialBank);         
+            DA.SetDataList(2, outMaterialBank.MaterialBankVisuals);
+            DA.SetDataList(3, outMaterialBank.MaterialBankColors);
+            DA.SetData(4, truss.GetTotalMass());
+            DA.SetData(5, truss.GetReusedMass());
+            DA.SetData(6, truss.GetNewMass());
+            DA.SetData(7, truss);
 
 
         }

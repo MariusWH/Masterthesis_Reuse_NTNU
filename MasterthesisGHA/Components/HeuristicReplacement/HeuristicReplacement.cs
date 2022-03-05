@@ -57,6 +57,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("NewMass", "NewMass", "", GH_ParamAccess.item);
 
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
+            pManager.AddIntegerParameter("Permutations", "Permutations", "", GH_ParamAccess.tree);
         }
 
 
@@ -131,7 +132,10 @@ namespace MasterthesisGHA.Components.MethodOne
 
             truss.Solve();
             truss.Retracking();
-  
+
+
+            IEnumerable<IEnumerable<int>> permutations = truss.GetPermutations(new List<int>() { 0, 1, 2, 3 }, 4);
+            Grasshopper.DataTree<int> permutationsOut = ElementCollection.GetOutputDataTree(permutations);
 
             // OUTPUTS
             DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo());
@@ -142,6 +146,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(5, truss.GetReusedMass());
             DA.SetData(6, truss.GetNewMass());
             DA.SetData(7, truss);
+            DA.SetDataTree(8, permutationsOut);
 
 
         }

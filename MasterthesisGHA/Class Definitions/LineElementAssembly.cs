@@ -69,6 +69,42 @@ namespace MasterthesisGHA
             }
             return dataTree;
         }
+        public static Grasshopper.DataTree<T> GetOutputDataTree<T>(List<List<T>> inputDataTree)
+        {
+            Grasshopper.DataTree<T> dataTree = new Grasshopper.DataTree<T>();
+
+            int outerCount = 0;
+            foreach (List<T> list in inputDataTree)
+            {
+                int innerCount = 0;
+                foreach (T element in list)
+                {
+                    Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] { outerCount });
+                    dataTree.Insert(element, path, innerCount);
+                    innerCount++;
+                }
+                outerCount++;
+            }
+            return dataTree;
+        }
+        public static Grasshopper.DataTree<T> GetOutputDataTree<T>(IEnumerable<IEnumerable<T>> inputDataTree)
+        {
+            Grasshopper.DataTree<T> dataTree = new Grasshopper.DataTree<T>();
+
+            int outerCount = 0;
+            foreach (IEnumerable<T> list in inputDataTree)
+            {
+                int innerCount = 0;
+                foreach (T element in list)
+                {
+                    Grasshopper.Kernel.Data.GH_Path path = new Grasshopper.Kernel.Data.GH_Path(new int[] { outerCount });
+                    dataTree.Insert(element, path, innerCount);
+                    innerCount++;
+                }
+                outerCount++;
+            }
+            return dataTree;
+        }
     }
 
 
@@ -133,6 +169,21 @@ namespace MasterthesisGHA
             // Stiffness Matrix
             RecalculateGlobalMatrix();
 
+        }
+        public Structure(Structure copyFromThis)
+            : this()
+        {
+            ElementsInStructure = new List<InPlaceElement>(copyFromThis.ElementsInStructure);
+            FreeNodes = new List<Point3d>(copyFromThis.FreeNodes);
+            FreeNodesInitial = new List<Point3d>(copyFromThis.FreeNodesInitial);
+            SupportNodes = new List<Point3d>(copyFromThis.SupportNodes);
+            GlobalStiffnessMatrix = Matrix<double>.Build.SameAs(copyFromThis.GlobalStiffnessMatrix);
+            GlobalLoadVector = Vector<double>.Build.SameAs(copyFromThis.GlobalLoadVector);
+            GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
+            ElementAxialForce = new List<double>(copyFromThis.ElementAxialForce);
+            ElementUtilization = new List<double>(copyFromThis.ElementUtilization);
+            StructureColors = new List<System.Drawing.Color>(copyFromThis.StructureColors);
+            StructureVisuals = new List<Brep>(copyFromThis.StructureVisuals);
         }
 
         // Get Functions
@@ -286,8 +337,15 @@ namespace MasterthesisGHA
             geometry = new List<Brep>();
             color = new List<System.Drawing.Color>();
         }
-        
+
         // Linear Element Replacement Method
+        public void InsertNewElements()
+        {
+            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+                InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
+        }
         public void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
@@ -309,13 +367,32 @@ namespace MasterthesisGHA
             materialBank.UpdateVisuals();
             remainingMaterialBank = materialBank.DeepCopy();
         }
-        public void InsertNewElements()
+        public void InsertMaterialBank(List<int> insertOrder, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
+            if (insertOrder.Count != ElementsInStructure.Count)
+                throw new Exception("InsertOrder contains " + insertOrder.Count + " elements, while the structure contains "
+                    + ElementsInStructure.Count + " members");
+
+            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
-                InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
-        }
+            {
+                int elementIndex = insertOrder[i];
+                List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[elementIndex])
+                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[elementIndex]);
+                int index = sortedStockElementList.Count;
+                while (index-- != 0)
+                {
+                    if (InsertStockElement(elementIndex, ref materialBank, sortedStockElementList[index], true))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            materialBank.UpdateVisuals();
+            remainingMaterialBank = materialBank.DeepCopy();
+        }        
         public void InsertMaterialBankThenNewElements(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
@@ -342,31 +419,111 @@ namespace MasterthesisGHA
             materialBank.UpdateVisuals();
             remainingMaterialBank = materialBank.DeepCopy();
         }
-
-
-        // Brute Force Optimum Replacement
-        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        public void InsertMaterialBankThenNewElements(List<int> insertOrder, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            materialBank.ResetMaterialBank();
+            if (insertOrder.Count != ElementsInStructure.Count)
+                throw new Exception("InsertOrder contains " + insertOrder.Count + " elements, while the structure contains "
+                    + ElementsInStructure.Count + " members");
+
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
             List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
-                List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[i])
-                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[i]);
+                int elementIndex = insertOrder[i];
+                List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[elementIndex])
+                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[elementIndex]);
                 int index = sortedStockElementList.Count;
+                bool insertNew = true;
                 while (index-- != 0)
                 {
-                    if (InsertStockElement(i, ref materialBank, sortedStockElementList[index], true))
+                    if (InsertStockElement(elementIndex, ref materialBank, sortedStockElementList[index]))
                     {
+                        insertNew = false;
                         break;
                     }
                 }
+                if (insertNew)
+                    InsertNewElement(elementIndex, areaSortedElements, Math.Abs(ElementAxialForce[elementIndex] / 355));
             }
 
             materialBank.UpdateVisuals();
             remainingMaterialBank = materialBank.DeepCopy();
+        }
+
+
+
+
+
+
+
+        // Brute Force Optimum Replacement      
+        public IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
+        {
+            if (length == 1) 
+                return list.Select(t => new T[] { t });
+
+            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new T[] { t2 }));
+        }
+
+
+        /*
+        public List<List<int>> GetPermutations(List<List<int>> list, int length)
+        {
+            if (length == 1)
+                return (List<List<int>>)list.Select(t => new List<List<int>>(){ t });
+
+            return (List<List<int>>)GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new List<List<int>>() { t2 }));
+        }*/
+
+
+        /*
+        public List<List<int>> createAllOrderedLists(int listCount)
+        {
+            int factorial = Enumerable.Range(1, listCount).Aggregate(1, (p, item) => p * item);           
+            List<List<int>> indexLists = new List<List<int>>(factorial);
+
+            List<int> initalList = new List<int>();
+            for (int i = 0; i < listCount; i++)
+            {
+                initalList.Add(i);
+            }
+
+            return GetPermutations(indexLists, listCount);
+        }*/
+        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        {                       
+            List<int> initalList = new List<int>();
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                initalList.Add(i);
+            }
+            IEnumerable<IEnumerable<int>> allOrderedLists = GetPermutations(initalList, initalList.Count);
+            int factorial = Enumerable.Range(1, initalList.Count).Aggregate(1, (p, item) => p * item);
+
+
+            InsertNewElements();
+
+            for (int i = 0; i < factorial; i++)
+            {
+                TrussModel3D tempCopy = new TrussModel3D(this);
+                tempCopy.InsertMaterialBank(materialBank, out remainingMaterialBank);
+                
+
+                tempCopy.GetTotalMass();
+            }
+
+
+
+
+
+
+
+
+            remainingMaterialBank = materialBank.DeepCopy();
+
         }
 
 
@@ -405,6 +562,21 @@ namespace MasterthesisGHA
         {
             
 
+        }
+        public TrussModel3D(Structure copyFromThis)
+            : this()
+        {
+            ElementsInStructure = new List<InPlaceElement>( copyFromThis.ElementsInStructure );
+            FreeNodes = new List<Point3d>( copyFromThis.FreeNodes );
+            FreeNodesInitial = new List<Point3d>( copyFromThis.FreeNodesInitial );
+            SupportNodes = new List<Point3d>( copyFromThis.SupportNodes );
+            GlobalStiffnessMatrix = Matrix<double>.Build.SameAs(copyFromThis.GlobalStiffnessMatrix);
+            GlobalLoadVector = Vector<double>.Build.SameAs(copyFromThis.GlobalLoadVector);
+            GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
+            ElementAxialForce = new List<double>( copyFromThis.ElementAxialForce );
+            ElementUtilization = new List<double>( copyFromThis.ElementUtilization );
+            StructureColors = new List<System.Drawing.Color>( copyFromThis.StructureColors );
+            StructureVisuals = new List<Brep>( copyFromThis.StructureVisuals );
         }
 
         // General Methods

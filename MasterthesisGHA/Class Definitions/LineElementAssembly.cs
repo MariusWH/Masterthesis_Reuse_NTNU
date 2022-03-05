@@ -97,6 +97,22 @@ namespace MasterthesisGHA
         static Structure()
         {
         }
+        public Structure()
+        {
+            ElementsInStructure = new List<InPlaceElement>();
+            FreeNodes = new List<Point3d>();
+            FreeNodesInitial = new List<Point3d>();
+            SupportNodes = new List<Point3d>();
+            GlobalStiffnessMatrix = Matrix<double>.Build.Sparse(0,0);
+            GlobalLoadVector = Vector<double>.Build.Sparse(0);
+            GlobalDisplacementVector = Vector<double>.Build.Sparse(0);
+            ElementAxialForce = new List<double>();
+            ElementUtilization = new List<double>();
+            StructureColors = new List<System.Drawing.Color>();
+            StructureVisuals = new List<Brep>();
+            StructureSize = 0;
+            StructureLoad = 0;
+    }
         public Structure(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
         {           
             StructureVisuals = new List<Brep>();
@@ -268,7 +284,7 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
-        public virtual void GetLoadVisuals(double size = -1, double load = -1, double maxDisplacement = -1)
+        public virtual void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1)
         {
             throw new NotImplementedException();
         }
@@ -282,9 +298,7 @@ namespace MasterthesisGHA
         // Linear Element Replacement Method
         public void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            materialBank.ResetMaterialBank();
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
-            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
@@ -312,7 +326,6 @@ namespace MasterthesisGHA
         }
         public void InsertMaterialBankThenNewElements(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            materialBank.ResetMaterialBank();
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
             List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
 
@@ -337,6 +350,33 @@ namespace MasterthesisGHA
             materialBank.UpdateVisuals();
             remainingMaterialBank = materialBank.DeepCopy();
         }
+
+
+        // Brute Force Optimum Replacement
+        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        {
+            materialBank.ResetMaterialBank();
+            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
+            List<string> areaSortedElements = AbstractLineElement.GetCrossSectionAreaSortedProfilesList();
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[i])
+                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[i]);
+                int index = sortedStockElementList.Count;
+                while (index-- != 0)
+                {
+                    if (InsertStockElement(i, ref materialBank, sortedStockElementList[index], true))
+                    {
+                        break;
+                    }
+                }
+            }
+
+            materialBank.UpdateVisuals();
+            remainingMaterialBank = materialBank.DeepCopy();
+        }
+
 
         // Virtual Element Replacement Functions
         public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
@@ -363,6 +403,11 @@ namespace MasterthesisGHA
     public class TrussModel3D : Structure
     {
         // Constructors
+        public TrussModel3D()
+            : base()
+        {
+
+        }
         public TrussModel3D(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
             : base(lines, profileNames, supportPoints)
         {
@@ -557,8 +602,11 @@ namespace MasterthesisGHA
             }
                 
         }
-        public override void GetLoadVisuals(double size = -1, double maxLoad = -1, double maxDisplacement = -1)
+        public override void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1)
         {
+            geometry = new List<Brep>();
+            color = new List<System.Drawing.Color>();
+
             double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
             double loadLineRadius = getStructureSizeFactor(2e-3, size);
 
@@ -619,10 +667,18 @@ namespace MasterthesisGHA
                 StructureColors.Add(Structure.loadArrowColor);
                 StructureVisuals.Add(arrow.ToBrep(true));
                 StructureColors.Add(Structure.loadArrowColor);
+
+                geometry.Add(loadCylinder.ToBrep(true, true));
+                color.Add(Structure.loadArrowColor);
+                geometry.Add(arrow.ToBrep(true));
+                color.Add(Structure.loadArrowColor);
             }
         }
-        public override void GetResultVisuals(int colorTheme, double size = -1, double maxDisplacement = -1)
+        public override void GetResultVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, int colorTheme, double size = -1, double maxDisplacement = -1)
         {
+            geometry = new List<Brep>();
+            color = new List<System.Drawing.Color>();
+
             double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
             double nodeRadius = getStructureSizeFactor(5e-3, size);
             List<Point3d> normalizedNodeDisplacement = new List<Point3d>();
@@ -635,13 +691,26 @@ namespace MasterthesisGHA
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
                 if (ElementsInStructure[i].IsFromMaterialBank)
+                {
                     StructureColors.Add(reuseMemberColor);
+                    color.Add(reuseMemberColor);
+                }                    
                 else if (ElementsInStructure[i].CheckAxialBuckling(ElementAxialForce[i]) > 1)
+                {
                     StructureColors.Add(bucklingMemberColor);
+                    color.Add(bucklingMemberColor);
+                }                   
                 else if (ElementsInStructure[i].CheckUtilization(ElementAxialForce[i]) > 1)
-                    StructureColors.Add(overUtilizedMemberColor);              
+                {
+                    StructureColors.Add(overUtilizedMemberColor);
+                    color.Add(overUtilizedMemberColor);
+                }             
                 else
+                {
                     StructureColors.Add(verifiedMemberColor);
+                    color.Add(verifiedMemberColor);
+                }
+                    
 
                 Point3d startOfElement = ElementsInStructure[i].getStartPoint();
                 int startNodeIndex = ElementsInStructure[i].getStartNodeIndex();
@@ -677,8 +746,8 @@ namespace MasterthesisGHA
                 StructureColors.Add(Structure.freeNodeColor);
             }
 
-        }
 
+        }
 
         // Insert Material Bank Methods
         public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)

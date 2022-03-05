@@ -9,6 +9,7 @@ namespace MasterthesisGHA.Components.MethodOne
     public class HeuristicReplacement : GH_Component
     {
         // Stored Variables
+        public bool firstRun;
         public double trussSize;
         public double maxLoad;
         public double maxDisplacement;
@@ -18,6 +19,7 @@ namespace MasterthesisGHA.Components.MethodOne
               "A Best-Fit Heuristic Method for inserting a defined Material Bank into a pre-defined structur geometry",
               "Master", "MethodOne")
         {
+            firstRun = true;
             trussSize = -1;
             maxLoad = -1;
             maxDisplacement = -1;
@@ -28,13 +30,13 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddBooleanParameter("InserMaterialBank", "InsertMB", "Insert Material Bank (true)", GH_ParamAccess.item, false);
             pManager.AddBooleanParameter("InserNewElements", "InsertNew", "Insert New Elements (true)", GH_ParamAccess.item, false);
 
-            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
-            pManager.AddTextParameter("NewElements", "NewElements", "NewElements", GH_ParamAccess.list, "ALL");
+            pManager.AddGenericParameter("MaterialBank", "MB", "", GH_ParamAccess.item);
+            pManager.AddTextParameter("NewElements", "New", "", GH_ParamAccess.list, "ALL");
 
-            pManager.AddLineParameter("Structure Lines", "GeometryLines", "GeometryLines", GH_ParamAccess.list, new Line());
-            pManager.AddPointParameter("Structure Supports", "Supports", "Supports", GH_ParamAccess.list, new Point3d());
+            pManager.AddLineParameter("Structure Lines", "Lines", "", GH_ParamAccess.list, new Line());
+            pManager.AddPointParameter("Structure Supports", "Supports", "", GH_ParamAccess.list, new Point3d());
 
-            pManager.AddLineParameter("Load Lines", "LoadLines", "LoadLines", GH_ParamAccess.list);
+            pManager.AddLineParameter("Load Lines", "LoadLines", "", GH_ParamAccess.list);
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
@@ -44,18 +46,20 @@ namespace MasterthesisGHA.Components.MethodOne
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
-            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
+            pManager.AddTextParameter("Info", "Info", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "", GH_ParamAccess.item);
 
-            pManager.AddBrepParameter("Visuals", "Visuals", "Visuals", GH_ParamAccess.list);
-            pManager.AddColourParameter("Colour", "Colour", "Colour", GH_ParamAccess.list);          
+            pManager.AddBrepParameter("Visuals", "Visuals", "", GH_ParamAccess.list);
+            pManager.AddColourParameter("Color", "Color", "", GH_ParamAccess.list);          
 
-            pManager.AddBrepParameter("StockVisuals", "StockVisuals", "StockVisuals", GH_ParamAccess.list);
-            pManager.AddColourParameter("StockColour", "StockColour", "StockColour", GH_ParamAccess.list);
+            pManager.AddBrepParameter("StockVisuals", "StockVisuals", "", GH_ParamAccess.list);
+            pManager.AddColourParameter("StockColour", "StockColour", "", GH_ParamAccess.list);
 
-            pManager.AddNumberParameter("TotalMass", "TotalMass", "TotalMass", GH_ParamAccess.item);
-            pManager.AddNumberParameter("ReusedMass", "ReusedMass", "ReusedMass", GH_ParamAccess.item);
-            pManager.AddNumberParameter("NewMass", "NewMass", "NewMass", GH_ParamAccess.item);
+            pManager.AddNumberParameter("TotalMass", "TotalMass", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("ReusedMass", "ReusedMass", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("NewMass", "NewMass", "", GH_ParamAccess.item);
+
+            pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
         }
 
 
@@ -132,8 +136,9 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Retracking();
 
 
-            if (normalizeVisuals)
+            if (normalizeVisuals || firstRun)
             {
+                firstRun = false;
                 trussSize = truss.GetStructureSize();
                 maxLoad = truss.GetMaxLoad();
                 maxDisplacement = truss.GetMaxDisplacement();
@@ -154,6 +159,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(6, truss.GetTotalMass());
             DA.SetData(7, truss.GetReusedMass());
             DA.SetData(8, truss.GetNewMass());
+            DA.SetData(9, truss);
 
 
         }

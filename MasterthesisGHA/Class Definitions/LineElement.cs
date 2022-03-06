@@ -393,6 +393,12 @@ namespace MasterthesisGHA
             ReusableElementLength = reusableElementLength;
             IsInStructure = false;
         }
+        public StockElement(string profileName, double reusableElementLength, bool isInStructure)
+            : base(profileName)
+        {
+            ReusableElementLength = reusableElementLength;
+            IsInStructure = isInStructure;
+        }
 
         // Methods
         public override string getElementInfo()
@@ -449,7 +455,7 @@ namespace MasterthesisGHA
         // Copy
         public StockElement DeepCopy()
         {
-            return new StockElement(this.ProfileName, this.ReusableElementLength);
+            return new StockElement(this.ProfileName, this.ReusableElementLength, this.IsInStructure);
         }
 
     }

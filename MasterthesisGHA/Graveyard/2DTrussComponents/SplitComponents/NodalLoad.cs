@@ -1,4 +1,4 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 
 using Grasshopper.Kernel;
@@ -54,4 +54,4 @@ namespace MasterthesisGHA.Components._2DTrussComponents
             get { return new Guid("FF64E713-8085-4D54-89E5-A7E2DDF96C07"); }
         }
     }
-}
+}*/

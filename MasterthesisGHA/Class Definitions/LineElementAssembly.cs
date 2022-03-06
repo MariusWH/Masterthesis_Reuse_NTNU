@@ -105,6 +105,18 @@ namespace MasterthesisGHA
             }
             return dataTree;
         }
+        public static Matrix MathnetToOutputMatrix(Matrix<double> mathnetMatrix)
+        {
+            Matrix outputMatrix = new Matrix(mathnetMatrix.RowCount, mathnetMatrix.ColumnCount);
+            for(int row = 0; row < mathnetMatrix.RowCount; row++)
+            {
+                for(int col = 0; col < mathnetMatrix.ColumnCount; col++)
+                {
+                    outputMatrix[row, col] = mathnetMatrix[row, col];
+                }
+            }
+            return outputMatrix;
+        }
     }
 
 
@@ -128,9 +140,6 @@ namespace MasterthesisGHA
         public List<Brep> StructureVisuals;
 
         // Constructors
-        static Structure()
-        {
-        }
         public Structure()
         {
             ElementsInStructure = new List<InPlaceElement>();
@@ -338,6 +347,59 @@ namespace MasterthesisGHA
             color = new List<System.Drawing.Color>();
         }
 
+
+        // -- MEMBER REPLACEMENT --
+
+        // Virtual Element Replacement Functions
+        public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
+        {
+            throw new NotImplementedException();
+        }
+        public virtual bool InsertStockElement(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement, bool keepCutOff = true)
+        {
+            throw new NotImplementedException();
+        }
+        public virtual void InsertNewElement(int inPlaceElementIndex, List<string> criteraSortedNewElements, double criteria)
+        {
+            throw new NotImplementedException();
+        }
+
+        // Objective Functions
+        public double objectiveFunctionLCA(InPlaceElement member, StockElement stockElement, double axialForce, double distanceFabrication, double distanceBuilding, double distanceRecycling)
+        {
+            double reuseLength = member.getInPlaceElementLength();
+            double wasteLength = stockElement.GetStockElementLength() - member.getInPlaceElementLength();
+
+            if (wasteLength < 0 || stockElement.CheckUtilization(axialForce) > 1 || stockElement.CheckAxialBuckling(axialForce, reuseLength) > 1)
+            {
+                return -1;
+            }
+
+            double newMemberLCA =
+                0.957 * member.getMass() +
+                0.00011 * member.getMass() * distanceBuilding +
+                0.110 * member.getMass();
+
+            double reuseMemberLCA =
+                0.287 * stockElement.getMass() +
+                0.81 * stockElement.getMass(wasteLength) +
+                0.110 * stockElement.getMass(reuseLength) +
+                0.0011 * stockElement.getMass() * distanceFabrication +
+                0.0011 * stockElement.getMass(reuseLength) * distanceBuilding +
+                0.00011 * stockElement.getMass(wasteLength) * distanceRecycling;
+
+            double emissionReduction = newMemberLCA - reuseMemberLCA;
+            if (emissionReduction < 0)
+            {
+                return -1;
+            }
+            else
+            {
+                return emissionReduction;
+            }
+
+        }
+
         // Linear Element Replacement Method
         public void InsertNewElements()
         {
@@ -348,7 +410,8 @@ namespace MasterthesisGHA
         }
         public void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
+            MaterialBank materialBankCopy = materialBank.DeepCopy();
+            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBankCopy);
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
@@ -357,27 +420,29 @@ namespace MasterthesisGHA
                 int index = sortedStockElementList.Count;
                 while (index-- != 0)
                 {
-                    if (InsertStockElement(i, ref materialBank, sortedStockElementList[index], true))
+                    if (InsertStockElement(i, ref materialBankCopy, sortedStockElementList[index], true))
                     {
                         break;
                     }
                 }
             }
 
-            materialBank.UpdateVisuals();
-            remainingMaterialBank = materialBank.DeepCopy();
+            remainingMaterialBank = materialBankCopy.DeepCopy();
         }
-        public void InsertMaterialBank(List<int> insertOrder, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        public void InsertMaterialBank(IEnumerable<int> insertOrder, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            if (insertOrder.Count != ElementsInStructure.Count)
-                throw new Exception("InsertOrder contains " + insertOrder.Count + " elements, while the structure contains "
+            List<int> list = new List<int>();
+            insertOrder.ToList().ForEach(x => list.Add(x));
+
+            if (list.Count != ElementsInStructure.Count)
+                throw new Exception("InsertOrder contains " + list.Count + " elements, while the structure contains "
                     + ElementsInStructure.Count + " members");
 
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
-                int elementIndex = insertOrder[i];
+                int elementIndex = list[i];
                 List<StockElement> sortedStockElementList = new MaterialBank(possibleStockElements[elementIndex])
                     .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[elementIndex]);
                 int index = sortedStockElementList.Count;
@@ -392,7 +457,7 @@ namespace MasterthesisGHA
 
             materialBank.UpdateVisuals();
             remainingMaterialBank = materialBank.DeepCopy();
-        }        
+        }
         public void InsertMaterialBankThenNewElements(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
@@ -451,9 +516,7 @@ namespace MasterthesisGHA
             remainingMaterialBank = materialBank.DeepCopy();
         }
 
-
-
-        // Brute Force Optimum Replacement      
+        // Brute Force Optimum Replacement
         public IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
         {
             if (length == 1) 
@@ -462,18 +525,100 @@ namespace MasterthesisGHA
             return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
                     (t1, t2) => t1.Concat(new T[] { t2 }));
         }
-        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        public IEnumerable<IEnumerable<int>> GetPermutations(int length)
+        {
+            IEnumerable<int> list = Enumerable.Range(0, length-1);
+            if (length == 1)
+                return list.Select(t => new int[] { t });
+
+            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new int[] { t2 }));
+        }
+        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, 
+            out IEnumerable<IEnumerable<int>> allOrderedLists)
         {
             List<int> initalList = new List<int>();
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
                 initalList.Add(i);
             }
-            IEnumerable<IEnumerable<int>> allOrderedLists = GetPermutations(initalList, initalList.Count);
+            allOrderedLists = GetPermutations(initalList, initalList.Count);
             int factorial = Enumerable.Range(1, initalList.Count).Aggregate(1, (p, item) => p * item);
-            if (factorial > 1e4 || factorial == 0)
+            if (factorial > 1e3 || factorial == 0)
                 throw new Exception("Structure is top big to perform brute force calculation");
 
+            InsertNewElements();
+            TrussModel3D structureCopy = new TrussModel3D();
+
+            objectiveFunctionOutputs = new List<double>();
+            double objectiveFunction = 0;
+            double prevObjectiveFunction = 0;
+
+            IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
+
+            bool firstRun = true;
+            foreach (IEnumerable<int> list in allOrderedLists)
+            {
+                MaterialBank tempInputMaterialBank = materialBank.DeepCopy();
+                MaterialBank tempOutputMaterialBank = materialBank.DeepCopy();
+
+                structureCopy = new TrussModel3D(this);
+                structureCopy.InsertMaterialBank(list, tempInputMaterialBank, out tempOutputMaterialBank);
+                objectiveFunction = 1.00 * structureCopy.GetReusedMass() + 1.50 * structureCopy.GetNewMass();
+
+                if ((objectiveFunction < prevObjectiveFunction) || firstRun)
+                {
+                    firstRun = false;
+                    optimumOrder = list.ToList();
+                }
+
+                prevObjectiveFunction = objectiveFunction;
+                objectiveFunctionOutputs.Add(objectiveFunction);
+            }
+
+            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
+            remainingMaterialBank.UpdateVisuals();
+        }
+        
+
+        // LCA Rank Replacement
+        public Matrix<double> emissionReductionRank(MaterialBank materialBank, double distanceFabrication, double distanceBuilding,
+            double distanceRecycling)
+        {
+            Matrix<double>  emissionReductionRank = Matrix<double>.Build.Dense(ElementsInStructure.Count,
+                materialBank.StockElementsInMaterialBank.Count);
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                for (int j = 0; j < materialBank.StockElementsInMaterialBank.Count; j++)
+                {
+                    emissionReductionRank[i, j] = objectiveFunctionLCA(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j],
+                        ElementAxialForce[i], distanceFabrication, distanceBuilding, distanceRecycling);
+                }
+            }
+            return emissionReductionRank;
+        }
+
+
+        // Pseudo Random
+        public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
+        {
+            T[] elements = source.ToArray();
+            for (int i = elements.Length - 1; i >= 0; i--)
+            {
+                int swapIndex = rng.Next(i + 1);
+                yield return elements[swapIndex];
+                elements[swapIndex] = elements[i];
+            }
+        }
+        public void InsertMaterialBankRandomPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        {
+            List<int> initalList = new List<int>();
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                initalList.Add(i);
+            }
+          
             InsertNewElements();
 
             remainingMaterialBank = materialBank.DeepCopy();
@@ -484,8 +629,15 @@ namespace MasterthesisGHA
             double prevObjectiveFunction = 0;
 
 
-            for (int i = 0; i < factorial; i++)
+
+            int maxIterations = (int)1e2;
+            double objectiveTreshold = 0;
+
+            int iterationsCounter = 0;
+            while ( objectiveFunction < objectiveTreshold && iterationsCounter < maxIterations )
             {
+                Shuffle(initalList, new Random());
+
                 tempCopy = new TrussModel3D(this);
                 tempCopy.InsertMaterialBank(materialBank, out tempMaterialBank);
                 objectiveFunction = 1.00 * tempCopy.GetReusedMass() + 1.50 * tempCopy.GetNewMass();
@@ -497,106 +649,10 @@ namespace MasterthesisGHA
                 }
 
                 prevObjectiveFunction = objectiveFunction;
+                iterationsCounter++;
             }
 
-
-
         }
-        /*
-        public List<List<int>> GetPermutations(List<List<int>> list, int length)
-        {
-            if (length == 1)
-                return (List<List<int>>)list.Select(t => new List<List<int>>(){ t });
-
-            return (List<List<int>>)GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
-                    (t1, t2) => t1.Concat(new List<List<int>>() { t2 }));
-        }*/
-        /*
-        public List<List<int>> createAllOrderedLists(int listCount)
-        {
-            int factorial = Enumerable.Range(1, listCount).Aggregate(1, (p, item) => p * item);           
-            List<List<int>> indexLists = new List<List<int>>(factorial);
-
-            List<int> initalList = new List<int>();
-            for (int i = 0; i < listCount; i++)
-            {
-                initalList.Add(i);
-            }
-
-            return GetPermutations(indexLists, listCount);
-        }*/
-
-        // Pseudo Random
-
-
-
-        // Virtual Element Replacement Functions
-        public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
-        {
-            throw new NotImplementedException();
-        }
-        public virtual bool InsertStockElement(int inPlaceElementIndex, ref MaterialBank materialBank, StockElement stockElement, bool keepCutOff = true)
-        {
-            throw new NotImplementedException();
-        }
-        public virtual void InsertNewElement(int inPlaceElementIndex, List<string> criteraSortedNewElements, double criteria)
-        {
-            throw new NotImplementedException();
-        }
-
-
-        // LCA Optimum Replacement
-        public void emissionReductionRank(MaterialBank materialBank, double distanceFabrication, double distanceBuilding,
-            double distanceRecycling)
-        {
-            //Definerer ytre liste som inneholder reusable stock
-            //Ytre liste som inneholder elements in structure
-            //definerer indre liste (liste inni elements in structure) som skal inneholde LCA verdiene i matrisa
-
-            InsertNewElements();
-
-            Matrix<double> emissionReductionMatrix = Matrix<double>.Build.Dense(ElementsInStructure.Count,
-                materialBank.StockElementsInMaterialBank.Count);
-
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                List<StockElement> A = materialBank.StockElementsInMaterialBank;
-                for (int j = 0; j < A.Count; j++)
-                {
-                    InPlaceElement element = ElementsInStructure[i];
-                    StockElement stockElement = A[j];
-
-                    double reuseLength = element.getInPlaceElementLength();
-                    double wasteLength = stockElement.GetStockElementLength() - element.getInPlaceElementLength();
-
-                    if (wasteLength < 0)
-                    {
-                        emissionReductionMatrix[i, j] = -1;
-                    }
-                    else
-                    {
-                        emissionReductionMatrix[i, j] =
-                            0.957 * element.getMass() +
-                            0.00011 * element.getMass() * distanceBuilding +
-                            0.110 * element.getMass()
-                            - (
-                            0.287 * stockElement.getMass() +
-                            0.81 * stockElement.getMass(wasteLength) +
-                            0.110 * stockElement.getMass(reuseLength) +
-                            0.0011 * stockElement.getMass() * distanceFabrication +
-                            0.0011 * stockElement.getMass(reuseLength) * distanceBuilding +
-                            0.00011 * stockElement.getMass(wasteLength) * distanceRecycling
-                            );
-                    }
-                }
-            }
-
-
-            //Lage rank//
-
-
-        }
-
     }
 
 
@@ -622,6 +678,18 @@ namespace MasterthesisGHA
         public TrussModel3D(Structure copyFromThis)
             : this()
         {
+            ElementsInStructure = copyFromThis.ElementsInStructure.ToList();
+            FreeNodes = copyFromThis.FreeNodes.ToList();
+            FreeNodesInitial = copyFromThis.FreeNodesInitial.ToList();
+            SupportNodes = copyFromThis.SupportNodes.ToList();
+            GlobalStiffnessMatrix = Matrix<double>.Build.SameAs(copyFromThis.GlobalStiffnessMatrix);
+            GlobalLoadVector = Vector<double>.Build.SameAs(copyFromThis.GlobalLoadVector);
+            GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
+            ElementAxialForce = copyFromThis.ElementAxialForce.ToList();
+            ElementUtilization = copyFromThis.ElementUtilization.ToList();
+            StructureColors = copyFromThis.StructureColors.ToList();
+            StructureVisuals = copyFromThis.StructureVisuals.ToList();
+            /*
             ElementsInStructure = new List<InPlaceElement>( copyFromThis.ElementsInStructure );
             FreeNodes = new List<Point3d>( copyFromThis.FreeNodes );
             FreeNodesInitial = new List<Point3d>( copyFromThis.FreeNodesInitial );
@@ -633,6 +701,7 @@ namespace MasterthesisGHA
             ElementUtilization = new List<double>( copyFromThis.ElementUtilization );
             StructureColors = new List<System.Drawing.Color>( copyFromThis.StructureColors );
             StructureVisuals = new List<Brep>( copyFromThis.StructureVisuals );
+            */
         }
 
         // General Methods
@@ -1271,9 +1340,11 @@ namespace MasterthesisGHA
         public MaterialBank DeepCopy()
         {
             MaterialBank returnMateralBank = new MaterialBank();
-            returnMateralBank.StockElementsInMaterialBank.AddRange(StockElementsInMaterialBank);
-            returnMateralBank.MaterialBankColors.AddRange(MaterialBankColors);
-            returnMateralBank.MaterialBankVisuals.AddRange(MaterialBankVisuals);
+
+            StockElementsInMaterialBank.ForEach(o => returnMateralBank.StockElementsInMaterialBank.Add(o.DeepCopy()));
+            materialBankColors.ForEach(o => returnMateralBank.MaterialBankColors.Add(System.Drawing.Color.FromArgb(o.ToArgb())));
+            MaterialBankVisuals.ForEach(o => returnMateralBank.MaterialBankVisuals.Add(o.DuplicateBrep()));
+
             return returnMateralBank;
         }
 
@@ -1433,9 +1504,11 @@ namespace MasterthesisGHA
             else if (keepCutOff)
             {
                 StockElement temp = stockElement.DeepCopy();
+
                 StockElement cutOffPart = new StockElement(temp.ProfileName,
                     temp.GetStockElementLength() - inPlaceElement.StartPoint.DistanceTo(inPlaceElement.EndPoint));
                 cutOffPart.IsInStructure = false;
+
                 StockElement insertPart = new StockElement(temp.ProfileName,
                     inPlaceElement.StartPoint.DistanceTo(inPlaceElement.EndPoint));
                 insertPart.IsInStructure = true;

@@ -6,7 +6,7 @@ using Rhino.Geometry;
 
 namespace MasterthesisGHA.Components.MethodOne
 {
-    public class BruteForce : GH_Component
+    public class RandomPermutations : GH_Component
     {
         // Stored Variables
         public bool firstRun;
@@ -14,9 +14,9 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxLoad;
         public double maxDisplacement;
 
-        public BruteForce()
-          : base("Brute Force Member Replacement", "BruteForce",
-              "A global optimum best-fit method for replacing structural members by calculating all permutations",
+        public RandomPermutations()
+          : base("Pseudo Random Member Replacement", "PseudoRandom",
+              "A linear best-fit method for inserting a defined material bank into a pre-defined structur geometry",
               "Master", "Member Replacement")
         {
             firstRun = true;
@@ -40,6 +40,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
+
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
@@ -54,9 +55,6 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("NewMass", "NewMass", "", GH_ParamAccess.item);
 
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
-
-            pManager.AddIntegerParameter("Permutations", "Permutations", "", GH_ParamAccess.tree);
-            pManager.AddNumberParameter("ObjectiveResults", "Objective", "", GH_ParamAccess.list);
         }
 
 
@@ -89,6 +87,8 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(10, ref iLineLoadDistribution);
 
 
+
+
             // CODE
             List<string> initialProfiles = new List<string>();
             foreach (Line line in iGeometryLines)
@@ -108,13 +108,13 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Retracking();
 
 
-            List<double> objectiveFunctionResults = new List<double>();
-            IEnumerable<IEnumerable<int>> permutations = truss.GetPermutations(truss.ElementsInStructure.Count);
-            
-
-            if (insertMaterialBank)
+            if (insertMaterialBank && insertNewElements)
             {
-                truss.InsertMaterialBankBruteForce(inputMaterialBank, out outMaterialBank, out objectiveFunctionResults, out permutations);
+                truss.InsertMaterialBankThenNewElements(inputMaterialBank, out outMaterialBank);
+            }
+            else if (insertMaterialBank)
+            {
+                truss.InsertMaterialBank(inputMaterialBank, out outMaterialBank);
             }
             else if (insertNewElements)
             {
@@ -127,9 +127,10 @@ namespace MasterthesisGHA.Components.MethodOne
             }
 
 
-            outMaterialBank.UpdateVisuals();
+
             truss.Solve();
             truss.Retracking();
+
 
 
             // OUTPUTS
@@ -141,8 +142,6 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(5, truss.GetReusedMass());
             DA.SetData(6, truss.GetNewMass());
             DA.SetData(7, truss);
-            DA.SetDataTree(8, ElementCollection.GetOutputDataTree(permutations));
-            DA.SetDataList(9, objectiveFunctionResults);
 
 
         }
@@ -156,10 +155,9 @@ namespace MasterthesisGHA.Components.MethodOne
                 return null;
             }
         }
-
         public override Guid ComponentGuid
         {
-            get { return new Guid("04DCC89B-7C90-484F-ADCF-0BCAEAD1F2E6"); }
+            get { return new Guid("90BAABA3-A691-41AD-8581-318179C19F0D"); }
         }
     }
 }

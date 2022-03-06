@@ -127,7 +127,7 @@ namespace MasterthesisGHA.Components.MethodOne
             }
 
 
-
+            outMaterialBank.UpdateVisuals();
             truss.Solve();
             truss.Retracking();
 

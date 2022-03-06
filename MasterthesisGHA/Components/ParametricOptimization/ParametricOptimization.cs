@@ -95,7 +95,6 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             else
             {
                 outMaterialBank = iMaterialBank.DeepCopy();
-                outMaterialBank.ResetMaterialBank();
                 outMaterialBank.UpdateVisuals();
             }
 

@@ -112,6 +112,7 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Solve();
             truss.Retracking();
 
+            /*
             if (insertMaterialBank && insertNewElements)
                 truss.InsertMaterialBankThenNewElements(inputMaterialBank, out outMaterialBank);
             else if (insertMaterialBank)
@@ -129,6 +130,28 @@ namespace MasterthesisGHA.Components.MethodOne
                 outMaterialBank.ResetMaterialBank();
                 outMaterialBank.UpdateVisuals();
             }
+            */
+
+            
+            if (insertMaterialBank && insertNewElements)
+                truss.InsertMaterialBankThenNewElements(inputMaterialBank, out outMaterialBank);
+            else if (insertMaterialBank)
+                truss.InsertMaterialBankBruteForce(inputMaterialBank, out outMaterialBank);
+            else if (insertNewElements)
+            {
+                truss.InsertNewElements();
+                outMaterialBank = iMaterialBank.DeepCopy();
+                outMaterialBank.ResetMaterialBank();
+                outMaterialBank.UpdateVisuals();
+            }         
+            else
+            {
+                outMaterialBank = iMaterialBank.DeepCopy();
+                outMaterialBank.ResetMaterialBank();
+                outMaterialBank.UpdateVisuals();
+            }
+            
+
 
             truss.Solve();
             truss.Retracking();

@@ -453,10 +453,6 @@ namespace MasterthesisGHA
 
 
 
-
-
-
-
         // Brute Force Optimum Replacement      
         public IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
         {
@@ -466,8 +462,46 @@ namespace MasterthesisGHA
             return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
                     (t1, t2) => t1.Concat(new T[] { t2 }));
         }
+        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        {
+            List<int> initalList = new List<int>();
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                initalList.Add(i);
+            }
+            IEnumerable<IEnumerable<int>> allOrderedLists = GetPermutations(initalList, initalList.Count);
+            int factorial = Enumerable.Range(1, initalList.Count).Aggregate(1, (p, item) => p * item);
+            if (factorial > 1e4 || factorial == 0)
+                throw new Exception("Structure is top big to perform brute force calculation");
+
+            InsertNewElements();
+
+            remainingMaterialBank = materialBank.DeepCopy();
+            MaterialBank tempMaterialBank = materialBank.DeepCopy();
+            TrussModel3D tempCopy = new TrussModel3D();
+            TrussModel3D globalOptimum = new TrussModel3D();
+            double objectiveFunction = 0;
+            double prevObjectiveFunction = 0;
 
 
+            for (int i = 0; i < factorial; i++)
+            {
+                tempCopy = new TrussModel3D(this);
+                tempCopy.InsertMaterialBank(materialBank, out tempMaterialBank);
+                objectiveFunction = 1.00 * tempCopy.GetReusedMass() + 1.50 * tempCopy.GetNewMass();
+
+                if ((objectiveFunction < prevObjectiveFunction) || (objectiveFunction == 0))
+                {
+                    globalOptimum = new TrussModel3D(this);
+                    remainingMaterialBank = tempMaterialBank.DeepCopy();
+                }
+
+                prevObjectiveFunction = objectiveFunction;
+            }
+
+
+
+        }
         /*
         public List<List<int>> GetPermutations(List<List<int>> list, int length)
         {
@@ -477,8 +511,6 @@ namespace MasterthesisGHA
             return (List<List<int>>)GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
                     (t1, t2) => t1.Concat(new List<List<int>>() { t2 }));
         }*/
-
-
         /*
         public List<List<int>> createAllOrderedLists(int listCount)
         {
@@ -493,38 +525,9 @@ namespace MasterthesisGHA
 
             return GetPermutations(indexLists, listCount);
         }*/
-        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
-        {                       
-            List<int> initalList = new List<int>();
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                initalList.Add(i);
-            }
-            IEnumerable<IEnumerable<int>> allOrderedLists = GetPermutations(initalList, initalList.Count);
-            int factorial = Enumerable.Range(1, initalList.Count).Aggregate(1, (p, item) => p * item);
 
+        // Pseudo Random
 
-            InsertNewElements();
-
-            for (int i = 0; i < factorial; i++)
-            {
-                TrussModel3D tempCopy = new TrussModel3D(this);
-                tempCopy.InsertMaterialBank(materialBank, out remainingMaterialBank);
-                
-
-                tempCopy.GetTotalMass();
-            }
-
-
-
-
-
-
-
-
-            remainingMaterialBank = materialBank.DeepCopy();
-
-        }
 
 
         // Virtual Element Replacement Functions

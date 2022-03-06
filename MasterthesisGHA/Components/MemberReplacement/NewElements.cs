@@ -13,7 +13,7 @@ namespace MasterthesisGHA.Components
         public NewElements()
           : base("New Elements Catalog", "NewElements",
               "Description",
-              "Master", "MethodOne")
+              "Master", "Member Replacement")
         {
         }
 

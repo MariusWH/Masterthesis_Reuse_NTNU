@@ -13,7 +13,7 @@ namespace MasterthesisGHA
         public MaterialBankComponent()
           : base("Reusable Stock of Elements", "MaterialBank",
               "Description",
-              "Master", "MethodOne")
+              "Master", "Member Replacement")
         {
         }
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)

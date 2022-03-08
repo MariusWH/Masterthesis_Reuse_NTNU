@@ -110,13 +110,18 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Retracking();
 
 
+            IEnumerable<int> optimumOrder;
+            double distanceFabrication = 100;
+            double distanceBuilding = 100;
+            double distanceRecycling = 100;
+
             if (insertMaterialBank && insertNewElements)
             {
-                truss.InsertMaterialBankThenNewElements(iMaterialBankCopy, out outMaterialBank);
+                truss.InsertMaterialBankByRankMatrix(iMaterialBankCopy, out outMaterialBank, out optimumOrder, distanceFabrication, distanceBuilding, distanceRecycling);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBank(iMaterialBankCopy, out outMaterialBank);
+                truss.InsertMaterialBankByRankMatrix(iMaterialBankCopy, out outMaterialBank, out optimumOrder, distanceFabrication, distanceBuilding, distanceRecycling); truss.InsertMaterialBank(iMaterialBankCopy, out outMaterialBank);
             }
             else if (insertNewElements)
             {
@@ -129,9 +134,7 @@ namespace MasterthesisGHA.Components.MethodOne
             }
 
 
-            double distanceFabrication = 100;
-            double distanceBuilding = 100;
-            double distanceRecycling = 100;
+
 
             Matrix<double> rank = truss.emissionReductionRank(iMaterialBankCopy, distanceFabrication, distanceBuilding, distanceRecycling);
             

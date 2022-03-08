@@ -598,6 +598,30 @@ namespace MasterthesisGHA
             }
             return emissionReductionRank;
         }
+        public IEnumerable<int> optimumInsertOrderFromRankMatrix(Matrix<double> rankMatrix)
+        {
+            IEnumerable<int> order = new List<int>();
+            while (rankMatrix.RowCount != 0)
+            {
+                Tuple<int,int,double> globalMaximum = rankMatrix.EnumerateIndexed().Max();
+                order.Append(globalMaximum.Item1);
+                rankMatrix.ClearRow(globalMaximum.Item1);
+            }
+            return order;
+        }
+        public void InsertMaterialBankByRankMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, 
+            out IEnumerable<int> optimumOrder, 
+            double distanceFabrication, double distanceBuilding, double distanceRecycling)
+        {
+            InsertNewElements();
+
+            optimumOrder = optimumInsertOrderFromRankMatrix(
+                emissionReductionRank(materialBank, distanceFabrication, distanceBuilding, distanceRecycling));
+
+            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
+            remainingMaterialBank.UpdateVisuals();
+        }
+
 
 
         // Pseudo Random
@@ -611,7 +635,7 @@ namespace MasterthesisGHA
                 elements[swapIndex] = elements[i];
             }
         }
-        public void InsertMaterialBankRandomPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        public void InsertMaterialBankByRandomPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             List<int> initalList = new List<int>();
             for (int i = 0; i < ElementsInStructure.Count; i++)

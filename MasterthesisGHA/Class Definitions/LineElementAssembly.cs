@@ -329,10 +329,27 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }      
+
+        // Load Application
         public virtual void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
         {
             throw new NotImplementedException();
         }
+        public virtual void ApplySelfWeight()
+        {
+            int dofsPerNode = GetDofsPerNode();
+            double gravitationalAcceleration = 9.81;
+
+            foreach (InPlaceBarElement3D member in ElementsInStructure)
+            {
+                if (member.StartNodeIndex != -1)
+                    GlobalLoadVector[dofsPerNode * member.StartNodeIndex + (dofsPerNode-1)] += -member.getMass() * gravitationalAcceleration / 2;
+                if (member.EndNodeIndex != -1)
+                    GlobalLoadVector[dofsPerNode * member.EndNodeIndex + (dofsPerNode - 1)] += -member.getMass() * gravitationalAcceleration / 2;
+            }
+        }
+
+        // Visuals
         public virtual void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1)
         {
             throw new NotImplementedException();
@@ -349,7 +366,6 @@ namespace MasterthesisGHA
 
 
         // -- MEMBER REPLACEMENT --
-
         // Virtual Element Replacement Functions
         public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
@@ -365,7 +381,7 @@ namespace MasterthesisGHA
         }
 
         // Objective Functions
-        public double objectiveFunctionLCA(InPlaceElement member, StockElement stockElement, double axialForce, double distanceFabrication, double distanceBuilding, double distanceRecycling)
+        public double LocalObjectiveFunctionLCA(InPlaceElement member, StockElement stockElement, double axialForce, double distanceFabrication, double distanceBuilding, double distanceRecycling)
         {
             double reuseLength = member.getInPlaceElementLength();
             double wasteLength = stockElement.GetStockElementLength() - member.getInPlaceElementLength();
@@ -398,6 +414,10 @@ namespace MasterthesisGHA
                 return emissionReduction;
             }
 
+        }
+        public double GlobalObjectiveFunctionLCA(Structure structure, MaterialBank materialBank, double axialForce, double distanceFabrication, double distanceBuilding, double distanceRecycling)
+        {
+            throw new NotImplementedException();
         }
 
         // Linear Element Replacement Method
@@ -534,8 +554,8 @@ namespace MasterthesisGHA
             return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
                     (t1, t2) => t1.Concat(new int[] { t2 }));
         }
-        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, 
-            out IEnumerable<IEnumerable<int>> allOrderedLists)
+        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank, 
+            out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
         {
             List<int> initalList = new List<int>();
             for (int i = 0; i < ElementsInStructure.Count; i++)
@@ -552,7 +572,7 @@ namespace MasterthesisGHA
 
             objectiveFunctionOutputs = new List<double>();
             double objectiveFunction = 0;
-            double prevObjectiveFunction = 0;
+            double optimum = 0;
 
             IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
 
@@ -566,13 +586,13 @@ namespace MasterthesisGHA
                 structureCopy.InsertMaterialBank(list, tempInputMaterialBank, out tempOutputMaterialBank);
                 objectiveFunction = 1.00 * structureCopy.GetReusedMass() + 1.50 * structureCopy.GetNewMass();
 
-                if ((objectiveFunction < prevObjectiveFunction) || firstRun)
+                if ((objectiveFunction < optimum) || firstRun)
                 {
+                    optimum = objectiveFunction;
                     firstRun = false;
                     optimumOrder = list.ToList();
                 }
 
-                prevObjectiveFunction = objectiveFunction;
                 objectiveFunctionOutputs.Add(objectiveFunction);
             }
 
@@ -582,7 +602,7 @@ namespace MasterthesisGHA
         
 
         // LCA Rank Replacement
-        public Matrix<double> emissionReductionRank(MaterialBank materialBank, double distanceFabrication, double distanceBuilding,
+        public Matrix<double> EmissionReductionRank(MaterialBank materialBank, double distanceFabrication, double distanceBuilding,
             double distanceRecycling)
         {
             Matrix<double>  emissionReductionRank = Matrix<double>.Build.Dense(ElementsInStructure.Count,
@@ -592,21 +612,49 @@ namespace MasterthesisGHA
             {
                 for (int j = 0; j < materialBank.StockElementsInMaterialBank.Count; j++)
                 {
-                    emissionReductionRank[i, j] = objectiveFunctionLCA(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j],
+                    emissionReductionRank[i, j] = LocalObjectiveFunctionLCA(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j],
                         ElementAxialForce[i], distanceFabrication, distanceBuilding, distanceRecycling);
                 }
             }
             return emissionReductionRank;
         }
-        public IEnumerable<int> optimumInsertOrderFromRankMatrix(Matrix<double> rankMatrix)
+        public IEnumerable<int> OptimumInsertOrderFromRankMatrix(Matrix<double> rankMatrix, int method = 0)
         {
-            IEnumerable<int> order = new List<int>();
-            while (rankMatrix.RowCount != 0)
+            List<int> order = new List<int>(rankMatrix.RowCount);
+            int rowCount = rankMatrix.RowCount;
+
+            switch (method)
             {
-                Tuple<int,int,double> globalMaximum = rankMatrix.EnumerateIndexed().Max();
-                order.Append(globalMaximum.Item1);
-                rankMatrix.ClearRow(globalMaximum.Item1);
+                case 0:
+                    {
+                        // Initial list sorting
+                        List<Tuple<int, int, double>> orderByGlobalMax = rankMatrix.EnumerateIndexed().OrderBy(x => x.Item3).ToList(); 
+                        int tempRow;
+
+                        while (rowCount-- != 0)
+                        {
+                            tempRow = orderByGlobalMax.First().Item1;
+                            order.Add(orderByGlobalMax[0].Item1); // Get row index from global maximum
+                            orderByGlobalMax.RemoveAll(x => x.Item1 == tempRow); // Remove all values from that row
+                        }
+                        break;
+                    }
+                case 1:
+                    {
+                        double max;
+                        List<Tuple<int, int, double>> allMax;
+
+                        while (rowCount-- != 0)
+                        {
+                            max = rankMatrix.Enumerate().Where(x => x >= 0).Max();
+                            allMax = rankMatrix.EnumerateIndexed().Where(x => x.Item3 == max).ToList();
+                            order.Add(allMax[0].Item1);
+                            rankMatrix.ClearRow(allMax[0].Item1);
+                        }
+                        break;
+                    }
             }
+                
             return order;
         }
         public void InsertMaterialBankByRankMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, 
@@ -615,16 +663,15 @@ namespace MasterthesisGHA
         {
             InsertNewElements();
 
-            optimumOrder = optimumInsertOrderFromRankMatrix(
-                emissionReductionRank(materialBank, distanceFabrication, distanceBuilding, distanceRecycling));
+            optimumOrder = OptimumInsertOrderFromRankMatrix(
+                EmissionReductionRank(materialBank, distanceFabrication, distanceBuilding, distanceRecycling));
 
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisuals();
         }
 
 
-
-        // Pseudo Random
+        // Pseudo Random Permutations
         public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
         {
             T[] elements = source.ToArray();
@@ -635,46 +682,54 @@ namespace MasterthesisGHA
                 elements[swapIndex] = elements[i];
             }
         }
-        public void InsertMaterialBankByRandomPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        public void InsertMaterialBankByRandomPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank,
+            double distanceFabrication, double distanceBuilding, double distanceRecycling,
+            out List<double> objectiveFunctionOutputs, out List<List<int>> shuffledLists)
         {
-            List<int> initalList = new List<int>();
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                initalList.Add(i);
-            }
-          
+            int maxIterations = (int)1e1;
+            double objectiveTreshold = 100000;
+            double objectiveFunction = 0;
+            objectiveFunctionOutputs = new List<double>();
+
+            List<int> initalList = Enumerable.Range(0, ElementsInStructure.Count).ToList();
             InsertNewElements();
 
-            remainingMaterialBank = materialBank.DeepCopy();
-            MaterialBank tempMaterialBank = materialBank.DeepCopy();
-            TrussModel3D tempCopy = new TrussModel3D();
-            TrussModel3D globalOptimum = new TrussModel3D();
-            double objectiveFunction = 0;
-            double prevObjectiveFunction = 0;
-
-
-
-            int maxIterations = (int)1e2;
-            double objectiveTreshold = 0;
-
+            TrussModel3D structureCopy;   
+            Random random = new Random();
+            List<int> shuffledList;
+            shuffledLists = new List<List<int>>();
+            List<int> optimumOrder = new List<int>();
+            
+            
+            double optimum = 0;
             int iterationsCounter = 0;
+            bool firstRun = true;
+
             while ( objectiveFunction < objectiveTreshold && iterationsCounter < maxIterations )
             {
-                Shuffle(initalList, new Random());
+                shuffledList = Shuffle(initalList, random).ToList();
+                shuffledLists.Add( shuffledList.ToList() );
 
-                tempCopy = new TrussModel3D(this);
-                tempCopy.InsertMaterialBank(materialBank, out tempMaterialBank);
-                objectiveFunction = 1.00 * tempCopy.GetReusedMass() + 1.50 * tempCopy.GetNewMass();
+                MaterialBank tempInputMaterialBank = materialBank.DeepCopy();
+              
+                structureCopy = new TrussModel3D(this);
+                structureCopy.InsertMaterialBank(shuffledList, tempInputMaterialBank, out _ );
+                objectiveFunction = 1.00 * structureCopy.GetReusedMass() + 1.50 * structureCopy.GetNewMass();
+                objectiveFunctionOutputs.Add( objectiveFunction );
 
-                if ((objectiveFunction < prevObjectiveFunction) || (objectiveFunction == 0))
+                if ((objectiveFunction < optimum) || firstRun)
                 {
-                    globalOptimum = new TrussModel3D(this);
-                    remainingMaterialBank = tempMaterialBank.DeepCopy();
+                    optimum = objectiveFunction;
+                    firstRun = false;
+                    optimumOrder = shuffledList.ToList();
                 }
 
-                prevObjectiveFunction = objectiveFunction;
                 iterationsCounter++;
             }
+
+            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
+            remainingMaterialBank.UpdateVisuals();
+
 
         }
     }

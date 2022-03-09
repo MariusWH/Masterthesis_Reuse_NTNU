@@ -15,7 +15,7 @@ namespace MasterthesisGHA
     {
         // Variables
         public string ProfileName;
-        public double CrossSectionArea;
+        public double CrossSectionArea { get; set; }
         public double AreaMomentOfInertiaYY;
         public double AreaMomentOfInertiaZZ;
         public double PolarMomentOfInertia;

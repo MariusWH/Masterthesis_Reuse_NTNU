@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
@@ -55,6 +56,9 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("NewMass", "NewMass", "", GH_ParamAccess.item);
 
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
+
+            pManager.AddNumberParameter("Objective Outputs", "Objective", "", GH_ParamAccess.list);
+            pManager.AddIntegerParameter("Shuffled Lists", "Shuffles", "", GH_ParamAccess.tree);
         }
 
 
@@ -107,14 +111,25 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Solve();
             truss.Retracking();
 
+            IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
+            double distanceFabrication = 100;
+            double distanceBuilding = 100;
+            double distanceRecycling = 100;
+
+            List<double> objectiveFunctions = new List<double>();
+            List<List<int>> shuffledLists = new List<List<int>>();
 
             if (insertMaterialBank && insertNewElements)
             {
-                truss.InsertMaterialBankThenNewElements(inputMaterialBank, out outMaterialBank);
+                truss.InsertMaterialBankByRandomPermutations(inputMaterialBank, out outMaterialBank,
+                    distanceFabrication, distanceBuilding, distanceRecycling, out objectiveFunctions,
+                    out shuffledLists);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBank(inputMaterialBank, out outMaterialBank);
+                truss.InsertMaterialBankByRandomPermutations(inputMaterialBank, out outMaterialBank,
+                    distanceFabrication, distanceBuilding, distanceRecycling, out objectiveFunctions,
+                    out shuffledLists);
             }
             else if (insertNewElements)
             {
@@ -142,7 +157,8 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(5, truss.GetReusedMass());
             DA.SetData(6, truss.GetNewMass());
             DA.SetData(7, truss);
-
+            DA.SetDataList(8, objectiveFunctions);
+            DA.SetDataTree(9, ElementCollection.GetOutputDataTree(shuffledLists));
 
         }
 

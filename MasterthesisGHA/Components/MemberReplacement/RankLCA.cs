@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
@@ -57,6 +58,7 @@ namespace MasterthesisGHA.Components.MethodOne
 
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Rank Matrix", "Rank", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Optimum Order", "Order", "", GH_ParamAccess.list);
         }
 
 
@@ -110,7 +112,7 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Retracking();
 
 
-            IEnumerable<int> optimumOrder;
+            IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
             double distanceFabrication = 100;
             double distanceBuilding = 100;
             double distanceRecycling = 100;
@@ -136,7 +138,8 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
 
-            Matrix<double> rank = truss.emissionReductionRank(iMaterialBankCopy, distanceFabrication, distanceBuilding, distanceRecycling);
+            Matrix<double> rank = Matrix<double>.Build.Sparse(1, 1);
+                //truss.EmissionReductionRank(iMaterialBankCopy, distanceFabrication, distanceBuilding, distanceRecycling);
             
             truss.Solve();
             truss.Retracking();
@@ -153,6 +156,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(6, truss.GetNewMass());
             DA.SetData(7, truss);
             DA.SetData(8, ElementCollection.MathnetToOutputMatrix(rank));
+            DA.SetDataList(9, optimumOrder);
 
         }
 

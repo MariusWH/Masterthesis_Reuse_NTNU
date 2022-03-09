@@ -40,6 +40,7 @@ namespace MasterthesisGHA
             pManager.AddVectorParameter("Line Load Direction", "LL Direction", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item);
             pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
+            pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item);
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
@@ -86,9 +87,29 @@ namespace MasterthesisGHA
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUT
-            SetInputs(DA, out bool is3d, out List<Line> iLines, out List<string> iProfiles, out List<Point3d> iAnchoredPoints, out List<double> iLoad,
-            out List<Vector3d> iLoadVecs, out double iLineLoadValue, out Vector3d iLineLoadDirection, out Vector3d iLineLoadDistribution, 
-            out List<Line> iLinesToLoad);
+            bool is3d = true;
+            List<Line> iLines = new List<Line>();
+            List<string> iProfiles = new List<string>();
+            List<Point3d> iAnchoredPoints = new List<Point3d>();
+            List<double> iLoad = new List<double>();
+            List<Vector3d> iLoadVecs = new List<Vector3d>();
+            double iLineLoadValue = 0;
+            Vector3d iLineLoadDirection = new Vector3d();
+            Vector3d iLineLoadDistribution = new Vector3d();
+            List<Line> iLinesToLoad = new List<Line>();
+            bool applySelfWeight = false;
+
+            DA.GetData(0, ref is3d);
+            DA.GetDataList(1, iLines);
+            DA.GetDataList(2, iProfiles);
+            DA.GetDataList(3, iAnchoredPoints);
+            DA.GetDataList(4, iLoad);
+            DA.GetDataList(5, iLoadVecs);
+            DA.GetData(6, ref iLineLoadValue);
+            DA.GetData(7, ref iLineLoadDirection);
+            DA.GetData(8, ref iLineLoadDistribution);
+            DA.GetDataList(9, iLinesToLoad);
+            DA.GetData(10, ref applySelfWeight);
 
 
             // CODE
@@ -105,6 +126,10 @@ namespace MasterthesisGHA
             
             truss.ApplyNodalLoads(iLoad, iLoadVecs);
             truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
+            if (applySelfWeight)
+            {
+                truss.ApplySelfWeight();
+            }            
             truss.Solve();
             truss.Retracking();
 

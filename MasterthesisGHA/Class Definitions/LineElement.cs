@@ -150,6 +150,24 @@ namespace MasterthesisGHA
             UpdateLocalStiffnessMatrix();
         }
 
+        // Equal Operators
+        public static bool operator ==(InPlaceElement A, InPlaceElement B)
+        {
+            if (A.StartPoint != B.StartPoint ||
+                A.EndPoint != B.EndPoint ||
+                A.StartNodeIndex != B.StartNodeIndex ||
+                A.EndNodeIndex != B.EndNodeIndex)
+                return false;
+
+            return true;
+        }
+        public static bool operator !=(InPlaceElement A, InPlaceElement B)
+        {
+            if (A == B)
+                return false;
+
+            return true;
+        }
 
 
         // Virtual Get Functions

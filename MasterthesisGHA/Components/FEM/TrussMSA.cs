@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
@@ -13,6 +14,10 @@ namespace MasterthesisGHA
         public double maxLoad;
         public double maxDisplacement;
 
+        //Test
+        public bool firstRun;
+        public Point3d startNode;
+
         public TrussSolver()
           : base("Truss Matrix Structural Analysis", "Truss MSA",
               "Matrix Structural Analysis Tool for 2D and 3D Truss Systems",
@@ -21,6 +26,9 @@ namespace MasterthesisGHA
             trussSize = -1;
             maxLoad = -1;
             maxDisplacement = -1;
+
+            firstRun = true;
+            startNode = new Point3d();
         }
         public TrussSolver(string name, string nickname, string description, string category, string subCategory)
             : base(name, nickname, description, category, subCategory)
@@ -41,6 +49,8 @@ namespace MasterthesisGHA
             pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item);
             pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item);
+
+            
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
@@ -51,35 +61,8 @@ namespace MasterthesisGHA
             pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);           
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
 
-        }
-        protected virtual void SetInputs(IGH_DataAccess DA, out bool is3d, out List<Line> iLines, out List<string> iProfiles, out List<Point3d> iAnchoredPoints, out List<double> iLoad,
-           out List<Vector3d> iLoadVecs, out double iLineLoadValue, out Vector3d iLineLoadDirection, out Vector3d iLineLoadDistribution, out List<Line> iLinesToLoad)
-        {
-            is3d = true;
-            iLines = new List<Line>();
-            iProfiles = new List<string>();
-            iAnchoredPoints = new List<Point3d>();
-            iLoad = new List<double>();
-            iLoadVecs = new List<Vector3d>();
-            iLineLoadValue = 0;
-            iLineLoadDirection = new Vector3d();
-            iLineLoadDistribution = new Vector3d();
-            iLinesToLoad = new List<Line>();
-
-            DA.GetData(0, ref is3d);
-            DA.GetDataList(1, iLines);
-            DA.GetDataList(2, iProfiles);
-            DA.GetDataList(3, iAnchoredPoints);
-            DA.GetDataList(4, iLoad);
-            DA.GetDataList(5, iLoadVecs);
-            DA.GetData(6, ref iLineLoadValue);
-            DA.GetData(7, ref iLineLoadDirection);
-            DA.GetData(8, ref iLineLoadDistribution);
-            DA.GetDataList(9, iLinesToLoad);
-        }
-        protected virtual void SetOutputs(IGH_DataAccess DA, Structure truss)
-        {
-            
+            pManager.AddPointParameter("FirstPoints", "FirstPoints", "", GH_ParamAccess.list);
+            pManager.AddLineParameter("Exposed", "Exposed", "", GH_ParamAccess.list);
         }
 
 
@@ -129,10 +112,132 @@ namespace MasterthesisGHA
             if (applySelfWeight)
             {
                 truss.ApplySelfWeight();
-            }            
+            }
+
+
+
+
+            /*
+
+            // --- Test ---
+            Vector3d loadDirection = iLineLoadDirection;
+            List<Point3d> nodes = truss.FreeNodes;
+            Point3d topPoint = nodes[0];
+
+
+            // Find top-point
+            if (firstRun)
+            {
+                firstRun = false;
+
+                Plane zeroPlane = new Plane(new Point3d(0, 0, 0), loadDirection);                
+                foreach (Point3d node in nodes)
+                {
+                    if (zeroPlane.DistanceTo(topPoint) < zeroPlane.DistanceTo(node))
+                        topPoint = node;
+                }
+                
+                Point3d startNode = topPoint;
+            }
+
+
+            
+
+            // Exposed Lines
+            List<Line> exposedLines = new List<Line>();
+
+            // Initialize
+            IEnumerable<InPlaceElement> allElements = truss.ElementsInStructure.ToList();
+            List<Line> exposedLinesCopy = exposedLines.ToList();
+
+            // Find neighboors
+            IEnumerable<InPlaceElement> neighbors = allElements
+                .Where(o => o.StartPoint == startNode || o.EndPoint == startNode)
+                .ToList();
+            
+            List<Line> newNeighborLines = neighbors
+                .Select(o => new Line(o.StartPoint, o.EndPoint))
+                .Where(o => !exposedLinesCopy.Contains(new Line(o.PointAt(0), o.PointAt(1))))
+                .Where(o => !exposedLinesCopy.Contains(new Line(o.PointAt(1), o.PointAt(0))))
+                .ToList();
+
+            // Delete hidden from previous line
+            Point3d nextNode;
+            for (int i = 0; i < newNeighborLines.Count; i++)
+            {
+                Line line = newNeighborLines[i];
+
+                if (line.PointAt(0) == startNode)
+                    nextNode = line.PointAt(1);
+                else if (line.PointAt(1) == startNode)
+                    nextNode = line.PointAt(0);
+                else
+                    throw new Exception("Line " + line.ToString() + " is not connected to node " + startNode.ToString());
+
+                Line prevLine = new Line(prevNode, startNode);
+                Line thisLine = new Line(startNode, nextNode);
+
+
+                if (!firstRun)
+                {
+                    Plane projectionPlane = new Plane(startNode, loadDirection, new Vector3d(startNode - prevNode));
+                    Point3d projectedNextNode = projectionPlane.ClosestPoint(nextNode);
+
+                    double anglePreviousMember = Vector3d.VectorAngle(loadDirection, new Vector3d(startNode - prevNode));
+                    double angleThisMember = Vector3d.VectorAngle(loadDirection, new Vector3d(projectedNextNode - startNode));
+
+                    if (anglePreviousMember <= Math.PI && angleThisMember >= Math.PI ||
+                        anglePreviousMember >= Math.PI && angleThisMember <= Math.PI)
+                    {
+                        newNeighborLines.RemoveAt(i);
+                    }
+                }
+            }
+
+
+            exposedLines.AddRange(newNeighborLines);
+
+            prevNode = startNode;
+            if (newNeighborLines.Count > 0)
+            {
+                foreach (Line line in newNeighborLines)
+                {
+                    if (line.PointAt(0) != startNode)
+                    {
+                        FindExposedNodes(prevNode, line.PointAt(0), loadDirection, ref exposedLines, false);
+                    }
+                    else if (line.PointAt(1) != startNode)
+                    {
+                        FindExposedNodes(prevNode, line.PointAt(1), loadDirection, ref exposedLines, false);
+                    }
+                }
+            }
+            else
+            {
+                return;
+            }
+
+            */
+
+
+            //truss.getExposedMembers(iLineLoadDirection, out Point3d topPoint, out List<Line> exposedLines);
+            
+            
+            List<Point3d> firstPoints = truss.FindFirstPanel(iLineLoadDirection, 1500);
+
+
+
+
+
+
+
+
+
+
+            
             truss.Solve();
             truss.Retracking();
-
+            
 
 
             // OUTPUT
@@ -142,6 +247,9 @@ namespace MasterthesisGHA
             DA.SetData(3, truss.GetLoadVector());
             DA.SetDataList(4, truss.ElementAxialForce);
             DA.SetData(5, truss);
+
+            DA.SetDataList(6, firstPoints);
+            //DA.SetDataList(7, exposedLines);
         }
 
 

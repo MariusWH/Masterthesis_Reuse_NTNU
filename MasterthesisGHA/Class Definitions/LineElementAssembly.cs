@@ -319,7 +319,6 @@ namespace MasterthesisGHA
             throw new NotImplementedException();           
         }
 
-
         // Virtual Structural Analysis Methods
         protected virtual void RecalculateGlobalMatrix()
         {
@@ -347,6 +346,163 @@ namespace MasterthesisGHA
                 if (member.EndNodeIndex != -1)
                     GlobalLoadVector[dofsPerNode * member.EndNodeIndex + (dofsPerNode - 1)] += -member.getMass() * gravitationalAcceleration / 2;
             }
+        }
+        public virtual void ApplyLumpedSurfaceLoad()
+        {
+            throw new NotImplementedException();
+        }
+        public virtual void getExposedMembers(Vector3d loadDirection, out Point3d topPoint, out List<Line> exposedLines)
+        {
+            // Find top-point
+            Plane zeroPlane = new Plane(new Point3d(0,0,0), loadDirection);
+            Point3d max = FreeNodes[0];
+            foreach ( Point3d node in FreeNodes)
+            {
+                if (zeroPlane.DistanceTo(max) > zeroPlane.DistanceTo(node))
+                    max = node;
+            }
+            topPoint = max;
+
+            // Exposed Lines
+            exposedLines = new List<Line>();
+            FindExposedNodes(new Point3d(), max, loadDirection, ref exposedLines);
+
+        }
+        public virtual void FindExposedNodes(Point3d prevNode,Point3d startNode, Vector3d loadDirection, ref List<Line> exposedLines, 
+            bool firstRun = true)
+        {
+            // Initialize
+            IEnumerable<InPlaceElement> allElements = ElementsInStructure.ToList();
+            List<Line> exposedLinesCopy = exposedLines.ToList();
+
+            // Find neighboors
+            IEnumerable<InPlaceElement> neighbors = allElements
+                .Where(o => o.StartPoint == startNode || o.EndPoint == startNode)
+                .ToList();
+
+            List<Line> newNeighborLines = neighbors.Select(o => new Line(o.StartPoint, o.EndPoint))
+                .Where(o => !exposedLinesCopy.Contains(new Line(o.PointAt(0), o.PointAt(1))))
+                .Where(o => !exposedLinesCopy.Contains(new Line(o.PointAt(1), o.PointAt(0))))
+                .ToList();
+
+            // Delete hidden from previous line
+            Point3d nextNode;
+            for(int i = 0; i < newNeighborLines.Count; i++)
+            {
+                Line line = newNeighborLines[i];
+
+                if (line.PointAt(0) == startNode && !SupportNodes.Contains(line.PointAt(0)))
+                    nextNode = line.PointAt(1);
+                else if (line.PointAt(1) == startNode && !SupportNodes.Contains(line.PointAt(1)))
+                    nextNode = line.PointAt(0);
+                else
+                    throw new Exception("Line " + line.ToString() + " is not connected to node " + startNode.ToString());
+
+                Line prevLine = new Line(prevNode, startNode);
+                Line thisLine = new Line(startNode, nextNode);
+
+                if (!firstRun)
+                {
+                    Plane projectionPlane = new Plane(startNode, loadDirection, new Vector3d(startNode - prevNode));
+                    Point3d projectedNextNode = projectionPlane.ClosestPoint(nextNode);
+
+                    double anglePreviousMember = Vector3d.VectorAngle(loadDirection, new Vector3d(startNode - prevNode));
+                    double angleThisMember = Vector3d.VectorAngle(loadDirection, new Vector3d(projectedNextNode - startNode));
+
+                    if( anglePreviousMember <= Math.PI && angleThisMember >= Math.PI ||
+                        anglePreviousMember >= Math.PI && angleThisMember <= Math.PI)
+                    {
+                        newNeighborLines.RemoveAt(i);
+                    }
+                }
+            }
+          
+            exposedLines.AddRange(newNeighborLines);
+            
+            
+
+            // Exposed nodes
+            prevNode = startNode;
+            if (newNeighborLines.Count > 0)
+            {
+                foreach (Line line in newNeighborLines)
+                {
+                    if (line.PointAt(0) != startNode && !SupportNodes.Contains(line.PointAt(0)))
+                    {
+                        FindExposedNodes(prevNode, line.PointAt(0), loadDirection, ref exposedLines, false);
+                    }
+                    else if (line.PointAt(1) != startNode && !SupportNodes.Contains(line.PointAt(1)))
+                    {
+                        FindExposedNodes(prevNode, line.PointAt(1), loadDirection, ref exposedLines, false);
+                    }
+                }                    
+            }
+            else
+            {
+                return;
+            }           
+
+        }
+
+
+
+        // Gift wrapping
+        public virtual List<Point3d> FindFirstPanel(Vector3d loadDirection, double panelLength)
+        {
+            Plane zeroPlane = new Plane(new Point3d(0, 0, 0), -loadDirection);
+            List<Point3d> nodesCopy = FreeNodes.ToList();
+            nodesCopy.AddRange(SupportNodes.ToList());
+            
+            // Sort on loadDirection axis
+            List<double> distances = new List<double>(nodesCopy.Count);            
+            foreach (Point3d node in nodesCopy)
+            {
+                distances.Add(zeroPlane.DistanceTo(node));           
+            }
+
+            List<Point3d> panelCorners = new List<Point3d>();
+            double initialDistance = distances[0];
+            
+            for (int n = 0; n < 3; n++)
+            {
+                panelCorners.Add(new Point3d());
+                while (true)
+                {
+                    double minDistance = distances[0];
+                    int minDistanceIndex = 0;
+                    for (int i = 1; i < distances.Count; i++)
+                    {
+                        if (minDistance < distances[i])
+                        {
+                            minDistance = distances[i];
+                            minDistanceIndex = i;
+                        }                       
+                    }
+                    panelCorners[n] = nodesCopy[minDistanceIndex];
+                    nodesCopy.RemoveAt(minDistanceIndex);
+                    distances.RemoveAt(minDistanceIndex);
+
+                    if (panelCorners[0].DistanceTo(panelCorners[n]) > panelLength)
+                        continue;
+
+                    break;
+                }              
+            }
+
+            return panelCorners;
+        }
+        public virtual void GiftWrapLoadPanels(Vector3d loadDirection)
+        {
+            // Initialize
+            double allowedError = 1e1;
+            double panelLength = ElementsInStructure.Select(o => o.StartPoint.DistanceTo(o.EndPoint)).Max();
+
+            // 1 Find top panel (3 points that are close enough for a panel)
+            List<Point3d> firstPanelPoints = FindFirstPanel(loadDirection, panelLength);            
+
+
+
+            // 2 Gift wrap panels
         }
 
         // Visuals

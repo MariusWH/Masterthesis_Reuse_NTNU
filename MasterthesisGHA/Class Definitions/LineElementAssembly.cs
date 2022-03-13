@@ -25,6 +25,10 @@ namespace MasterthesisGHA
 
         public static List<System.Drawing.Color> materialBankColors;
 
+        protected static System.Drawing.Color loadingPanelColor;
+        protected static System.Drawing.Color outwardNormalColor;
+
+
         // Static Constructor
         static ElementCollection()
         {
@@ -48,6 +52,9 @@ namespace MasterthesisGHA
                 System.Drawing.Color.MediumPurple,
                 System.Drawing.Color.LightGreen
             };
+            
+            loadingPanelColor = System.Drawing.Color.Aquamarine;
+            outwardNormalColor = System.Drawing.Color.Aquamarine;
         }
 
         // Static Methods
@@ -447,6 +454,18 @@ namespace MasterthesisGHA
 
 
         // Gift wrapping
+        public bool isIntersecting(Triangle3d panel, Line edge)
+        {
+            Plane panelPlane = new Plane();
+            panel.ClosestPointOnBoundary(new Point3d());
+
+            if(true)
+            {
+
+            }
+            
+            return false;
+        }
         public virtual List<Point3d> FindFirstPanel(Vector3d loadDirection, double panelLength)
         {
             Plane zeroPlane = new Plane(new Point3d(0, 0, 0), -loadDirection);
@@ -491,18 +510,376 @@ namespace MasterthesisGHA
 
             return panelCorners;
         }
-        public virtual void GiftWrapLoadPanels(Vector3d loadDirection)
-        {
+        public virtual void GiftWrapLoadPanels(Vector3d loadDirection, out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors, 
+            out List<Brep> visuals, out List<System.Drawing.Color> colors, out Circle circle, out List<Point3d> markedPoints, 
+            out List<Triangle3d> panels, int returnCount)
+        { 
+
             // Initialize
             double allowedError = 1e1;
             double panelLength = ElementsInStructure.Select(o => o.StartPoint.DistanceTo(o.EndPoint)).Max();
+            List<Point3d> nodesCopy = FreeNodes.ToList();
+            nodesCopy.AddRange(SupportNodes.ToList());
+
+            int debugCounter = 0;
+
 
             // 1 Find top panel (3 points that are close enough for a panel)
-            List<Point3d> firstPanelPoints = FindFirstPanel(loadDirection, panelLength);            
+            List<Point3d> firstPoints = FindFirstPanel(loadDirection, panelLength);            
+            Triangle3d firstPanel = new Triangle3d(firstPoints[0], firstPoints[1], firstPoints[2]);
+            Plane firstPlane = new Plane(firstPoints[0], firstPoints[1], firstPoints[2]);
 
+            Vector3d firstOutwardNormal = -firstPlane.Normal;
+            /*
+            if (plane.Normal * loadDirection < 0)
+                firstOutwardNormal = plane.Normal;
+            else
+                firstOutwardNormal = - plane.Normal;
+            */
+
+
+            // Visuals
+            liveVisuals = new List<Brep>();
+            liveColors = new List<System.Drawing.Color>();
+            visuals = new List<Brep>();
+            colors = new List<System.Drawing.Color>();
+
+            double arrowLength = 2e2;
+            double coneHeight = 3e1;
+            double radius = 1e1;
+
+            Point3d startPoint = new Point3d(firstPanel.AreaCenter);
+            Point3d endPoint = startPoint + new Point3d(firstOutwardNormal*arrowLength);
+            Point3d arrowBase = endPoint + firstOutwardNormal * coneHeight;
+            Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, firstOutwardNormal), radius), startPoint.DistanceTo(endPoint));
+            Cone arrow = new Cone(new Plane(arrowBase, firstOutwardNormal), -coneHeight, 2*radius);
+
+            Brep panelBrep = Brep.CreateFromCornerPoints(firstPanel.A, firstPanel.B, firstPanel.C, 0.0);
+            visuals.Add(panelBrep);
+            colors.Add(Structure.outwardNormalColor);
+            visuals.Add(loadCylinder.ToBrep(true, true));
+            colors.Add(Structure.outwardNormalColor);
+            visuals.Add(arrow.ToBrep(true));
+            colors.Add(Structure.outwardNormalColor);
 
 
             // 2 Gift wrap panels
+            List<Line> edges = new List<Line>();
+            panels = new List<Triangle3d>();
+            panels.Add(firstPanel);
+            markedPoints = firstPoints.ToList();
+
+            circle = new Circle();
+
+
+            List<Triangle3d> newPanels = panels.ToList(); // Initial
+            List<Triangle3d> tempNewPanels = new List<Triangle3d>();
+            bool firstRun = true;
+
+            int expansionCounter = 0;
+            while (true) // Until no new panels
+            {
+                liveVisuals.Clear();
+                liveColors.Clear();
+
+                if (expansionCounter++ > 1e3)
+                {
+                    throw new Exception("Expansion counter exceeds limit!");
+                }
+                if (firstRun)
+                {
+                    newPanels = panels.ToList();
+                    firstRun = false;
+                }
+
+                
+                foreach (Triangle3d panel in newPanels)
+                {
+                    List<Line> panelEdges = new List<Line>();
+                    panelEdges.Add(panel.AB);
+                    panelEdges.Add(panel.BC);
+                    panelEdges.Add(panel.CA);
+
+                    
+                    List<Line> panelPerpendiculars = new List<Line>();
+                    panelPerpendiculars.Add(panel.PerpendicularAB);
+                    panelPerpendiculars.Add(panel.PerpendicularBC);
+                    panelPerpendiculars.Add(panel.PerpendicularCA);
+
+
+                    panelEdges = panelEdges
+                        .FindAll(o => !edges.Contains(o) && !edges.Contains(new Line(o.PointAt(1), o.PointAt(0))))
+                        .ToList();
+                    edges.AddRange(panelEdges);
+
+                    Vector3d outwardNormal = Vector3d.CrossProduct(panel.C - panel.A, panel.B - panel.A);
+                    outwardNormal.Unitize();
+
+                    for (int i = 0; i < panelEdges.Count; i++)
+                    {
+                        Line edge = panelEdges[i];
+                        Line perpendicular = panelPerpendiculars[i];
+
+                        Point3d iPoint = perpendicular.PointAt(1); // Inside triangle
+                        Point3d oPoint = iPoint + 2 * (perpendicular.PointAt(0) - perpendicular.PointAt(1)); // Outside triangle
+                        Point3d outwardsPoint = perpendicular.PointAt(0) + outwardNormal * perpendicular.Length; // Normal to plane
+                        
+                        circle = new Circle(iPoint, outwardsPoint, oPoint);
+                        circle.Radius = 100;
+
+                        /*
+                        liveVisuals.Add(Brep.CreateBaseballSphere(new Point3d(iPoint), 10.0, 0.0));
+                        liveVisuals.Add(Brep.CreateBaseballSphere(new Point3d(oPoint), 30.0, 0.0));
+                        liveVisuals.Add(Brep.CreateBaseballSphere(new Point3d(outwardsPoint), 20.0, 0.0));
+
+                        liveColors.Add(System.Drawing.Color.DarkBlue);
+                        liveColors.Add(System.Drawing.Color.Blue);
+                        liveColors.Add(System.Drawing.Color.LightBlue);
+                        */
+
+
+
+
+
+                        // Pivot around boundary edge
+                        double divisions = 1e5;
+                        double degree = 0.0 * Math.PI;
+                        double addedDegree = (2 * Math.PI - degree) / divisions;                    
+                        int pivotCounter = 0;
+
+                        while (true)
+                        {                           
+                            degree += addedDegree;
+
+                            Point3d pivotPoint = circle.PointAt(degree);
+                            //Plane pivotPlane = new Plane(circle.Center, pivotPoint, edge.PointAt(0));
+                            Plane pivotPlane = new Plane(circle.Center, pivotPoint - circle.Center);
+
+                            // Visualise pivoting
+                            /*
+                            if (pivotCounter % (divisions/100) == 0)
+                            {
+                                liveVisuals.Add(Brep.CreateBaseballSphere(new Point3d(pivotPoint), 5.0, 0.0));
+                                liveColors.Add(System.Drawing.Color.Yellow);
+                            }
+                            */
+                                
+                            
+                            
+                            
+                            List<Point3d> markedPointsCopy = markedPoints.ToList();
+                            List<Point3d> closePoints = nodesCopy
+                                .FindAll(
+                                o => 
+                                o.DistanceTo(edge.PointAt(0)) <= panelLength + allowedError &&
+                                o.DistanceTo(edge.PointAt(1)) <= panelLength + allowedError &&
+                                o.DistanceTo(edge.PointAt(0)) > 0 &&
+                                o.DistanceTo(edge.PointAt(1)) > 0 &&
+                                !edges.Contains(new Line(edge.PointAt(0), o)) &&
+                                !edges.Contains(new Line(o, edge.PointAt(0))) &&
+                                !edges.Contains(new Line(edge.PointAt(1), o)) &&
+                                !edges.Contains(new Line(o, edge.PointAt(0)))
+                                )
+                                .ToList();
+
+                            // CHECK INTERSECTION 
+
+                            // !markedPointsCopy.Contains(o)
+
+                            if (closePoints.Count == 0)
+                            {
+                                goto End;
+                            }
+                            else if (pivotCounter++ > divisions)
+                            {
+                                goto End;
+                                throw new Exception("Close points found, butNo panels exceeds limit!");
+                            }
+
+                            foreach (Point3d node in closePoints)
+                            {
+                                Vector3d pivotPointToStartOfEdge = new Vector3d(edge.PointAt(0) - pivotPoint);
+                                Vector3d pivotPointToEndOfEdge = new Vector3d(edge.PointAt(1) - pivotPoint);
+                                Vector3d pivotPointToNode = new Vector3d(node - pivotPoint);
+
+                                /*
+                                if (pivotCounter % (divisions / 100) == 0)
+                                {
+                                    liveVisuals.Add(Brep.CreateFromCornerPoints(
+                                        edge.PointAt(0), 
+                                        new Point3d(pivotPoint), 
+                                        new Point3d(edge.PointAt(1)),
+                                        0.0));
+
+                                    liveColors.Add(System.Drawing.Color.Yellow);
+                                }
+                                */
+                                    
+
+
+                                double tetrahedronVolume = 1 / 6.0 * Vector3d.CrossProduct(pivotPointToStartOfEdge, pivotPointToEndOfEdge) * pivotPointToNode;
+
+                                double checkDistance = pivotPlane.DistanceTo(node);
+
+
+                                if (Math.Abs(tetrahedronVolume) < (allowedError*allowedError) && pivotPlane.DistanceTo(node) > 0)
+                                {
+                                    double checkDegree = degree;
+                                    markedPoints.Add(new Point3d(node));
+                                    tempNewPanels.Add(new Triangle3d(new Point3d(edge.PointAt(0)), new Point3d(node), new Point3d(edge.PointAt(1))));
+
+                                    Triangle3d tempPanel = new Triangle3d(
+                                        tempNewPanels[tempNewPanels.Count-1].A,
+                                        tempNewPanels[tempNewPanels.Count-1].B,
+                                        tempNewPanels[tempNewPanels.Count-1].C);
+
+                                    Plane tempPlane = new Plane(tempPanel.A, tempPanel.B, tempPanel.C);
+                                    Vector3d tempOutwardNormal = -tempPlane.Normal;
+
+                                    startPoint = new Point3d(tempPanel.AreaCenter);
+                                    endPoint = startPoint + new Point3d(tempOutwardNormal * arrowLength);
+                                    arrowBase = endPoint + tempOutwardNormal * coneHeight;
+                                    loadCylinder = new Cylinder(new Circle(new Plane(startPoint, tempOutwardNormal), radius), 
+                                        startPoint.DistanceTo(endPoint));
+                                    arrow = new Cone(new Plane(arrowBase, tempOutwardNormal), -coneHeight, 2 * radius);
+
+                                    panelBrep = Brep.CreateFromCornerPoints(
+                                        tempNewPanels[tempNewPanels.Count - 1].A,
+                                        tempNewPanels[tempNewPanels.Count - 1].B,
+                                        tempNewPanels[tempNewPanels.Count - 1].C,
+                                        0.0);
+
+                                    visuals.Add(panelBrep);
+                                    colors.Add(Structure.outwardNormalColor);
+
+                                    visuals.Add(loadCylinder.ToBrep(true, true));
+                                    colors.Add(Structure.outwardNormalColor);
+                                    visuals.Add(arrow.ToBrep(true));
+                                    colors.Add(Structure.outwardNormalColor);
+
+                                    if (debugCounter++ > returnCount)
+                                        return;
+
+
+                                    goto End;
+                                }
+                            }
+                        }
+
+                    End:
+                        { }
+
+                    }
+
+                    if (tempNewPanels.Count == 0)
+                    {
+                        //goto Visuals;
+                        return;
+                    }
+                    else
+                    {
+                        newPanels = tempNewPanels.ToList();
+                        panels.AddRange(tempNewPanels.ToList());
+                        tempNewPanels.Clear();
+                    }
+
+                }
+
+
+                
+            }
+
+            // Visuals
+            /*
+            Visuals:
+
+                visuals = new List<Brep>();
+                colors = new List<System.Drawing.Color>();
+
+                foreach (Triangle3d panel in panels)
+                {
+                    plane = new Plane(panel.A, panel.B, panel.C);
+                    Vector3d outwardNormal = plane.Normal;
+
+                    if (plane.Normal * loadDirection < 0)
+                        outwardNormal = plane.Normal;
+                    else
+                        outwardNormal = -plane.Normal;
+
+
+                    startPoint = new Point3d(panel.AreaCenter);
+                    endPoint = startPoint + new Point3d(outwardNormal * arrowLength);
+                    arrowBase = endPoint + outwardNormal * coneHeight;
+                    loadCylinder = new Cylinder(new Circle(new Plane(startPoint, outwardNormal), radius), startPoint.DistanceTo(endPoint));
+                    arrow = new Cone(new Plane(arrowBase, outwardNormal), -coneHeight, 2 * radius);
+
+                    visuals.Add(loadCylinder.ToBrep(true, true));
+                    colors.Add(Structure.outwardNormalColor);
+                    visuals.Add(arrow.ToBrep(true));
+                    colors.Add(Structure.outwardNormalColor);
+
+
+
+                }
+
+                */
+
+            /*
+            Line edge = firstPanel.AB;
+            Line line = firstPanel.PerpendicularAB;
+            
+            Point3d innerPoint = line.PointAt(1);
+            Point3d outerPoint = innerPoint + 2 * (line.PointAt(0) - line.PointAt(1));
+            Point3d outwardsPoint = line.PointAt(0) + firstOutwardNormal * line.Length;
+
+            circle = new Circle(innerPoint, outwardsPoint, outerPoint);
+
+            // Pivot around boundary edge
+            newPoint = new Point3d();
+
+            double degree = 0;
+            double addedDegree = 2*Math.PI/1e3;
+            while (true)
+            {
+                degree += addedDegree;
+                Point3d pivotPoint = circle.PointAt(degree);
+
+                Plane plane2 = new Plane(circle.Center, pivotPoint, edge.PointAt(0));
+
+                List<Point3d> closePoints = nodesCopy
+                    .FindAll(o => o.DistanceTo(edge.PointAt(0))<panelLength && o.DistanceTo(edge.PointAt(1)) < panelLength)
+                    .ToList();
+
+                foreach (Point3d node in closePoints)
+                {
+                    Vector3d pivotPointToStartOfEdge = new Vector3d(edge.PointAt(0) - pivotPoint);
+                    Vector3d pivotPointToEndOfEdge = new Vector3d(edge.PointAt(1) - pivotPoint);
+                    Vector3d pivotPointToNode = new Vector3d(node - pivotPoint);
+
+                    double tetrahedronVolume = 1 / 6.0 * Vector3d.CrossProduct(pivotPointToStartOfEdge, pivotPointToEndOfEdge) * pivotPointToNode;
+                    
+                    if (tetrahedronVolume < allowedError && plane2.ClosestPoint(node).X > 0 )
+                    {
+                        newPoint = node;
+                        goto End;
+                    }
+                }
+            }
+
+            End:
+            {
+
+            }
+            */
+
+
+
+
+
+
+
+
+
         }
 
         // Visuals

@@ -17,6 +17,7 @@ namespace MasterthesisGHA
         //Test
         public bool firstRun;
         public Point3d startNode;
+        public int returnCount;
 
         public TrussSolver()
           : base("Truss Matrix Structural Analysis", "Truss MSA",
@@ -29,6 +30,7 @@ namespace MasterthesisGHA
 
             firstRun = true;
             startNode = new Point3d();
+            returnCount = 0;
         }
         public TrussSolver(string name, string nickname, string description, string category, string subCategory)
             : base(name, nickname, description, category, subCategory)
@@ -62,7 +64,14 @@ namespace MasterthesisGHA
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
 
             pManager.AddPointParameter("FirstPoints", "FirstPoints", "", GH_ParamAccess.list);
-            pManager.AddLineParameter("Exposed", "Exposed", "", GH_ParamAccess.list);
+            pManager.AddGeometryParameter("Visuals", "Visuals", "", GH_ParamAccess.list);
+            pManager.AddColourParameter("Colors", "Colors", "", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Circle", "Circle", "", GH_ParamAccess.item);
+
+            pManager.AddGenericParameter("Debug1", "Debug1", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug2", "Debug2", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug3", "Debug3", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug4", "Debug4", "", GH_ParamAccess.item);
         }
 
 
@@ -117,113 +126,13 @@ namespace MasterthesisGHA
 
 
 
-            /*
-
-            // --- Test ---
-            Vector3d loadDirection = iLineLoadDirection;
-            List<Point3d> nodes = truss.FreeNodes;
-            Point3d topPoint = nodes[0];
-
-
-            // Find top-point
-            if (firstRun)
-            {
-                firstRun = false;
-
-                Plane zeroPlane = new Plane(new Point3d(0, 0, 0), loadDirection);                
-                foreach (Point3d node in nodes)
-                {
-                    if (zeroPlane.DistanceTo(topPoint) < zeroPlane.DistanceTo(node))
-                        topPoint = node;
-                }
-                
-                Point3d startNode = topPoint;
-            }
-
-
-            
-
-            // Exposed Lines
-            List<Line> exposedLines = new List<Line>();
-
-            // Initialize
-            IEnumerable<InPlaceElement> allElements = truss.ElementsInStructure.ToList();
-            List<Line> exposedLinesCopy = exposedLines.ToList();
-
-            // Find neighboors
-            IEnumerable<InPlaceElement> neighbors = allElements
-                .Where(o => o.StartPoint == startNode || o.EndPoint == startNode)
-                .ToList();
-            
-            List<Line> newNeighborLines = neighbors
-                .Select(o => new Line(o.StartPoint, o.EndPoint))
-                .Where(o => !exposedLinesCopy.Contains(new Line(o.PointAt(0), o.PointAt(1))))
-                .Where(o => !exposedLinesCopy.Contains(new Line(o.PointAt(1), o.PointAt(0))))
-                .ToList();
-
-            // Delete hidden from previous line
-            Point3d nextNode;
-            for (int i = 0; i < newNeighborLines.Count; i++)
-            {
-                Line line = newNeighborLines[i];
-
-                if (line.PointAt(0) == startNode)
-                    nextNode = line.PointAt(1);
-                else if (line.PointAt(1) == startNode)
-                    nextNode = line.PointAt(0);
-                else
-                    throw new Exception("Line " + line.ToString() + " is not connected to node " + startNode.ToString());
-
-                Line prevLine = new Line(prevNode, startNode);
-                Line thisLine = new Line(startNode, nextNode);
-
-
-                if (!firstRun)
-                {
-                    Plane projectionPlane = new Plane(startNode, loadDirection, new Vector3d(startNode - prevNode));
-                    Point3d projectedNextNode = projectionPlane.ClosestPoint(nextNode);
-
-                    double anglePreviousMember = Vector3d.VectorAngle(loadDirection, new Vector3d(startNode - prevNode));
-                    double angleThisMember = Vector3d.VectorAngle(loadDirection, new Vector3d(projectedNextNode - startNode));
-
-                    if (anglePreviousMember <= Math.PI && angleThisMember >= Math.PI ||
-                        anglePreviousMember >= Math.PI && angleThisMember <= Math.PI)
-                    {
-                        newNeighborLines.RemoveAt(i);
-                    }
-                }
-            }
-
-
-            exposedLines.AddRange(newNeighborLines);
-
-            prevNode = startNode;
-            if (newNeighborLines.Count > 0)
-            {
-                foreach (Line line in newNeighborLines)
-                {
-                    if (line.PointAt(0) != startNode)
-                    {
-                        FindExposedNodes(prevNode, line.PointAt(0), loadDirection, ref exposedLines, false);
-                    }
-                    else if (line.PointAt(1) != startNode)
-                    {
-                        FindExposedNodes(prevNode, line.PointAt(1), loadDirection, ref exposedLines, false);
-                    }
-                }
-            }
-            else
-            {
-                return;
-            }
-
-            */
-
+            // TEST
 
             //truss.getExposedMembers(iLineLoadDirection, out Point3d topPoint, out List<Line> exposedLines);
-            
-            
+                     
             List<Point3d> firstPoints = truss.FindFirstPanel(iLineLoadDirection, 1500);
+            truss.GiftWrapLoadPanels(iLineLoadDirection, out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors, out List<Brep> visuals, 
+                out List<System.Drawing.Color> colors, out Circle circle, out List<Point3d> markedPoints, out List<Triangle3d> panels, 100);
 
 
 
@@ -234,7 +143,7 @@ namespace MasterthesisGHA
 
 
 
-            
+
             truss.Solve();
             truss.Retracking();
             
@@ -249,7 +158,14 @@ namespace MasterthesisGHA
             DA.SetData(5, truss);
 
             DA.SetDataList(6, firstPoints);
-            //DA.SetDataList(7, exposedLines);
+            DA.SetDataList(7, visuals);
+            DA.SetDataList(8, colors);
+            DA.SetData(9, circle);
+
+            DA.SetDataList(10, markedPoints);
+            DA.SetDataList(11, panels);
+            DA.SetDataList(12, liveVisuals);
+            DA.SetDataList(13, liveColors);
         }
 
 

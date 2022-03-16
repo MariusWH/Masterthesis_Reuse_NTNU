@@ -72,6 +72,10 @@ namespace MasterthesisGHA
             pManager.AddGenericParameter("Debug2", "Debug2", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("Debug3", "Debug3", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("Debug4", "Debug4", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug5", "Debug5", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug6", "Debug6", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug7", "Debug7", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug8", "Debug8", "", GH_ParamAccess.item);
         }
 
 
@@ -131,14 +135,14 @@ namespace MasterthesisGHA
             //truss.getExposedMembers(iLineLoadDirection, out Point3d topPoint, out List<Line> exposedLines);
                      
             List<Point3d> firstPoints = truss.FindFirstPanel(iLineLoadDirection, 1500);
-            truss.GiftWrapLoadPanels(iLineLoadDirection, out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors, out List<Brep> visuals, 
-                out List<System.Drawing.Color> colors, out Circle circle, out List<Point3d> markedPoints, out List<Triangle3d> panels, 100);
-
-
-
-
-
-
+            truss.GiftWrapLoadPanels(iLineLoadDirection, 
+                out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors,
+                out List<Brep> newVisuals, out List<System.Drawing.Color> newColors,
+                out List<Brep> visuals, out List<System.Drawing.Color> colors, 
+                out Circle circle,
+                out List<Line> edges,
+                out List<Line> newEdges,
+                returnCount++);
 
 
 
@@ -162,10 +166,13 @@ namespace MasterthesisGHA
             DA.SetDataList(8, colors);
             DA.SetData(9, circle);
 
-            DA.SetDataList(10, markedPoints);
-            DA.SetDataList(11, panels);
+            DA.SetDataList(10, edges);
+            DA.SetDataList(11, newEdges);
+
             DA.SetDataList(12, liveVisuals);
             DA.SetDataList(13, liveColors);
+            DA.SetDataList(14, newVisuals);
+            DA.SetDataList(15, newColors);
         }
 
 

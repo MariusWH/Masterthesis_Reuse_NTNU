@@ -64,8 +64,6 @@ namespace MasterthesisGHA
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
 
             pManager.AddPointParameter("FirstPoints", "FirstPoints", "", GH_ParamAccess.list);
-            pManager.AddGeometryParameter("Visuals", "Visuals", "", GH_ParamAccess.list);
-            pManager.AddColourParameter("Colors", "Colors", "", GH_ParamAccess.list);
             pManager.AddGenericParameter("Circle", "Circle", "", GH_ParamAccess.item);
 
             pManager.AddGenericParameter("Debug1", "Debug1", "", GH_ParamAccess.item);
@@ -76,6 +74,10 @@ namespace MasterthesisGHA
             pManager.AddGenericParameter("Debug6", "Debug6", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("Debug7", "Debug7", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("Debug8", "Debug8", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug9", "Debug9", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug10", "Debug10", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug11", "Debug11", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug12", "Debug12", "", GH_ParamAccess.item);
         }
 
 
@@ -135,14 +137,15 @@ namespace MasterthesisGHA
             //truss.getExposedMembers(iLineLoadDirection, out Point3d topPoint, out List<Line> exposedLines);
                      
             List<Point3d> firstPoints = truss.FindFirstPanel(iLineLoadDirection, 1500);
-            truss.GiftWrapLoadPanels(iLineLoadDirection, 
-                out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors,
-                out List<Brep> newVisuals, out List<System.Drawing.Color> newColors,
-                out List<Brep> visuals, out List<System.Drawing.Color> colors, 
+            truss.GiftWrapLoadPanels(iLineLoadDirection,
+                out List<Brep> visuals, out List<System.Drawing.Color> colors,
                 out Circle circle,
                 out List<Line> edges,
                 out List<Line> newEdges,
-                returnCount++);
+                out List<Line> tempLines,
+                out List<Point3d> closePoints,
+                returnCount++,
+                out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors);
 
 
 
@@ -162,17 +165,18 @@ namespace MasterthesisGHA
             DA.SetData(5, truss);
 
             DA.SetDataList(6, firstPoints);
-            DA.SetDataList(7, visuals);
-            DA.SetDataList(8, colors);
-            DA.SetData(9, circle);
+            DA.SetData(7, circle);
 
-            DA.SetDataList(10, edges);
-            DA.SetDataList(11, newEdges);
+            DA.SetDataList(8, edges);
+            DA.SetDataList(9, newEdges);
+            DA.SetDataList(10, tempLines);
 
-            DA.SetDataList(12, liveVisuals);
-            DA.SetDataList(13, liveColors);
-            DA.SetDataList(14, newVisuals);
-            DA.SetDataList(15, newColors);
+            DA.SetDataList(15, visuals);
+            DA.SetDataList(16, colors);
+            DA.SetDataList(17, liveVisuals);
+            DA.SetDataList(18, liveColors);
+
+            DA.SetDataList(19, closePoints);
         }
 
 

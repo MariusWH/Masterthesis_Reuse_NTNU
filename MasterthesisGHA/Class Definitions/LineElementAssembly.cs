@@ -453,7 +453,93 @@ namespace MasterthesisGHA
 
 
 
-        // Gift wrapping
+        // Gift Wrapping Load Panels
+        public virtual void visualsForDebugging(
+            ref List<Brep> visuals, ref List<System.Drawing.Color> colors,
+            ref List<Triangle3d> innerPanels, ref List<Triangle3d> outerPanels, ref List<Triangle3d> newPanels)
+        {
+            double arrowLength = 2e2;
+            double coneHeight = 3e1;
+            double radius = 1e1;
+
+            Point3d startPoint;
+            Point3d endPoint;
+            Point3d arrowBase;
+            Cylinder loadCylinder;
+            Cone arrow;
+
+            visuals.Clear();
+            colors.Clear();
+
+            foreach (Triangle3d temp in innerPanels)
+            {
+                visuals.Add(Brep.CreateFromCornerPoints(temp.A, temp.B, temp.C, 0.0));
+                colors.Add(System.Drawing.Color.Blue);
+            }               
+
+            foreach (Triangle3d temp in outerPanels)
+            {
+                visuals.Add(Brep.CreateFromCornerPoints(temp.A, temp.B, temp.C, 0.0));
+                colors.Add(System.Drawing.Color.Green);
+            }               
+
+            foreach (Triangle3d temp in newPanels)
+            {
+                Vector3d tempONormal = Vector3d.CrossProduct(temp.C - temp.A, temp.B - temp.A);
+                tempONormal.Unitize();
+                startPoint = new Point3d(temp.AreaCenter);
+                endPoint = startPoint + new Point3d(tempONormal * arrowLength);
+                arrowBase = endPoint + tempONormal * coneHeight;
+                loadCylinder = new Cylinder(new Circle(new Plane(startPoint, tempONormal), radius),
+                    startPoint.DistanceTo(endPoint));
+                arrow = new Cone(new Plane(arrowBase, tempONormal), -coneHeight, 2 * radius);
+
+                visuals.Add(Brep.CreateFromCornerPoints(temp.A, temp.B, temp.C, 0.0));             
+                visuals.Add(loadCylinder.ToBrep(true, true));               
+                visuals.Add(arrow.ToBrep(true));
+                colors.Add(System.Drawing.Color.Yellow);
+                colors.Add(System.Drawing.Color.Yellow);
+                colors.Add(System.Drawing.Color.Yellow);
+            }
+        }
+        public virtual void updatePanelsAndEdges(Line edge, Point3d node,
+            ref List<Triangle3d> newPanels, ref List<Line> newEdges, ref List<Line> tempEdges)
+        {
+            // Update panels
+            Triangle3d newPanel = new Triangle3d(
+                                        new Point3d(edge.PointAt(0)),
+                                        new Point3d(node),
+                                        new Point3d(edge.PointAt(1)));
+            newPanels.Add(newPanel);
+
+            // Update edges                              
+            newEdges.AddRange(new List<Line>() { newPanel.AB, newPanel.BC, newPanel.CA });
+            tempEdges.AddRange(new List<Line>() { newPanel.AB, newPanel.BC });
+
+            List<int> duplicateIndices = new List<int>();
+            List<Line> duplicateLines = new List<Line>();
+            for (int i = 0; i < newEdges.Count; i++)
+            {
+                for (int j = 0; j < newEdges.Count; j++)
+                {
+                    if (i == j || duplicateIndices.Contains(i) || duplicateIndices.Contains(j)) continue;
+                    else if (newEdges[i] == newEdges[j] ||
+                        newEdges[i] == new Line(newEdges[j].PointAt(1), newEdges[j].PointAt(0)))
+                    {
+                        duplicateIndices.Add(i);
+                        duplicateIndices.Add(j);
+                        duplicateLines.Add(new Line(newEdges[j].PointAt(0), newEdges[j].PointAt(1)));
+                        duplicateLines.Add(new Line(newEdges[j].PointAt(1), newEdges[j].PointAt(0)));
+                    }
+                }
+            }
+
+            newEdges.RemoveAll(o => duplicateLines.Contains(o));
+        }
+        
+
+
+
         public virtual List<Point3d> FindFirstPanel(Vector3d loadDirection, double panelLength)
         {
             Plane zeroPlane = new Plane(new Point3d(0, 0, 0), -loadDirection);
@@ -499,55 +585,46 @@ namespace MasterthesisGHA
             return panelCorners;
         }
         public virtual void GiftWrapLoadPanels(Vector3d loadDirection,
-            out List<Brep> tempVisuals, out List<System.Drawing.Color> tempColors,
-            out List<Brep> newVisuals, out List<System.Drawing.Color> newColors,
             out List<Brep> visuals, out List<System.Drawing.Color> colors,
             out Circle circle,
-            out List<Line> edges,
+            out List<Line> innerEdges,
+            out List<Line> outerEdges,
             out List<Line> newEdges,
-            int returnCount)
+            out List<Point3d> closePoints,
+            int returnCount,
+            out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors)
         {
             int debugCounter = 0;
 
-            // Visuals for debugging
-            double arrowLength = 2e2;
-            double coneHeight = 3e1;
-            double radius = 1e1;
-
             visuals = new List<Brep>();
-            colors = new List<System.Drawing.Color>();
-            colors.Add(System.Drawing.Color.Blue);
-            newVisuals = new List<Brep>();
-            newColors = new List<System.Drawing.Color>();
-            newColors.Add(System.Drawing.Color.Green);
-            tempVisuals = new List<Brep>();
-            tempColors = new List<System.Drawing.Color>();
-            tempColors.Add(System.Drawing.Color.Yellow);
-
-            Vector3d firstOutwardNormal;
-            Point3d startPoint;
-            Point3d endPoint;
-            Point3d arrowBase;
-            Cylinder loadCylinder;
-            Cone arrow;
-            Brep firstPanelBrep;
+            colors = new List<System.Drawing.Color>();           
+            liveVisuals = new List<Brep>();
+            liveColors = new List<System.Drawing.Color>();
+            liveColors.Add(System.Drawing.Color.DarkOrange);
 
             // Initialize
             double allowedError = 1e1;
-            double adjustmentFactorVolumeError = 3;
+            double adjustmentFactorVolumeError = 1;
             double panelLength = ElementsInStructure.Select(o => o.StartPoint.DistanceTo(o.EndPoint)).Max();
             List<Point3d> nodesCopy = FreeNodes.ToList();
             nodesCopy.AddRange(SupportNodes.ToList());                                 
             circle = new Circle();
+            closePoints = new List<Point3d>();
 
-            edges = new List<Line>();
+            innerEdges = new List<Line>();
+            outerEdges = new List<Line>();
             newEdges = new List<Line>();
-            List<Line> edgesCopy = new List<Line>();
+            List<Line> innerEdgesCopy = new List<Line>();
+            List<Line> outerEdgesCopy = new List<Line>();
             List<Line> newEdgesCopy = new List<Line>();
+            List<int> duplicateIndices = new List<int>();
+            List<Line> duplicateLines = new List<Line>();
+            List<int> overlapIndices = new List<int>();
+            List<Line> overlapLines = new List<Line>();
 
-            List<Triangle3d> allPanels = new List<Triangle3d>();            
+            List<Triangle3d> innerPanels = new List<Triangle3d>();            
+            List<Triangle3d> outerPanels = new List<Triangle3d>();
             List<Triangle3d> newPanels = new List<Triangle3d>();
-            List<Triangle3d> tempNewPanels = new List<Triangle3d>();
                       
             int newCounter = 0;
             int newLimit = (int)1e3;
@@ -571,66 +648,69 @@ namespace MasterthesisGHA
                     {
                         firstPanel = new Triangle3d(firstPoints[0], firstPoints[2], firstPoints[1]);
                     }
-                    firstOutwardNormal = Vector3d.CrossProduct(firstPanel.C - firstPanel.A, firstPanel.B - firstPanel.A);
-                    firstOutwardNormal.Unitize();
 
-                    newPanels.Add(firstPanel);
+                    outerPanels.Add(firstPanel);
+                    outerEdges = new List<Line>()
+                        {
+                            firstPanel.AB,
+                            firstPanel.BC,
+                            firstPanel.CA
+                        };
 
-                    // Visuals
-                    startPoint = new Point3d(firstPanel.AreaCenter);
-                    endPoint = startPoint + new Point3d(firstOutwardNormal * arrowLength);
-                    arrowBase = endPoint + firstOutwardNormal * coneHeight;
-                    loadCylinder = new Cylinder(new Circle(new Plane(startPoint, firstOutwardNormal), radius),
-                        startPoint.DistanceTo(endPoint));
-                    arrow = new Cone(new Plane(arrowBase, firstOutwardNormal), -coneHeight, 2 * radius);
-
-                    firstPanelBrep = Brep.CreateFromCornerPoints(firstPanel.A, firstPanel.B, firstPanel.C, 0.0);
-                    visuals.Add(firstPanelBrep);
-                    visuals.Add(loadCylinder.ToBrep(true, true));
-                    visuals.Add(arrow.ToBrep(true));
-
-
+                    visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
+                  
                     if (++debugCounter >= returnCount) return;
 
                 }
 
-                // Not first
 
-                // NEW PANELS FROM LAST ITERATION
-                foreach (Triangle3d panel in newPanels)
+                // CREATE NEW PANELS FROM OUTER PANELS
+                newEdges.Clear();
+                foreach (Triangle3d panel in outerPanels)
                 {
-                    List<Line> panelEdges = new List<Line>()
+                    List<Line> panelEdgesInitial = new List<Line>()
                         {
                             panel.AB,
                             panel.BC,
                             panel.CA
                         };
-                    List<Line> panelPerpendiculars = new List<Line>
+                    List<Line> panelPerpendicularsInitial = new List<Line>
                         {
                             panel.PerpendicularAB,
                             panel.PerpendicularBC,
                             panel.PerpendicularCA
-
                         };
+                    List<Line> panelEdges = new List<Line>();
+                    List<Line> panelPerpendiculars = new List<Line>();
 
-                    edgesCopy = edges.ToList();
-                    panelEdges = panelEdges
-                        .FindAll(o =>
-                        !edgesCopy.Contains(o) &&
-                        !edgesCopy.Contains(new Line(o.PointAt(1), o.PointAt(0))))
-                        .ToList();
+                    
+                    for( int i = 0; i < panelEdgesInitial.Count; i++)
+                    {
+                        Line o = panelEdgesInitial[i];
 
-                    edges.AddRange(panelEdges);
+                        if (!innerEdges.Contains(o) &&
+                        !innerEdges.Contains(new Line(o.PointAt(1), o.PointAt(0))) &&
+                        (
+                        outerEdges.Contains(o) ||
+                        outerEdges.Contains(new Line(o.PointAt(1), o.PointAt(0)))
+                        ) &&
+                        !newEdges.Contains(o) &&
+                        !newEdges.Contains(new Line(o.PointAt(1), o.PointAt(0))))
+                        {
+                            panelEdges.Add(o);
+                            panelPerpendiculars.Add(panelPerpendicularsInitial[i]);
+                        }                           
 
+                    }
+                    
                     Vector3d outwardNormal = Vector3d.CrossProduct(panel.C - panel.A, panel.B - panel.A);
                     outwardNormal.Unitize();
 
-
                     // TEMP PANELS FROM EACH NEW PANEL
-                    for (int i = 0; i < panelEdges.Count; i++)
+                    for (int panelEdgeIndex = 0; panelEdgeIndex < panelEdges.Count; panelEdgeIndex++)
                     {
-                        Line edge = panelEdges[i];
-                        Line perpendicular = panelPerpendiculars[i];
+                        Line edge = panelEdges[panelEdgeIndex];                           
+                        Line perpendicular = panelPerpendiculars[panelEdgeIndex];
                         Point3d iPoint = perpendicular.PointAt(1);
                         Point3d oPoint = iPoint + 2 * (perpendicular.PointAt(0) - perpendicular.PointAt(1));
                         Point3d outwardsPoint = perpendicular.PointAt(0) + outwardNormal * perpendicular.Length;
@@ -646,164 +726,266 @@ namespace MasterthesisGHA
                         int pivotCounter = 0;
                         bool tempPanelFound = false;
 
-                        // PIVOT AROUND EDGE
+
+                        innerEdgesCopy = innerEdges.ToList();
+                        closePoints = nodesCopy
+                            .FindAll(
+                            o =>
+                            o.DistanceTo(edge.PointAt(0)) <= panelLength + allowedError &&
+                            o.DistanceTo(edge.PointAt(1)) <= panelLength + allowedError &&
+                            o.DistanceTo(edge.PointAt(0)) > 0 &&
+                            o.DistanceTo(edge.PointAt(1)) > 0 &&
+                            !innerEdgesCopy.Contains(new Line(edge.PointAt(0), o)) && // No inner edges
+                            !innerEdgesCopy.Contains(new Line(o, edge.PointAt(0))) &&
+                            !innerEdgesCopy.Contains(new Line(edge.PointAt(1), o)) &&
+                            !innerEdgesCopy.Contains(new Line(o, edge.PointAt(0))))
+                            .ToList(); // Check intersection
+
+
+                        // PIVOT AROUND EDGE                     
                         while (!tempPanelFound)
                         {
-                            // Visuals
-                            /*
-                            if (pivotCounter % (divisions/100) == 0)
-                            {
-                                liveVisuals.Add(Brep.CreateBaseballSphere(new Point3d(pivotPoint), 5.0, 0.0));
-                                liveColors.Add(System.Drawing.Color.Yellow);
-                            }
-                            */
-
 
                             degree += addedDegree;
                             Point3d pivotPoint = circle.PointAt(degree);
 
-                            edgesCopy = edges.ToList();
-                            List<Point3d> closePoints = nodesCopy
-                                .FindAll(
-                                o =>
-                                o.DistanceTo(edge.PointAt(0)) <= panelLength + allowedError &&
-                                o.DistanceTo(edge.PointAt(1)) <= panelLength + allowedError &&
-                                o.DistanceTo(edge.PointAt(0)) > 0 &&
-                                o.DistanceTo(edge.PointAt(1)) > 0 &&
-                                !edgesCopy.Contains(new Line(edge.PointAt(0), o)) &&
-                                !edgesCopy.Contains(new Line(o, edge.PointAt(0))) &&
-                                !edgesCopy.Contains(new Line(edge.PointAt(1), o)) &&
-                                !edgesCopy.Contains(new Line(o, edge.PointAt(0))) &&
-                                !newEdgesCopy.Contains(new Line(edge.PointAt(0), o)) &&
-                                !newEdgesCopy.Contains(new Line(o, edge.PointAt(0))) &&
-                                !newEdgesCopy.Contains(new Line(edge.PointAt(1), o)) &&
-                                !newEdgesCopy.Contains(new Line(o, edge.PointAt(0)))
-                                )
-                                .ToList(); // Check intersection
-
                             if (closePoints.Count == 0) break;
-                            else if (pivotCounter++ > divisions) break;
-                            //throw new Exception("Close points found, but no new panels added. " +
-                            //    "Consider increasing allowed error.");
+                            else if (pivotCounter++ > divisions)
+                            {
+                                /*
+                                adjustmentFactorVolumeError = adjustmentFactorVolumeError * 5;
+                                pivotCounter = 0;
+                                break;
+                                */
+                                throw new Exception("Close points found, but no new panels added. " +
+                                "Consider increasing allowed error.");
+                            }
 
 
                             // TEMP NEW PANEL
                             foreach (Point3d node in closePoints)
                             {
-                                // Visuals
-                                /*
-                                if (pivotCounter % (divisions / 100) == 0)
-                                {
-                                    liveVisuals.Add(Brep.CreateFromCornerPoints(
-                                        edge.PointAt(0), 
-                                        new Point3d(pivotPoint), 
-                                        new Point3d(edge.PointAt(1)),
-                                        0.0));
-
-                                    liveColors.Add(System.Drawing.Color.Yellow);
-                                }
-                                */
-
+                                
+                                
                                 Vector3d pivotPointToStartOfEdge = new Vector3d(edge.PointAt(0) - pivotPoint);
                                 Vector3d pivotPointToEndOfEdge = new Vector3d(edge.PointAt(1) - pivotPoint);
                                 Vector3d pivotPointToNode = new Vector3d(node - pivotPoint);
 
-                                double tetrahedronVolume = 1 / 6.0 * Vector3d.CrossProduct(pivotPointToStartOfEdge, pivotPointToEndOfEdge) * pivotPointToNode;
-
+                                double tetrahedronVolume = 
+                                    1 / 6.0 * Vector3d.CrossProduct(pivotPointToStartOfEdge, pivotPointToEndOfEdge) * pivotPointToNode;
 
                                 if (tetrahedronVolume < adjustmentFactorVolumeError * (allowedError * allowedError))
                                 {
 
-                                    Triangle3d tempPanel = new Triangle3d(
-                                        new Point3d(edge.PointAt(0)),
-                                        new Point3d(node),
-                                        new Point3d(edge.PointAt(1)));
+                                    updatePanelsAndEdges(edge, node, ref newPanels, ref outerEdges, ref newEdges);
+                                   
 
-                                    tempNewPanels.Add(tempPanel);
+                                    // Pivot Visuals
+                                    if (pivotCounter % (divisions / 100) == 0)
+                                    {
+                                        visuals.Add(Brep.CreateFromCornerPoints(
+                                            edge.PointAt(0),
+                                            new Point3d(pivotPoint),
+                                            new Point3d(edge.PointAt(1)),
+                                            0.0));
+                                        colors.Add(System.Drawing.Color.Orange);
+                                    }
 
-                                    Vector3d tempOutwardNormal = Vector3d.CrossProduct(tempPanel.C - tempPanel.A, tempPanel.B - tempPanel.A);
-                                    tempOutwardNormal.Unitize();
 
 
-
-
-
-                                    // Visuals
-                                    startPoint = new Point3d(tempPanel.AreaCenter);
-                                    endPoint = startPoint + new Point3d(tempOutwardNormal * arrowLength);
-                                    arrowBase = endPoint + tempOutwardNormal * coneHeight;
-                                    loadCylinder = new Cylinder(new Circle(new Plane(startPoint, tempOutwardNormal), radius),
-                                        startPoint.DistanceTo(endPoint));
-                                    arrow = new Cone(new Plane(arrowBase, tempOutwardNormal), -coneHeight, 2 * radius);
-
-                                    Brep tempPanelBrep = Brep.CreateFromCornerPoints(
-                                        tempPanel.A,
-                                        tempPanel.B,
-                                        tempPanel.C,
-                                        0.0);
-
-                                    tempVisuals.Add(tempPanelBrep);
-                                    tempVisuals.Add(loadCylinder.ToBrep(true, true));
-                                    tempVisuals.Add(arrow.ToBrep(true));
-
-                                    if (++debugCounter >= returnCount) return;
-
+                                    if (++debugCounter >= returnCount)
+                                    {
+                                        visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
+                                        return;
+                                    }
                                     tempPanelFound = true;
                                 }
 
                                 if (tempPanelFound) break;
                             }
                         }
-
                     }
 
-                    if (tempNewPanels.Count == 0) return;
-                    else
+                    if (newPanels.Count == 0)
                     {
-                        foreach (Triangle3d tempPanel in tempNewPanels)
-                            newVisuals.Add(Brep.CreateFromCornerPoints(tempPanel.A, tempPanel.B, tempPanel.C, 0.0));
+                        innerPanels.AddRange(outerPanels.ToList());
+                        outerPanels = newPanels.ToList();
+
+
+                        // Update new edges
+                        outerEdges.Clear();
+                        foreach (Triangle3d tempPanel in outerPanels)
+                        {
+                            List<Line> e = new List<Line>()
+                            {
+                                tempPanel.AB,
+                                tempPanel.BC,
+                                tempPanel.CA
+                            };
+
+                            innerEdgesCopy = innerEdges.ToList();
+                            outerEdges.AddRange(e.ToList());
+                        }
+
+                        // Update inner edges
+                        innerEdges.Clear();
+                        foreach (Triangle3d innerPanel in innerPanels)
+                        {
+                            List<Line> e = new List<Line>()
+                            {
+                                innerPanel.AB,
+                                innerPanel.BC,
+                                innerPanel.CA
+                            };
+
+                            innerEdgesCopy = innerEdges.ToList();
+                            innerEdges.AddRange(e);
+                        }
+
+
+                        ///// --- Ta ut begge om duplikater ----
+                        duplicateIndices = new List<int>();
+                        duplicateLines = new List<Line>();
+                        overlapIndices = new List<int>();
+                        overlapLines = new List<Line>();
+
+                        for (int i = 0; i < outerEdges.Count; i++)
+                        {
+                            // New edge duplicates
+                            for (int j = 0; j < outerEdges.Count; j++)
+                            {
+                                if (i == j || duplicateIndices.Contains(i) || duplicateIndices.Contains(j)) continue;
+                                else if (outerEdges[i] == outerEdges[j] ||
+                                    outerEdges[i] == new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)))
+                                {
+                                    duplicateIndices.Add(i);
+                                    duplicateIndices.Add(j);
+
+                                    duplicateLines.Add(new Line(outerEdges[j].PointAt(0), outerEdges[j].PointAt(1)));
+                                    duplicateLines.Add(new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)));
+                                }
+                            }
+
+                            // New and inner overlap
+                            for (int j = 0; j < innerEdges.Count; j++)
+                            {
+                                if (i == j || overlapIndices.Contains(i) || overlapIndices.Contains(j)) continue;
+                                else if (outerEdges[i] == innerEdges[j] ||
+                                    outerEdges[i] == new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)))
+                                {
+                                    overlapIndices.Add(i);
+                                    overlapIndices.Add(j);
+
+                                    overlapLines.Add(new Line(innerEdges[j].PointAt(0), innerEdges[j].PointAt(1)));
+                                    overlapLines.Add(new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)));
+                                }
+                            }
+
+                        }
+                        outerEdges.RemoveAll(o => duplicateLines.Contains(o));
+                        outerEdges.RemoveAll(o => overlapLines.Contains(o));
+                        innerEdges.AddRange(duplicateLines);
+
+                        
+                        visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
+
+
+                        return;
                     }
+
                 }
 
 
-                allPanels.AddRange(newPanels.ToList());
-                newPanels = tempNewPanels.ToList();
+                innerPanels.AddRange(outerPanels.ToList());
+                outerPanels = newPanels.ToList();
 
                 // Update new edges
-                newEdges.Clear();
-                foreach (Triangle3d tempPanel in newPanels)
+                outerEdges.Clear();
+                foreach (Triangle3d tempPanel in outerPanels)
                 {
-                    List<Line> tempEdges = new List<Line>()
+                    List<Line> e = new List<Line>()
                     {
                         tempPanel.AB,
                         tempPanel.BC,
                         tempPanel.CA
                     };
 
-                    newEdgesCopy = newEdges.ToList();
-                    edgesCopy = edges.ToList();
-                    tempEdges = tempEdges
-                        .FindAll(o =>
-                        !edgesCopy.Contains(o) &&
-                        !edgesCopy.Contains(new Line(o.PointAt(1), o.PointAt(0))))                       
-                        .ToList();
-                   
-                    newEdges.AddRange(tempEdges.ToList());                    
+                    innerEdgesCopy = innerEdges.ToList();
+                    outerEdges.AddRange(e.ToList());                    
                 }
-                ///// --- Ta ut begge om duplikater ----
-                newEdges.Distinct();
-                
-                tempNewPanels.Clear();
 
-                // Visuals
-                foreach (Triangle3d tempPanel in newPanels)
-                    visuals.Add(Brep.CreateFromCornerPoints(tempPanel.A, tempPanel.B, tempPanel.C, 0.0));               
-                newVisuals.Clear();
+                // Update inner edges
+                innerEdges.Clear();
+                foreach (Triangle3d innerPanel in innerPanels)
+                {
+                    List<Line> e = new List<Line>()
+                    {
+                        innerPanel.AB,
+                        innerPanel.BC,
+                        innerPanel.CA
+                    };
+
+                    innerEdgesCopy = innerEdges.ToList();
+                    innerEdges.AddRange(e);
+                }
+
+
+                ///// --- Ta ut begge om duplikater ----
+                duplicateIndices = new List<int>();
+                duplicateLines = new List<Line>();
+                overlapIndices = new List<int>();
+                overlapLines = new List<Line>();
+
+                for (int i = 0; i < outerEdges.Count; i++)
+                {
+                    // New edge duplicates
+                    for (int j = 0; j < outerEdges.Count; j++)
+                    {
+                        if (i == j || duplicateIndices.Contains(i) || duplicateIndices.Contains(j)) continue;
+                        else if (outerEdges[i] == outerEdges[j] ||
+                            outerEdges[i] == new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)))
+                        {
+                            duplicateIndices.Add(i);
+                            duplicateIndices.Add(j);
+
+                            duplicateLines.Add(new Line(outerEdges[j].PointAt(0), outerEdges[j].PointAt(1)));
+                            duplicateLines.Add(new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)));
+                        }
+                    }
+
+                    // New and inner overlap
+                    for (int j = 0; j < innerEdges.Count; j++)
+                    {
+                        if (i == j || overlapIndices.Contains(i) || overlapIndices.Contains(j)) continue;
+                        else if (outerEdges[i] == innerEdges[j] ||
+                            outerEdges[i] == new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)))
+                        {
+                            overlapIndices.Add(i);
+                            overlapIndices.Add(j);
+
+                            overlapLines.Add(new Line(innerEdges[j].PointAt(0), innerEdges[j].PointAt(1)));
+                            overlapLines.Add(new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)));
+                        }
+                    }
+
+                }
+                outerEdges.RemoveAll(o => duplicateLines.Contains(o));
+                outerEdges.RemoveAll(o => overlapLines.Contains(o));
+                innerEdges.AddRange(duplicateLines);
+               
+
+                newPanels.Clear();              
 
             }
 
+            
+
 
         }
+
+
+
+
 
         // Visuals
         public virtual void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1)
@@ -1224,19 +1406,7 @@ namespace MasterthesisGHA
             ElementUtilization = copyFromThis.ElementUtilization.ToList();
             StructureColors = copyFromThis.StructureColors.ToList();
             StructureVisuals = copyFromThis.StructureVisuals.ToList();
-            /*
-            ElementsInStructure = new List<InPlaceElement>( copyFromThis.ElementsInStructure );
-            FreeNodes = new List<Point3d>( copyFromThis.FreeNodes );
-            FreeNodesInitial = new List<Point3d>( copyFromThis.FreeNodesInitial );
-            SupportNodes = new List<Point3d>( copyFromThis.SupportNodes );
-            GlobalStiffnessMatrix = Matrix<double>.Build.SameAs(copyFromThis.GlobalStiffnessMatrix);
-            GlobalLoadVector = Vector<double>.Build.SameAs(copyFromThis.GlobalLoadVector);
-            GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
-            ElementAxialForce = new List<double>( copyFromThis.ElementAxialForce );
-            ElementUtilization = new List<double>( copyFromThis.ElementUtilization );
-            StructureColors = new List<System.Drawing.Color>( copyFromThis.StructureColors );
-            StructureVisuals = new List<Brep>( copyFromThis.StructureVisuals );
-            */
+
         }
 
         // General Methods
@@ -1410,7 +1580,8 @@ namespace MasterthesisGHA
         {
             return factorOfLength * structureSize / maxLoad;
         }
-        public override void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1)
+        public override void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, 
+            double maxLoad = -1, double maxDisplacement = -1)
         {
             geometry = new List<Brep>();
             color = new List<System.Drawing.Color>();
@@ -1464,7 +1635,8 @@ namespace MasterthesisGHA
                 Point3d startPoint = new Point3d( FreeNodesInitial[i] + freeNodeDisplacement[i] );
                 Point3d endPoint = startPoint + new Point3d(dir * arrowLength);
                 Point3d arrowBase = endPoint + dir * coneHeight;
-                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), loadLineRadius), startPoint.DistanceTo(endPoint));
+                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), loadLineRadius), 
+                    startPoint.DistanceTo(endPoint));
                 Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(
                     pointLoadVector[dofsPerNode * i],
                     pointLoadVector[dofsPerNode * i + 1],
@@ -1482,7 +1654,8 @@ namespace MasterthesisGHA
                 color.Add(Structure.loadArrowColor);
             }
         }
-        public override void GetResultVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, int colorTheme, double size = -1, double maxDisplacement = -1)
+        public override void GetResultVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, int colorTheme, double size = -1,
+            double maxDisplacement = -1)
         {
             geometry = new List<Brep>();
             color = new List<System.Drawing.Color>();
@@ -1530,7 +1703,8 @@ namespace MasterthesisGHA
                 if (endNodeIndex != -1)
                     endOfElement += normalizedNodeDisplacement[endNodeIndex];
 
-                Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)), startOfElement.DistanceTo(endOfElement));
+                Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)), 
+                    Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)), startOfElement.DistanceTo(endOfElement));
                 geometry.Add(cylinder.ToBrep(true, true));
                 
             }

@@ -51,6 +51,7 @@ namespace MasterthesisGHA
             pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item);
             pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item);
+            pManager.AddIntegerParameter("Debugging Steps", "Steps", "", GH_ParamAccess.item);
 
             
         }
@@ -96,6 +97,7 @@ namespace MasterthesisGHA
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
             bool applySelfWeight = false;
+            
 
             DA.GetData(0, ref is3d);
             DA.GetDataList(1, iLines);
@@ -108,7 +110,7 @@ namespace MasterthesisGHA
             DA.GetData(8, ref iLineLoadDistribution);
             DA.GetDataList(9, iLinesToLoad);
             DA.GetData(10, ref applySelfWeight);
-
+            DA.GetData(11, ref returnCount);
 
             // CODE
             TrussModel3D truss;

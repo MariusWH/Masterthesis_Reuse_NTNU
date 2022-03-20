@@ -454,7 +454,7 @@ namespace MasterthesisGHA
 
 
         // Gift Wrapping Load Panels
-        public virtual void visualsForDebugging(
+        protected virtual void visualsForDebugging(
             ref List<Brep> visuals, ref List<System.Drawing.Color> colors,
             ref List<Triangle3d> innerPanels, ref List<Triangle3d> outerPanels, ref List<Triangle3d> newPanels)
         {
@@ -501,11 +501,23 @@ namespace MasterthesisGHA
                 colors.Add(System.Drawing.Color.Yellow);
                 colors.Add(System.Drawing.Color.Yellow);
             }
+
+            // Pivot Visuals
+            /*
+            if (pivotCounter % (divisions / 100) == 0)
+            {
+                visuals.Add(Brep.CreateFromCornerPoints(
+                    edge.PointAt(0),
+                    new Point3d(pivotPoint),
+                    new Point3d(edge.PointAt(1)),
+                    0.0));
+                colors.Add(System.Drawing.Color.Orange);
+            }
+            */
         }
-        public virtual void updatePanelsAndEdges(Line edge, Point3d node,
+        protected virtual void addNewPanelWithEdges(Line edge, Point3d node,
             ref List<Triangle3d> newPanels, ref List<Line> newEdges, ref List<Line> tempEdges)
         {
-            // Update panels
             Triangle3d newPanel = new Triangle3d(
                                         new Point3d(edge.PointAt(0)),
                                         new Point3d(node),
@@ -535,9 +547,84 @@ namespace MasterthesisGHA
             }
 
             newEdges.RemoveAll(o => duplicateLines.Contains(o));
-        }
-        
+        }        
+        protected virtual void updatePanelsAndEdges(
+            ref List<Line> innerEdges, ref List<Line> outerEdges, ref List<Line> newEdges,
+            ref List<Line> innerEdgesCopy, ref List<Line> outerEdgesCopy, ref List<Line> newEdgesCopy,
+            ref List<Triangle3d> innerPanels, ref List<Triangle3d> outerPanels, ref List<Triangle3d> newPanels)
+        {
+            innerPanels.AddRange(outerPanels.ToList());
+            outerPanels = newPanels.ToList();
 
+            outerEdges.Clear();
+            foreach (Triangle3d tempPanel in outerPanels)
+            {
+                List<Line> e = new List<Line>()
+                            {
+                                tempPanel.AB,
+                                tempPanel.BC,
+                                tempPanel.CA
+                            };
+
+                innerEdgesCopy = innerEdges.ToList();
+                outerEdges.AddRange(e.ToList());
+            }
+            innerEdges.Clear();
+            foreach (Triangle3d innerPanel in innerPanels)
+            {
+                List<Line> e = new List<Line>()
+                            {
+                                innerPanel.AB,
+                                innerPanel.BC,
+                                innerPanel.CA
+                            };
+
+                innerEdgesCopy = innerEdges.ToList();
+                innerEdges.AddRange(e);
+            }
+
+            List<int> duplicateIndices = new List<int>();
+            List<Line> duplicateLines = new List<Line>();
+            List<int>  overlapIndices = new List<int>();
+            List<Line> overlapLines = new List<Line>();
+
+            for (int i = 0; i < outerEdges.Count; i++)
+            {
+                // New edge duplicates
+                for (int j = 0; j < outerEdges.Count; j++)
+                {
+                    if (i == j || duplicateIndices.Contains(i) || duplicateIndices.Contains(j)) continue;
+                    else if (outerEdges[i] == outerEdges[j] ||
+                        outerEdges[i] == new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)))
+                    {
+                        duplicateIndices.Add(i);
+                        duplicateIndices.Add(j);
+                        duplicateLines.Add(new Line(outerEdges[j].PointAt(0), outerEdges[j].PointAt(1)));
+                        duplicateLines.Add(new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)));
+                    }
+                }
+
+                // New and inner overlap
+                for (int j = 0; j < innerEdges.Count; j++)
+                {
+                    if (i == j || overlapIndices.Contains(i) || overlapIndices.Contains(j)) continue;
+                    else if (outerEdges[i] == innerEdges[j] ||
+                        outerEdges[i] == new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)))
+                    {
+                        overlapIndices.Add(i);
+                        overlapIndices.Add(j);
+                        overlapLines.Add(new Line(innerEdges[j].PointAt(0), innerEdges[j].PointAt(1)));
+                        overlapLines.Add(new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)));
+                    }
+                }
+
+            }
+
+            outerEdges.RemoveAll(o => duplicateLines.Contains(o));
+            outerEdges.RemoveAll(o => overlapLines.Contains(o));
+            innerEdges.AddRange(duplicateLines);
+          
+        }
 
 
         public virtual List<Point3d> FindFirstPanel(Vector3d loadDirection, double panelLength)
@@ -634,7 +721,7 @@ namespace MasterthesisGHA
             {
                 if (++newCounter > newLimit)
                 {
-                    throw new Exception("New counter exceeds limit!");
+                    throw new Exception("New counter exceeds limit!");                   
                 }
 
                 // FIRST PANEL
@@ -665,7 +752,6 @@ namespace MasterthesisGHA
 
 
                 // CREATE NEW PANELS FROM OUTER PANELS
-                newEdges.Clear();
                 foreach (Triangle3d panel in outerPanels)
                 {
                     List<Line> panelEdgesInitial = new List<Line>()
@@ -688,7 +774,8 @@ namespace MasterthesisGHA
                     {
                         Line o = panelEdgesInitial[i];
 
-                        if (!innerEdges.Contains(o) &&
+                        if (
+                        !innerEdges.Contains(o) &&
                         !innerEdges.Contains(new Line(o.PointAt(1), o.PointAt(0))) &&
                         (
                         outerEdges.Contains(o) ||
@@ -700,13 +787,11 @@ namespace MasterthesisGHA
                             panelEdges.Add(o);
                             panelPerpendiculars.Add(panelPerpendicularsInitial[i]);
                         }                           
-
                     }
                     
                     Vector3d outwardNormal = Vector3d.CrossProduct(panel.C - panel.A, panel.B - panel.A);
                     outwardNormal.Unitize();
 
-                    // TEMP PANELS FROM EACH NEW PANEL
                     for (int panelEdgeIndex = 0; panelEdgeIndex < panelEdges.Count; panelEdgeIndex++)
                     {
                         Line edge = panelEdges[panelEdgeIndex];                           
@@ -724,8 +809,7 @@ namespace MasterthesisGHA
                         double endDegree = 0.9 * 2 * Math.PI;
                         double addedDegree = (endDegree - degree) / divisions;
                         int pivotCounter = 0;
-                        bool tempPanelFound = false;
-
+                        bool newPanelFound = false;
 
                         innerEdgesCopy = innerEdges.ToList();
                         closePoints = nodesCopy
@@ -743,9 +827,8 @@ namespace MasterthesisGHA
 
 
                         // PIVOT AROUND EDGE                     
-                        while (!tempPanelFound)
+                        while (!newPanelFound)
                         {
-
                             degree += addedDegree;
                             Point3d pivotPoint = circle.PointAt(degree);
 
@@ -762,11 +845,9 @@ namespace MasterthesisGHA
                             }
 
 
-                            // TEMP NEW PANEL
+                            // NEW PANEL
                             foreach (Point3d node in closePoints)
-                            {
-                                
-                                
+                            {                                                               
                                 Vector3d pivotPointToStartOfEdge = new Vector3d(edge.PointAt(0) - pivotPoint);
                                 Vector3d pivotPointToEndOfEdge = new Vector3d(edge.PointAt(1) - pivotPoint);
                                 Vector3d pivotPointToNode = new Vector3d(node - pivotPoint);
@@ -776,211 +857,44 @@ namespace MasterthesisGHA
 
                                 if (tetrahedronVolume < adjustmentFactorVolumeError * (allowedError * allowedError))
                                 {
-
-                                    updatePanelsAndEdges(edge, node, ref newPanels, ref outerEdges, ref newEdges);
-                                   
-
-                                    // Pivot Visuals
-                                    if (pivotCounter % (divisions / 100) == 0)
-                                    {
-                                        visuals.Add(Brep.CreateFromCornerPoints(
-                                            edge.PointAt(0),
-                                            new Point3d(pivotPoint),
-                                            new Point3d(edge.PointAt(1)),
-                                            0.0));
-                                        colors.Add(System.Drawing.Color.Orange);
-                                    }
-
-
+                                    addNewPanelWithEdges(edge, node, ref newPanels, ref outerEdges, ref newEdges);                                                                       
 
                                     if (++debugCounter >= returnCount)
                                     {
                                         visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
                                         return;
                                     }
-                                    tempPanelFound = true;
+                                    newPanelFound = true;
                                 }
 
-                                if (tempPanelFound) break;
+                                if (newPanelFound) break;
                             }
                         }
                     }
 
                     if (newPanels.Count == 0)
                     {
-                        innerPanels.AddRange(outerPanels.ToList());
-                        outerPanels = newPanels.ToList();
-
-
-                        // Update new edges
-                        outerEdges.Clear();
-                        foreach (Triangle3d tempPanel in outerPanels)
-                        {
-                            List<Line> e = new List<Line>()
-                            {
-                                tempPanel.AB,
-                                tempPanel.BC,
-                                tempPanel.CA
-                            };
-
-                            innerEdgesCopy = innerEdges.ToList();
-                            outerEdges.AddRange(e.ToList());
-                        }
-
-                        // Update inner edges
-                        innerEdges.Clear();
-                        foreach (Triangle3d innerPanel in innerPanels)
-                        {
-                            List<Line> e = new List<Line>()
-                            {
-                                innerPanel.AB,
-                                innerPanel.BC,
-                                innerPanel.CA
-                            };
-
-                            innerEdgesCopy = innerEdges.ToList();
-                            innerEdges.AddRange(e);
-                        }
-
-
-                        ///// --- Ta ut begge om duplikater ----
-                        duplicateIndices = new List<int>();
-                        duplicateLines = new List<Line>();
-                        overlapIndices = new List<int>();
-                        overlapLines = new List<Line>();
-
-                        for (int i = 0; i < outerEdges.Count; i++)
-                        {
-                            // New edge duplicates
-                            for (int j = 0; j < outerEdges.Count; j++)
-                            {
-                                if (i == j || duplicateIndices.Contains(i) || duplicateIndices.Contains(j)) continue;
-                                else if (outerEdges[i] == outerEdges[j] ||
-                                    outerEdges[i] == new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)))
-                                {
-                                    duplicateIndices.Add(i);
-                                    duplicateIndices.Add(j);
-
-                                    duplicateLines.Add(new Line(outerEdges[j].PointAt(0), outerEdges[j].PointAt(1)));
-                                    duplicateLines.Add(new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)));
-                                }
-                            }
-
-                            // New and inner overlap
-                            for (int j = 0; j < innerEdges.Count; j++)
-                            {
-                                if (i == j || overlapIndices.Contains(i) || overlapIndices.Contains(j)) continue;
-                                else if (outerEdges[i] == innerEdges[j] ||
-                                    outerEdges[i] == new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)))
-                                {
-                                    overlapIndices.Add(i);
-                                    overlapIndices.Add(j);
-
-                                    overlapLines.Add(new Line(innerEdges[j].PointAt(0), innerEdges[j].PointAt(1)));
-                                    overlapLines.Add(new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)));
-                                }
-                            }
-
-                        }
-                        outerEdges.RemoveAll(o => duplicateLines.Contains(o));
-                        outerEdges.RemoveAll(o => overlapLines.Contains(o));
-                        innerEdges.AddRange(duplicateLines);
-
-                        
+                        updatePanelsAndEdges(ref innerEdges, ref outerEdges, ref newEdges,
+                            ref innerEdgesCopy, ref outerEdgesCopy, ref newEdgesCopy,
+                            ref innerPanels, ref outerPanels, ref newPanels);
+                                       
                         visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
 
-
-                        return;
+                        //return;
                     }
 
                 }
 
-
-                innerPanels.AddRange(outerPanels.ToList());
-                outerPanels = newPanels.ToList();
-
-                // Update new edges
-                outerEdges.Clear();
-                foreach (Triangle3d tempPanel in outerPanels)
-                {
-                    List<Line> e = new List<Line>()
-                    {
-                        tempPanel.AB,
-                        tempPanel.BC,
-                        tempPanel.CA
-                    };
-
-                    innerEdgesCopy = innerEdges.ToList();
-                    outerEdges.AddRange(e.ToList());                    
-                }
-
-                // Update inner edges
-                innerEdges.Clear();
-                foreach (Triangle3d innerPanel in innerPanels)
-                {
-                    List<Line> e = new List<Line>()
-                    {
-                        innerPanel.AB,
-                        innerPanel.BC,
-                        innerPanel.CA
-                    };
-
-                    innerEdgesCopy = innerEdges.ToList();
-                    innerEdges.AddRange(e);
-                }
-
-
-                ///// --- Ta ut begge om duplikater ----
-                duplicateIndices = new List<int>();
-                duplicateLines = new List<Line>();
-                overlapIndices = new List<int>();
-                overlapLines = new List<Line>();
-
-                for (int i = 0; i < outerEdges.Count; i++)
-                {
-                    // New edge duplicates
-                    for (int j = 0; j < outerEdges.Count; j++)
-                    {
-                        if (i == j || duplicateIndices.Contains(i) || duplicateIndices.Contains(j)) continue;
-                        else if (outerEdges[i] == outerEdges[j] ||
-                            outerEdges[i] == new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)))
-                        {
-                            duplicateIndices.Add(i);
-                            duplicateIndices.Add(j);
-
-                            duplicateLines.Add(new Line(outerEdges[j].PointAt(0), outerEdges[j].PointAt(1)));
-                            duplicateLines.Add(new Line(outerEdges[j].PointAt(1), outerEdges[j].PointAt(0)));
-                        }
-                    }
-
-                    // New and inner overlap
-                    for (int j = 0; j < innerEdges.Count; j++)
-                    {
-                        if (i == j || overlapIndices.Contains(i) || overlapIndices.Contains(j)) continue;
-                        else if (outerEdges[i] == innerEdges[j] ||
-                            outerEdges[i] == new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)))
-                        {
-                            overlapIndices.Add(i);
-                            overlapIndices.Add(j);
-
-                            overlapLines.Add(new Line(innerEdges[j].PointAt(0), innerEdges[j].PointAt(1)));
-                            overlapLines.Add(new Line(innerEdges[j].PointAt(1), innerEdges[j].PointAt(0)));
-                        }
-                    }
-
-                }
-                outerEdges.RemoveAll(o => duplicateLines.Contains(o));
-                outerEdges.RemoveAll(o => overlapLines.Contains(o));
-                innerEdges.AddRange(duplicateLines);
-               
-
-                newPanels.Clear();              
+                updatePanelsAndEdges(ref innerEdges, ref outerEdges, ref newEdges, 
+                    ref innerEdgesCopy, ref outerEdgesCopy, ref newEdgesCopy,
+                    ref innerPanels, ref outerPanels, ref newPanels);
+             
+                newPanels.Clear();
+                newEdges.Clear();
 
             }
 
-            
-
-
+           
         }
 
 
@@ -1238,7 +1152,6 @@ namespace MasterthesisGHA
             remainingMaterialBank.UpdateVisuals();
         }
         
-
         // LCA Rank Replacement
         public Matrix<double> EmissionReductionRank(MaterialBank materialBank, double distanceFabrication, double distanceBuilding,
             double distanceRecycling)
@@ -1307,7 +1220,6 @@ namespace MasterthesisGHA
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisuals();
         }
-
 
         // Pseudo Random Permutations
         public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)

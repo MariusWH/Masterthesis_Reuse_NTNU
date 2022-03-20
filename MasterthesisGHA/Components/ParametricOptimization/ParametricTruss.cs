@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 
-namespace MasterthesisGHA.Components.ParametricOptimization
+namespace MasterthesisGHA.Components
 {
     public class ParametricTruss : GH_Component
     {

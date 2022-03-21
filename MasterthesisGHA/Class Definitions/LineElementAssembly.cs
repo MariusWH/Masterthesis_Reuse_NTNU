@@ -1212,10 +1212,9 @@ namespace MasterthesisGHA
             out IEnumerable<int> optimumOrder, 
             double distanceFabrication, double distanceBuilding, double distanceRecycling)
         {
-            InsertNewElements();
+            Matrix<double> rank = EmissionReductionRank(materialBank, distanceFabrication, distanceBuilding, distanceRecycling);
 
-            optimumOrder = OptimumInsertOrderFromRankMatrix(
-                EmissionReductionRank(materialBank, distanceFabrication, distanceBuilding, distanceRecycling));
+            optimumOrder = OptimumInsertOrderFromRankMatrix(rank).ToList();
 
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisuals();

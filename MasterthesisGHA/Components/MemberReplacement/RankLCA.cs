@@ -91,8 +91,6 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(10, ref iLineLoadDistribution);
 
 
-
-
             // CODE
             List<string> initialProfiles = new List<string>();
             foreach (Line line in iGeometryLines)
@@ -117,29 +115,46 @@ namespace MasterthesisGHA.Components.MethodOne
             double distanceBuilding = 100;
             double distanceRecycling = 100;
 
+
+            Matrix<double> rank = Matrix<double>.Build.SparseIdentity(0, 0);
+
             if (insertMaterialBank && insertNewElements)
             {
-                truss.InsertMaterialBankByRankMatrix(iMaterialBankCopy, out outMaterialBank, out optimumOrder, distanceFabrication, distanceBuilding, distanceRecycling);
+                truss.InsertNewElements();
+                
+                rank = truss.EmissionReductionRank(
+                    iMaterialBankCopy, distanceFabrication, distanceBuilding, distanceRecycling);
+                
+                truss.InsertMaterialBankByRankMatrix(
+                    iMaterialBankCopy, out outMaterialBank, out optimumOrder, 
+                    distanceFabrication, distanceBuilding, distanceRecycling);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBankByRankMatrix(iMaterialBankCopy, out outMaterialBank, out optimumOrder, distanceFabrication, distanceBuilding, distanceRecycling); truss.InsertMaterialBank(iMaterialBankCopy, out outMaterialBank);
+                rank = truss.EmissionReductionRank(                
+                    iMaterialBankCopy, distanceFabrication, distanceBuilding, distanceRecycling);
+                
+                truss.InsertMaterialBankByRankMatrix(
+                    iMaterialBankCopy, out outMaterialBank, out optimumOrder,
+                    distanceFabrication, distanceBuilding, distanceRecycling);
             }
             else if (insertNewElements)
             {
                 truss.InsertNewElements();
+
+                rank = truss.EmissionReductionRank(
+                    iMaterialBankCopy, distanceFabrication, distanceBuilding, distanceRecycling);
+
                 outMaterialBank = iMaterialBankOriginal.DeepCopy();
             }
             else
             {
+                rank = truss.EmissionReductionRank(
+                    iMaterialBankCopy, distanceFabrication, distanceBuilding, distanceRecycling);
+
                 outMaterialBank = iMaterialBankOriginal.DeepCopy();
             }
-
-
-
-
-            Matrix<double> rank = Matrix<double>.Build.Sparse(1, 1);
-                //truss.EmissionReductionRank(iMaterialBankCopy, distanceFabrication, distanceBuilding, distanceRecycling);
+            
             
             truss.Solve();
             truss.Retracking();

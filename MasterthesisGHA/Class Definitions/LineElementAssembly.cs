@@ -473,13 +473,39 @@ namespace MasterthesisGHA
 
             foreach (Triangle3d temp in innerPanels)
             {
+                Vector3d tempONormal = Vector3d.CrossProduct(temp.C - temp.A, temp.B - temp.A);
+                tempONormal.Unitize();
+                startPoint = new Point3d(temp.AreaCenter);
+                endPoint = startPoint + new Point3d(tempONormal * arrowLength);
+                arrowBase = endPoint + tempONormal * coneHeight;
+                loadCylinder = new Cylinder(new Circle(new Plane(startPoint, tempONormal), radius),
+                    startPoint.DistanceTo(endPoint));
+                arrow = new Cone(new Plane(arrowBase, tempONormal), -coneHeight, 2 * radius);
+
                 visuals.Add(Brep.CreateFromCornerPoints(temp.A, temp.B, temp.C, 0.0));
+                visuals.Add(loadCylinder.ToBrep(true, true));
+                visuals.Add(arrow.ToBrep(true));
+                colors.Add(System.Drawing.Color.Blue);
+                colors.Add(System.Drawing.Color.Blue);
                 colors.Add(System.Drawing.Color.Blue);
             }               
 
             foreach (Triangle3d temp in outerPanels)
             {
-                visuals.Add(Brep.CreateFromCornerPoints(temp.A, temp.B, temp.C, 0.0));
+                Vector3d tempONormal = Vector3d.CrossProduct(temp.C - temp.A, temp.B - temp.A);
+                tempONormal.Unitize();
+                startPoint = new Point3d(temp.AreaCenter);
+                endPoint = startPoint + new Point3d(tempONormal * arrowLength);
+                arrowBase = endPoint + tempONormal * coneHeight;
+                loadCylinder = new Cylinder(new Circle(new Plane(startPoint, tempONormal), radius),
+                    startPoint.DistanceTo(endPoint));
+                arrow = new Cone(new Plane(arrowBase, tempONormal), -coneHeight, 2 * radius);
+
+                visuals.Add(Brep.CreateFromCornerPoints(temp.A, temp.B, temp.C, 0.0));             
+                visuals.Add(loadCylinder.ToBrep(true, true));               
+                visuals.Add(arrow.ToBrep(true));
+                colors.Add(System.Drawing.Color.Green);
+                colors.Add(System.Drawing.Color.Green);
                 colors.Add(System.Drawing.Color.Green);
             }               
 
@@ -625,8 +651,6 @@ namespace MasterthesisGHA
             innerEdges.AddRange(duplicateLines);
           
         }
-
-
         public virtual List<Point3d> FindFirstPanel(Vector3d loadDirection, double panelLength)
         {
             Plane zeroPlane = new Plane(new Point3d(0, 0, 0), -loadDirection);
@@ -671,7 +695,7 @@ namespace MasterthesisGHA
 
             return panelCorners;
         }
-        public virtual void GiftWrapLoadPanels(Vector3d loadDirection,
+        public virtual List<Triangle3d> GiftWrapLoadPanels(Vector3d loadDirection,
             out List<Brep> visuals, out List<System.Drawing.Color> colors,
             out Circle circle,
             out List<Line> innerEdges,
@@ -679,7 +703,8 @@ namespace MasterthesisGHA
             out List<Line> newEdges,
             out List<Point3d> closePoints,
             int returnCount,
-            out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors)
+            out List<Brep> liveVisuals, 
+            out List<System.Drawing.Color> liveColors)
         {
             int debugCounter = 0;
 
@@ -691,7 +716,7 @@ namespace MasterthesisGHA
 
             // Initialize
             double allowedError = 1e1;
-            double adjustmentFactorVolumeError = 1;
+            double adjustmentFactorVolumeError = 5;
             double panelLength = ElementsInStructure.Select(o => o.StartPoint.DistanceTo(o.EndPoint)).Max();
             List<Point3d> nodesCopy = FreeNodes.ToList();
             nodesCopy.AddRange(SupportNodes.ToList());                                 
@@ -746,7 +771,7 @@ namespace MasterthesisGHA
 
                     visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
                   
-                    if (++debugCounter >= returnCount) return;
+                    if (++debugCounter >= returnCount) return innerPanels;
 
                 }
 
@@ -835,11 +860,6 @@ namespace MasterthesisGHA
                             if (closePoints.Count == 0) break;
                             else if (pivotCounter++ > divisions)
                             {
-                                /*
-                                adjustmentFactorVolumeError = adjustmentFactorVolumeError * 5;
-                                pivotCounter = 0;
-                                break;
-                                */
                                 throw new Exception("Close points found, but no new panels added. " +
                                 "Consider increasing allowed error.");
                             }
@@ -862,7 +882,7 @@ namespace MasterthesisGHA
                                     if (++debugCounter >= returnCount)
                                     {
                                         visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
-                                        return;
+                                        return innerPanels;
                                     }
                                     newPanelFound = true;
                                 }
@@ -870,31 +890,52 @@ namespace MasterthesisGHA
                                 if (newPanelFound) break;
                             }
                         }
-                    }
-
-                    if (newPanels.Count == 0)
-                    {
-                        updatePanelsAndEdges(ref innerEdges, ref outerEdges, ref newEdges,
-                            ref innerEdgesCopy, ref outerEdgesCopy, ref newEdgesCopy,
-                            ref innerPanels, ref outerPanels, ref newPanels);
-                                       
-                        visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
-
-                        //return;
-                    }
-
-                }
+                    }                   
+                }               
 
                 updatePanelsAndEdges(ref innerEdges, ref outerEdges, ref newEdges, 
                     ref innerEdgesCopy, ref outerEdgesCopy, ref newEdgesCopy,
                     ref innerPanels, ref outerPanels, ref newPanels);
-             
+
+                if (newPanels.Count == 0)
+                {
+                    visualsForDebugging(ref visuals, ref colors, ref innerPanels, ref outerPanels, ref newPanels);
+                    return innerPanels;
+                }
+
                 newPanels.Clear();
                 newEdges.Clear();
 
             }
 
            
+        }
+
+
+        // Load Application
+        public virtual void ApplySnowLoadOnPanels(List<Triangle3d> panels)
+        {
+            double snowLoad = 3;
+            Vector3d loadDirection = new Vector3d(0, 0, -1);
+            int dofs = GetDofsPerNode();
+
+            foreach ( Triangle3d panel in panels)
+            {
+                List<Point3d> panelPoints = new List<Point3d>() {panel.A, panel.B, panel.C};
+                Vector3d outwardNormal = Vector3d.CrossProduct(panel.C - panel.A, panel.B - panel.A);
+                outwardNormal.Unitize();
+                if (outwardNormal * loadDirection < 0)
+                {
+                    for (int i = 0; i < FreeNodes.Count; i++)
+                    {
+                        if (panelPoints.Contains(FreeNodes[i]))
+                        {
+                            GlobalLoadVector[dofs*i+2] += -loadDirection.Z * snowLoad * panel.Area * Math.Abs(outwardNormal * loadDirection);
+                        }
+                    }
+                }
+            }
+
         }
 
 

@@ -7,7 +7,7 @@ using Rhino.Geometry;
 
 namespace MasterthesisGHA
 {
-    public class TrussMSA : GH_Component
+    public class GiftWrappingDisplay : GH_Component
     {
         // Stored Variables
         public double trussSize;
@@ -19,9 +19,9 @@ namespace MasterthesisGHA
         public Point3d startNode;
         public int returnCount;
 
-        public TrussMSA()
-          : base("Truss Matrix Structural Analysis", "Truss MSA",
-              "Matrix Structural Analysis Tool for 2D and 3D Truss Systems",
+        public GiftWrappingDisplay()
+          : base("Gift Wrapping Display", "Gift Wrapping",
+              "",
               "Master", "FEM")
         {
             trussSize = -1;
@@ -32,12 +32,12 @@ namespace MasterthesisGHA
             startNode = new Point3d();
             returnCount = 0;
         }
-        public TrussMSA(string name, string nickname, string description, string category, string subCategory)
+        public GiftWrappingDisplay(string name, string nickname, string description, string category, string subCategory)
             : base(name, nickname, description, category, subCategory)
         {
 
         }
-       
+
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddBooleanParameter("3D/2D", "3D/2D", "3D/2D", GH_ParamAccess.item, true);
@@ -51,8 +51,8 @@ namespace MasterthesisGHA
             pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item);
             pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item);
-
-            
+            pManager.AddBooleanParameter("Apply Snow Load", "Snow Load", "", GH_ParamAccess.item);
+            pManager.AddIntegerParameter("Debugging Steps", "Steps", "", GH_ParamAccess.item);
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
@@ -60,9 +60,24 @@ namespace MasterthesisGHA
             pManager.AddMatrixParameter("Stiffness Matrix", "K", "Stiffness matrix as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);           
+            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
 
+            pManager.AddPointParameter("FirstPoints", "FirstPoints", "", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Circle", "Circle", "", GH_ParamAccess.item);
+
+            pManager.AddGenericParameter("Debug1", "Debug1", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug2", "Debug2", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug3", "Debug3", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug4", "Debug4", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug5", "Debug5", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug6", "Debug6", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug7", "Debug7", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug8", "Debug8", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug9", "Debug9", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug10", "Debug10", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug11", "Debug11", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Debug12", "Debug12", "", GH_ParamAccess.item);
         }
 
 
@@ -81,7 +96,8 @@ namespace MasterthesisGHA
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
             bool applySelfWeight = false;
-            
+            bool applySnowLoad = false;
+
 
             DA.GetData(0, ref is3d);
             DA.GetDataList(1, iLines);
@@ -94,6 +110,9 @@ namespace MasterthesisGHA
             DA.GetData(8, ref iLineLoadDistribution);
             DA.GetDataList(9, iLinesToLoad);
             DA.GetData(10, ref applySelfWeight);
+            DA.GetData(11, ref applySnowLoad);
+            DA.GetData(12, ref returnCount);
+
 
             // CODE
             TrussModel3D truss;
@@ -106,18 +125,42 @@ namespace MasterthesisGHA
                     truss = new TrussModel2D(iLines, iProfiles, iAnchoredPoints);
                     break;
             }
-            
+
             truss.ApplyNodalLoads(iLoad, iLoadVecs);
             truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             if (applySelfWeight)
             {
                 truss.ApplySelfWeight();
             }
+            
+
+
+
+            // TEST
+
+            //truss.getExposedMembers(iLineLoadDirection, out Point3d topPoint, out List<Line> exposedLines);
+
+            List<Point3d> firstPoints = truss.FindFirstPanel(iLineLoadDirection, 1500);
+            List<Triangle3d> loadPanels = truss.GiftWrapLoadPanels(iLineLoadDirection,
+                out List<Brep> visuals, out List<System.Drawing.Color> colors,
+                out Circle circle,
+                out List<Line> edges,
+                out List<Line> newEdges,
+                out List<Line> tempLines,
+                out List<Point3d> closePoints,
+                returnCount++,
+                out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors);
+
+
+            if (applySnowLoad)
+            {
+                truss.ApplySnowLoadOnPanels(loadPanels);
+            }
 
 
             truss.Solve();
             truss.Retracking();
-            
+
 
 
             // OUTPUT
@@ -128,19 +171,33 @@ namespace MasterthesisGHA
             DA.SetDataList(4, truss.ElementAxialForce);
             DA.SetData(5, truss);
 
-        }
+            DA.SetDataList(6, firstPoints);
+            DA.SetData(7, circle);
 
+            DA.SetDataList(8, edges);
+            DA.SetDataList(9, newEdges);
+            DA.SetDataList(10, tempLines);
+
+            DA.SetDataList(15, visuals);
+            DA.SetDataList(16, colors);
+            DA.SetDataList(17, liveVisuals);
+            DA.SetDataList(18, liveColors);
+
+            DA.SetDataList(19, closePoints);
+        }
 
         protected override System.Drawing.Bitmap Icon
         {
             get
             {
-                return Properties.Resources._3D_Truss_Icon;
+                //You can add image files to your project resources and access them like this:
+                // return Resources.IconForThisComponent;
+                return null;
             }
         }
         public override Guid ComponentGuid
         {
-            get { return new Guid("DC35EDA8-72CC-45ED-A755-DF28A9EFB877"); }
+            get { return new Guid("3AD2ED4B-0211-4498-A6C4-C13D51A4CA3C"); }
         }
     }
 }

@@ -154,8 +154,8 @@ namespace MasterthesisGHA.Components.MethodOne
 
                 outMaterialBank = iMaterialBankOriginal.DeepCopy();
             }
-            
-            
+
+            outMaterialBank.UpdateVisuals();
             truss.Solve();
             truss.Retracking();
 

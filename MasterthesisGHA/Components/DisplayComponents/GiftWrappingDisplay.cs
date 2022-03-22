@@ -13,11 +13,22 @@ namespace MasterthesisGHA
         public double trussSize;
         public double maxLoad;
         public double maxDisplacement;
+        List<Triangle3d> loadPanels;
 
         //Test
         public bool firstRun;
         public Point3d startNode;
         public int returnCount;
+        List<Brep> visuals;
+        List<System.Drawing.Color> colors;
+        Circle circle;
+        List<Line> edges;
+        List<Line> newEdges;
+        List<Line> tempLines;
+        List<Point3d> closePoints;
+        List<Brep> liveVisuals;
+        List<System.Drawing.Color> liveColors;
+
 
         public GiftWrappingDisplay()
           : base("Gift Wrapping Display", "Gift Wrapping",
@@ -31,11 +42,7 @@ namespace MasterthesisGHA
             firstRun = true;
             startNode = new Point3d();
             returnCount = 0;
-        }
-        public GiftWrappingDisplay(string name, string nickname, string description, string category, string subCategory)
-            : base(name, nickname, description, category, subCategory)
-        {
-
+            
         }
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
@@ -52,6 +59,9 @@ namespace MasterthesisGHA
             pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item);
             pManager.AddBooleanParameter("Apply Snow Load", "Snow Load", "", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("Apply Wind Load", "Wind Load", "", GH_ParamAccess.item);
+            pManager.AddVectorParameter("Wind Load Direction", "Wind Direction", "", GH_ParamAccess.item, new Vector3d(0,-1,0));
+            
             pManager.AddIntegerParameter("Debugging Steps", "Steps", "", GH_ParamAccess.item);
         }
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
@@ -97,6 +107,8 @@ namespace MasterthesisGHA
             List<Line> iLinesToLoad = new List<Line>();
             bool applySelfWeight = false;
             bool applySnowLoad = false;
+            bool applyWindLoad = false;
+            Vector3d windLoadDirection = new Vector3d();
 
 
             DA.GetData(0, ref is3d);
@@ -111,7 +123,9 @@ namespace MasterthesisGHA
             DA.GetDataList(9, iLinesToLoad);
             DA.GetData(10, ref applySelfWeight);
             DA.GetData(11, ref applySnowLoad);
-            DA.GetData(12, ref returnCount);
+            DA.GetData(12, ref applyWindLoad);
+            DA.GetData(13, ref windLoadDirection);
+            DA.GetData(14, ref returnCount);
 
 
             // CODE
@@ -126,37 +140,39 @@ namespace MasterthesisGHA
                     break;
             }
 
-            truss.ApplyNodalLoads(iLoad, iLoadVecs);
-            truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
-            if (applySelfWeight)
-            {
-                truss.ApplySelfWeight();
-            }
+
+            
+            
+
+            //if (firstRun)
+            
+                loadPanels = truss.GiftWrapLoadPanels(
+                    iLineLoadDirection,
+                    out visuals, 
+                    out colors,
+                    out circle,
+                    out edges,
+                    out newEdges,
+                    out tempLines,
+                    out closePoints,
+                    returnCount++,
+                    out liveVisuals,
+                    out liveColors);
+
+                firstRun = false;
+            
             
 
 
-
-            // TEST
-
-            //truss.getExposedMembers(iLineLoadDirection, out Point3d topPoint, out List<Line> exposedLines);
-
-            List<Point3d> firstPoints = truss.FindFirstPanel(iLineLoadDirection, 1500);
-            List<Triangle3d> loadPanels = truss.GiftWrapLoadPanels(iLineLoadDirection,
-                out List<Brep> visuals, out List<System.Drawing.Color> colors,
-                out Circle circle,
-                out List<Line> edges,
-                out List<Line> newEdges,
-                out List<Line> tempLines,
-                out List<Point3d> closePoints,
-                returnCount++,
-                out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors);
-
-
+            truss.ApplyNodalLoads(iLoad, iLoadVecs);
+            truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
+            
+            if (applySelfWeight)
+                truss.ApplySelfWeight();
             if (applySnowLoad)
-            {
                 truss.ApplySnowLoadOnPanels(loadPanels);
-            }
-
+            if (applyWindLoad)
+                truss.ApplyWindLoadOnPanels(loadPanels, windLoadDirection);
 
             truss.Solve();
             truss.Retracking();
@@ -171,7 +187,6 @@ namespace MasterthesisGHA
             DA.SetDataList(4, truss.ElementAxialForce);
             DA.SetData(5, truss);
 
-            DA.SetDataList(6, firstPoints);
             DA.SetData(7, circle);
 
             DA.SetDataList(8, edges);

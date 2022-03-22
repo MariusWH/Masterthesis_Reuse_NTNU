@@ -403,18 +403,26 @@ namespace MasterthesisGHA
         // Variables (Not inherited)
         private double ReusableElementLength;
         public bool IsInStructure;
+        public double DistanceFabrication;
+        public double DistanceBuilding;
+        public double DistanceRecycling;
 
         // Constructor
-        public StockElement(string profileName, double reusableElementLength)
+        public StockElement(string profileName, double reusableElementLength, 
+            double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
             : base(profileName)
         {
             ReusableElementLength = reusableElementLength;
             IsInStructure = false;
+            
+            DistanceFabrication = distanceFabrication;
+            DistanceBuilding = distanceBuilding;
+            DistanceRecycling = distanceRecycling;
         }
-        public StockElement(string profileName, double reusableElementLength, bool isInStructure)
-            : base(profileName)
+        public StockElement(string profileName, double reusableElementLength, bool isInStructure,
+            double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
+            : this(profileName, reusableElementLength, distanceFabrication, distanceBuilding, distanceRecycling)
         {
-            ReusableElementLength = reusableElementLength;
             IsInStructure = isInStructure;
         }
 

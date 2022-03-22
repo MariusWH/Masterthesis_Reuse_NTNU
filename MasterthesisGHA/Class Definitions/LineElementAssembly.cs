@@ -452,7 +452,6 @@ namespace MasterthesisGHA
         }
 
 
-
         // Gift Wrapping Load Panels
         protected virtual void visualsForDebugging(
             ref List<Brep> visuals, ref List<System.Drawing.Color> colors,
@@ -913,9 +912,8 @@ namespace MasterthesisGHA
 
 
         // Load Application
-        public virtual void ApplySnowLoadOnPanels(List<Triangle3d> panels)
+        public virtual void ApplySnowLoadOnPanels(List<Triangle3d> panels, double loadValue = 3.0)
         {
-            double snowLoad = 3;
             Vector3d loadDirection = new Vector3d(0, 0, -1);
             int dofs = GetDofsPerNode();
 
@@ -930,7 +928,30 @@ namespace MasterthesisGHA
                     {
                         if (panelPoints.Contains(FreeNodes[i]))
                         {
-                            GlobalLoadVector[dofs*i+2] += -loadDirection.Z * snowLoad * panel.Area * Math.Abs(outwardNormal * loadDirection);
+                            GlobalLoadVector[dofs*i+2] += loadDirection.Z * loadValue * panel.Area * Math.Abs(outwardNormal * loadDirection);
+                        }
+                    }
+                }
+            }
+        }
+        public virtual void ApplyWindLoadOnPanels(List<Triangle3d> panels, Vector3d loadDirection, double loadValue = 1.0)
+        {
+            int dofs = GetDofsPerNode();
+
+            foreach (Triangle3d panel in panels)
+            {
+                List<Point3d> panelPoints = new List<Point3d>() { panel.A, panel.B, panel.C };
+                Vector3d outwardNormal = Vector3d.CrossProduct(panel.C - panel.A, panel.B - panel.A);
+                outwardNormal.Unitize();
+                if (outwardNormal * loadDirection < 0)
+                {
+                    for (int i = 0; i < FreeNodes.Count; i++)
+                    {
+                        if (panelPoints.Contains(FreeNodes[i]))
+                        {
+                            GlobalLoadVector[dofs * i + 0] += loadDirection.X * loadValue * panel.Area * Math.Abs(outwardNormal * loadDirection);
+                            GlobalLoadVector[dofs * i + 1] += loadDirection.Y * loadValue * panel.Area * Math.Abs(outwardNormal * loadDirection);
+                            GlobalLoadVector[dofs * i + 2] += loadDirection.Z * loadValue * panel.Area * Math.Abs(outwardNormal * loadDirection);
                         }
                     }
                 }
@@ -941,9 +962,9 @@ namespace MasterthesisGHA
 
 
 
-
         // Visuals
-        public virtual void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1)
+        public virtual void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1,
+            bool inwardFacingArrows = true)
         {
             throw new NotImplementedException();
         }
@@ -974,7 +995,8 @@ namespace MasterthesisGHA
         }
 
         // Objective Functions
-        public double LocalObjectiveFunctionLCA(InPlaceElement member, StockElement stockElement, double axialForce, double distanceFabrication, double distanceBuilding, double distanceRecycling)
+        public double LocalObjectiveFunctionLCA(InPlaceElement member, StockElement stockElement, double axialForce, double distanceFabrication, 
+            double distanceBuilding, double distanceRecycling)
         {
             double reuseLength = member.getInPlaceElementLength();
             double wasteLength = stockElement.GetStockElementLength() - member.getInPlaceElementLength();
@@ -1533,7 +1555,7 @@ namespace MasterthesisGHA
             return factorOfLength * structureSize / maxLoad;
         }
         public override void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, 
-            double maxLoad = -1, double maxDisplacement = -1)
+            double maxLoad = -1, double maxDisplacement = -1, bool inwardFacingArrows = true)
         {
             geometry = new List<Brep>();
             color = new List<System.Drawing.Color>();
@@ -1577,23 +1599,43 @@ namespace MasterthesisGHA
                 double arrowLength = Math.Sqrt(
                     pointLoadVector[dofsPerNode * i] * pointLoadVector[dofsPerNode * i] +
                     pointLoadVector[dofsPerNode * i + 1] * pointLoadVector[dofsPerNode * i + 1] +
-                    pointLoadVector[dofsPerNode * i + 2] * pointLoadVector[dofsPerNode * i + 2]) *
-                    getLoadFactor(0.1,size, maxLoad);
+                    pointLoadVector[dofsPerNode * i + 2] * pointLoadVector[dofsPerNode * i + 2]) 
+                    * getLoadFactor(0.1,size, maxLoad);
 
                 dir.Unitize();                
                 double coneHeight = 6 * loadLineRadius;
                 double coneRadius = 3 * loadLineRadius;
 
-                Point3d startPoint = new Point3d( FreeNodesInitial[i] + freeNodeDisplacement[i] );
-                Point3d endPoint = startPoint + new Point3d(dir * arrowLength);
-                Point3d arrowBase = endPoint + dir * coneHeight;
-                Cylinder loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), loadLineRadius), 
-                    startPoint.DistanceTo(endPoint));
-                Cone arrow = new Cone(new Plane(arrowBase, new Vector3d(
-                    pointLoadVector[dofsPerNode * i],
-                    pointLoadVector[dofsPerNode * i + 1],
-                    pointLoadVector[dofsPerNode * i + 2])),
-                    -coneHeight, coneRadius);
+                Point3d startPoint;
+                Point3d endPoint;
+                Cylinder loadCylinder;
+                Cone arrow;
+
+                if (inwardFacingArrows)
+                {
+                    endPoint = new Point3d(FreeNodesInitial[i] + freeNodeDisplacement[i]);
+                    startPoint = endPoint + new Point3d(-dir * arrowLength);
+                    loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), loadLineRadius),
+                        startPoint.DistanceTo(endPoint));
+                    arrow = new Cone(new Plane(endPoint, new Vector3d(
+                        pointLoadVector[dofsPerNode * i],
+                        pointLoadVector[dofsPerNode * i + 1],
+                        pointLoadVector[dofsPerNode * i + 2])),
+                        -coneHeight, coneRadius);
+                }
+                else
+                {
+                    startPoint = new Point3d(FreeNodesInitial[i] + freeNodeDisplacement[i]);
+                    endPoint = startPoint + new Point3d(dir * arrowLength);
+                    loadCylinder = new Cylinder(new Circle(new Plane(startPoint, dir), loadLineRadius),
+                        startPoint.DistanceTo(endPoint));
+                    arrow = new Cone(new Plane(endPoint + dir * coneHeight, new Vector3d(
+                        pointLoadVector[dofsPerNode * i],
+                        pointLoadVector[dofsPerNode * i + 1],
+                        pointLoadVector[dofsPerNode * i + 2])),
+                        -coneHeight, coneRadius);
+                }
+               
 
                 StructureVisuals.Add(loadCylinder.ToBrep(true, true));
                 StructureColors.Add(Structure.loadArrowColor);

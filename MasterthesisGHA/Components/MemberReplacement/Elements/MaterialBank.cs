@@ -63,7 +63,8 @@ namespace MasterthesisGHA
             DA.GetData(7, ref groupMethod);
 
             // CODE
-            MaterialBank materialBankA = new MaterialBank(profiles, quantities, lengths);
+            MaterialBank materialBankA = new MaterialBank(profiles, quantities, lengths, 
+                fabricationDistances, buildingDistances, recyclingDistances);
             MaterialBank materialBankB = new MaterialBank(inputCommands);
             MaterialBank materialBank = materialBankA + materialBankB;
 

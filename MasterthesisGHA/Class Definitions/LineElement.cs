@@ -481,7 +481,8 @@ namespace MasterthesisGHA
         // Copy
         public StockElement DeepCopy()
         {
-            return new StockElement(this.ProfileName, this.ReusableElementLength, this.IsInStructure);
+            return new StockElement(this.ProfileName, this.ReusableElementLength, this.IsInStructure,
+                this.DistanceFabrication, this.DistanceBuilding, this.DistanceRecycling);
         }
 
     }

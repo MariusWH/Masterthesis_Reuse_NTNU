@@ -141,14 +141,14 @@ namespace MasterthesisGHA
             }
 
 
-            
-            
+
+
 
             //if (firstRun)
             
                 loadPanels = truss.GiftWrapLoadPanels(
                     iLineLoadDirection,
-                    out visuals, 
+                    out visuals,
                     out colors,
                     out circle,
                     out edges,
@@ -163,7 +163,7 @@ namespace MasterthesisGHA
             
             
 
-
+            truss.GlobalLoadVector.Clear();
             truss.ApplyNodalLoads(iLoad, iLoadVecs);
             truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             
@@ -173,6 +173,8 @@ namespace MasterthesisGHA
                 truss.ApplySnowLoadOnPanels(loadPanels);
             if (applyWindLoad)
                 truss.ApplyWindLoadOnPanels(loadPanels, windLoadDirection);
+
+
 
             truss.Solve();
             truss.Retracking();

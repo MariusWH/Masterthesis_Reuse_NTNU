@@ -46,11 +46,11 @@ namespace MasterthesisGHA
             pManager.AddPointParameter("Support Points", "Supports", "Pinned support points restricted from translation but free to rotate", GH_ParamAccess.list);
             pManager.AddNumberParameter("List Loading [N]", "ListLoad", "Nodal loads by numeric values (x1, y1, x2, y2, ..)", GH_ParamAccess.list, new List<double> { 0 });
             pManager.AddVectorParameter("Vector Loading [N]", "VectorLoad", "Nodal loads by vector input", GH_ParamAccess.list, new Vector3d(0, 0, 0));
-            pManager.AddNumberParameter("Line Load Value", "LL Value", "", GH_ParamAccess.item);
-            pManager.AddVectorParameter("Line Load Direction", "LL Direction", "", GH_ParamAccess.item);
-            pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item);
-            pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list);
-            pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Line Load Value", "LL Value", "", GH_ParamAccess.item, 0);
+            pManager.AddVectorParameter("Line Load Direction", "LL Direction", "", GH_ParamAccess.item, new Vector3d(0, 0, -1));
+            pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item, new Vector3d(1, 0, 0));
+            pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list, new Line());
+            pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item, false);
 
             
         }

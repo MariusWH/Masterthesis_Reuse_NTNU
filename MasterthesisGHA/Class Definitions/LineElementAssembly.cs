@@ -891,19 +891,6 @@ namespace MasterthesisGHA
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisuals();
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
     }
 
 

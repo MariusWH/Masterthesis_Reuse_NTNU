@@ -6,24 +6,24 @@ using Rhino.Geometry;
 
 namespace MasterthesisGHA.Components.Visuals
 {
-    public class Visuals : GH_Component
+    public class StructureVisuals : GH_Component
     {
         // Stored Variables
         public bool firstRun;
         public int prevStructuresCount;
-        public List<double> size;
+        public List<double> trussSize;
         public List<double> maxLoad;
         public List<double> maxDisplacement;
         List<Brep> outGeometry;
         List<System.Drawing.Color> outColor;
 
-        public Visuals()
-          : base("Visuals", "Visuals",
+        public StructureVisuals()
+          : base("StructureVisuals", "StructureVisuals",
                "Visualize Structural Model",
               "Master", "Visuals")
         {
             firstRun = true;
-            size = new List<double>();
+            trussSize = new List<double>();
             maxLoad = new List<double>();
             maxDisplacement = new List<double>();
             outGeometry = new List<Brep>();
@@ -48,11 +48,11 @@ namespace MasterthesisGHA.Components.Visuals
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUTS
-            List<ElementCollection> elementCollections = new List<ElementCollection>();
+            List<TrussModel3D> structures = new List<TrussModel3D>();
             bool normalize = false;
             int colorCode = 0;
 
-            DA.GetDataList(0, elementCollections);
+            DA.GetDataList(0, structures);
             DA.GetData(1, ref normalize);
             DA.GetData(2, ref colorCode);
 
@@ -65,37 +65,47 @@ namespace MasterthesisGHA.Components.Visuals
             // 5 - Continuous Node Displacements (White-Blue)
 
             // CODE
-            
+            colorCode = colorCode % 6;
+            List<string> colorCodeInfo = new List<string>()
+            {
+                "0 - Discrete Member Verifiation (Red/Green/Yellow)",
+                "1 - Continuous Member Stresses (White-Blue)",
+                "2 - Continuous Member Buckling (White-Blue)",
+                "3 - New and Reuse Members (White-Blue)",
+                "4 - Discrete Node Displacements (Red/Green)",
+                "5 - Continuous Node Displacements (White-Blue)"
+            };
 
-
-            if (normalize || firstRun || (prevStructuresCount != elementCollections.Count))
+            if (normalize || firstRun || (prevStructuresCount != structures.Count))
             {
                 firstRun = false;
-                size = new List<double>(elementCollections.Count);
-                maxLoad = new List<double>(elementCollections.Count);
-                maxDisplacement = new List<double>(elementCollections.Count);
+                trussSize = new List<double>(structures.Count);
+                maxLoad = new List<double>(structures.Count);
+                maxDisplacement = new List<double>(structures.Count);
 
-                foreach (ElementCollection elementCollection in elementCollections)
+                foreach (TrussModel3D truss in structures)
                 {
-                    size.Add(elementCollection.GetSize());
-                    maxLoad.Add(elementCollection.GetMaxLoad());
-                    maxDisplacement.Add(elementCollection.GetMaxDisplacement());
-                }
+                    trussSize.Add( truss.GetSize() );
+                    maxLoad.Add( truss.GetMaxLoad() );
+                    maxDisplacement.Add( truss.GetMaxDisplacement() );
+                }                   
             }
 
 
             outGeometry.Clear();
             outColor.Clear();
 
-            string codeInfo = "";
-            for (int i = 0; i < elementCollections.Count; i++)
+            for (int i = 0; i < structures.Count; i++)
             {
-                ElementCollection elementCollection = elementCollections[i];
+                TrussModel3D truss = structures[i];
+                List<Brep> geometry;
+                List<System.Drawing.Color> color;
 
-                elementCollection.GetVisuals(
-                    out List<Brep> geometry, out List<System.Drawing.Color> color, out codeInfo, 
-                    colorCode, size[i], maxDisplacement[i], maxLoad[i]);
+                truss.GetResultVisuals(out geometry, out color, colorCode, trussSize[i], maxDisplacement[i]);
+                outGeometry.AddRange(geometry);
+                outColor.AddRange(color);
 
+                truss.GetLoadVisuals(out geometry, out color,trussSize[i], maxLoad[i], maxDisplacement[i]);
                 outGeometry.AddRange(geometry);
                 outColor.AddRange(color);
             }
@@ -104,9 +114,9 @@ namespace MasterthesisGHA.Components.Visuals
             // OUTPUT            
             DA.SetDataList(0, outGeometry);
             DA.SetDataList(1, outColor);
-            DA.SetData(2, codeInfo);
+            DA.SetData(2, colorCodeInfo[colorCode]);
 
-            prevStructuresCount = elementCollections.Count;
+            prevStructuresCount = structures.Count;
 
         }
 
@@ -114,12 +124,14 @@ namespace MasterthesisGHA.Components.Visuals
         {
             get
             {
+                //You can add image files to your project resources and access them like this:
+                // return Resources.IconForThisComponent;
                 return null;
             }
         }
         public override Guid ComponentGuid
         {
-            get { return new Guid("E748F785-C01A-44AC-BD2E-E33E0671BFBD"); }
+            get { return new Guid("01956385-CD76-4044-92E0-B32694AEC4C9"); }
         }
     }
 }

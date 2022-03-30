@@ -3,10 +3,11 @@ using System.Collections.Generic;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
+using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA.Components.MethodOne
 {
-    public class LinearReplacement : GH_Component
+    public class LinearReplacementIM : GH_Component
     {
         // Stored Variables
         public bool firstRun;
@@ -14,8 +15,8 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxLoad;
         public double maxDisplacement;
 
-        public LinearReplacement()
-          : base("Linear Member Replacement", "Linear",
+        public LinearReplacementIM()
+          : base("Linear Member Replacement by IM", "Linear IM",
               "A linear best-fit method for inserting a defined material bank into a pre-defined structur geometry",
               "Master", "Member Replacement")
         {
@@ -45,7 +46,7 @@ namespace MasterthesisGHA.Components.MethodOne
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddTextParameter("Info", "Info", "", GH_ParamAccess.item);
-            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "", GH_ParamAccess.item);       
+            pManager.AddGenericParameter("MaterialBank", "MaterialBank", "", GH_ParamAccess.item);
 
             pManager.AddBrepParameter("StockVisuals", "StockVisuals", "", GH_ParamAccess.list);
             pManager.AddColourParameter("StockColour", "StockColour", "", GH_ParamAccess.list);
@@ -55,6 +56,8 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("NewMass", "NewMass", "", GH_ParamAccess.item);
 
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
+
+            pManager.AddMatrixParameter("Insertion Matrix", "IM", "", GH_ParamAccess.item);
         }
 
 
@@ -85,7 +88,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(8, ref iLineLoadValue);
             DA.GetData(9, ref iLineLoadDirection);
             DA.GetData(10, ref iLineLoadDistribution);
-            
+
 
 
 
@@ -98,7 +101,7 @@ namespace MasterthesisGHA.Components.MethodOne
             MaterialBank inputMaterialBank = iMaterialBank.DeepCopy();
             MaterialBank outMaterialBank;
 
-            if (!is3D )
+            if (!is3D)
                 truss = new TrussModel2D(iGeometryLines, initialProfiles, iSupports);
             else
                 truss = new TrussModel3D(iGeometryLines, initialProfiles, iSupports);
@@ -107,25 +110,28 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Solve();
             truss.Retracking();
 
-            
+            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(0,0);
+
             if (insertMaterialBank && insertNewElements)
             {
-                truss.InsertMaterialBankThenNewElements(inputMaterialBank, out outMaterialBank);
+                truss.InsertNewElements();
+                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank, out outMaterialBank);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBank(inputMaterialBank, out outMaterialBank);
-            }              
+                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank, out outMaterialBank);
+            }
             else if (insertNewElements)
             {
                 truss.InsertNewElements();
                 outMaterialBank = iMaterialBank.DeepCopy();
-            }         
+            }
             else
             {
                 outMaterialBank = iMaterialBank.DeepCopy();
             }
 
+            
 
             outMaterialBank.UpdateVisuals(out _, out _, out _);
             truss.Solve();
@@ -135,18 +141,17 @@ namespace MasterthesisGHA.Components.MethodOne
 
             // OUTPUTS
             DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo());
-            DA.SetData(1, outMaterialBank);         
+            DA.SetData(1, outMaterialBank);
             DA.SetDataList(2, outMaterialBank.MaterialBankVisuals);
             DA.SetDataList(3, outMaterialBank.MaterialBankColors);
             DA.SetData(4, truss.GetTotalMass());
             DA.SetData(5, truss.GetReusedMass());
             DA.SetData(6, truss.GetNewMass());
             DA.SetData(7, truss);
+            DA.SetData(8, ElementCollection.MathnetToOutputMatrix(insertionMatrix));
 
 
         }
-
-
         protected override System.Drawing.Bitmap Icon
         {
             get
@@ -156,9 +161,13 @@ namespace MasterthesisGHA.Components.MethodOne
                 return null;
             }
         }
+
+        /// <summary>
+        /// Gets the unique ID for this component. Do not change this ID after release.
+        /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("DAA23F40-0F0C-4E67-ADD5-2AE99E9AFC20"); }
+            get { return new Guid("7EEFFA06-CA16-4C1D-A5FF-7AF5B37CAB45"); }
         }
     }
 }

@@ -11,7 +11,7 @@ using System.Reflection;
 
 namespace MasterthesisGHA
 {
-    public abstract class AbstractLineElement
+    public abstract class LineElement
     {
         // Variables
         public string ProfileName;
@@ -30,7 +30,7 @@ namespace MasterthesisGHA
 
 
         // Constructor        
-        protected AbstractLineElement(string profileName, double crossSectionArea, double areaMomentOfInertiaYY, 
+        protected LineElement(string profileName, double crossSectionArea, double areaMomentOfInertiaYY, 
             double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus)
         {
             ProfileName = profileName;
@@ -41,7 +41,7 @@ namespace MasterthesisGHA
             YoungsModulus = youngsModulus;
             YieldStress = 355;
         }
-        protected AbstractLineElement(string profileName)
+        protected LineElement(string profileName)
             : this(profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYYDictionary[profileName], 
                   AreaMomentOfInertiaZZDictionary[profileName], PolarMomentOfInertiaDictionary[profileName], 210e3)
         {
@@ -57,7 +57,7 @@ namespace MasterthesisGHA
 
 
         // Static Constructor and Methods
-        static AbstractLineElement()
+        static LineElement()
         {
             CrossSectionAreaDictionary = new Dictionary<string, double>();
             AreaMomentOfInertiaYYDictionary = new Dictionary<string, double>();
@@ -106,7 +106,7 @@ namespace MasterthesisGHA
 
 
 
-    public abstract class InPlaceElement : AbstractLineElement
+    public abstract class InPlaceElement : LineElement
     {
         // Variables (Not inherited)
         public readonly Point3d StartPoint;
@@ -398,7 +398,7 @@ namespace MasterthesisGHA
 
 
 
-    public class StockElement : AbstractLineElement
+    public class StockElement : LineElement
     {
         // Variables (Not inherited)
         private double ReusableElementLength;

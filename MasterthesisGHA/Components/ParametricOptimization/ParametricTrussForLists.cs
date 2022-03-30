@@ -63,7 +63,7 @@ namespace MasterthesisGHA.Components
 
             if (iterations > 1e3)
             {
-                throw new Exception("Max iterations of 100 is exceeded!");
+                throw new Exception("Max iterations of 1000 is exceeded!");
             }
 
 

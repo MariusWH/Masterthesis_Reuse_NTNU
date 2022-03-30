@@ -73,7 +73,7 @@ namespace MasterthesisGHA
             bool is3d = true;
             List<Line> iLines = new List<Line>();
             List<string> iProfiles = new List<string>();
-            List<Point3d> iAnchoredPoints = new List<Point3d>();
+            List<Point3d> iSupports = new List<Point3d>();
             List<double> iLoad = new List<double>();
             List<Vector3d> iLoadVecs = new List<Vector3d>();
             double iLineLoadValue = 0;
@@ -82,11 +82,10 @@ namespace MasterthesisGHA
             List<Line> iLinesToLoad = new List<Line>();
             bool applySelfWeight = false;
             
-
             DA.GetData(0, ref is3d);
             DA.GetDataList(1, iLines);
             DA.GetDataList(2, iProfiles);
-            DA.GetDataList(3, iAnchoredPoints);
+            DA.GetDataList(3, iSupports);
             DA.GetDataList(4, iLoad);
             DA.GetDataList(5, iLoadVecs);
             DA.GetData(6, ref iLineLoadValue);
@@ -100,10 +99,10 @@ namespace MasterthesisGHA
             switch (is3d)
             {
                 default:
-                    truss = new TrussModel3D(iLines, iProfiles, iAnchoredPoints);
+                    truss = new TrussModel3D(iLines, iProfiles, iSupports);
                     break;
                 case false:
-                    truss = new TrussModel2D(iLines, iProfiles, iAnchoredPoints);
+                    truss = new TrussModel2D(iLines, iProfiles, iSupports);
                     break;
             }
             

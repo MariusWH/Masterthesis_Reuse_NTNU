@@ -919,7 +919,7 @@ namespace MasterthesisGHA
             switch (method)
             {                
                 case 0:
-                    {                       
+                    {   
                         // Initial list sorting
                         // List<(int, int, double)> orderByGlobalMax = rankMatrix.EnumerateIndexed().OrderBy(x => -x.Item3).ToList();
                         List<Tuple<int, int, double>> orderByGlobalMax = indexedRankMatrix.OrderBy(x => -x.Item3).ToList();

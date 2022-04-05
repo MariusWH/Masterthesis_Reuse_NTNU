@@ -98,7 +98,7 @@ namespace MasterthesisGHA.Components.MethodOne
                 initialProfiles.Add("IPE600");
 
             TrussModel3D truss;
-            MaterialBank inputMaterialBank = iMaterialBank.DeepCopy();
+            MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank;
 
             if (!is3D)
@@ -124,16 +124,16 @@ namespace MasterthesisGHA.Components.MethodOne
             else if (insertNewElements)
             {
                 truss.InsertNewElements();
-                outMaterialBank = iMaterialBank.DeepCopy();
+                outMaterialBank = iMaterialBank.GetDeepCopy();
             }
             else
             {
-                outMaterialBank = iMaterialBank.DeepCopy();
+                outMaterialBank = iMaterialBank.GetDeepCopy();
             }
 
             
 
-            outMaterialBank.UpdateVisuals(out _, out _, out _);
+            outMaterialBank.UpdateVisualsInsertionMatrix(insertionMatrix, out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
             truss.Solve();
             truss.Retracking();
 
@@ -142,8 +142,8 @@ namespace MasterthesisGHA.Components.MethodOne
             // OUTPUTS
             DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo());
             DA.SetData(1, outMaterialBank);
-            DA.SetDataList(2, outMaterialBank.MaterialBankVisuals);
-            DA.SetDataList(3, outMaterialBank.MaterialBankColors);
+            DA.SetDataList(2, geometry);
+            DA.SetDataList(3, colors);
             DA.SetData(4, truss.GetTotalMass());
             DA.SetData(5, truss.GetReusedMass());
             DA.SetData(6, truss.GetNewMass());

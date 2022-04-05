@@ -39,7 +39,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
             pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);
-            pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
+            pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.list);
 
             pManager.AddNumberParameter("Heights", "", "", GH_ParamAccess.list);
             pManager.AddNumberParameter("Widths", "", "", GH_ParamAccess.list);
@@ -296,23 +296,13 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             DA.SetData(2, trusses[0].GetDisplacementVector());
             DA.SetData(3, trusses[0].GetLoadVector());
             DA.SetDataList(4, trusses[0].ElementAxialForce);
-            DA.SetData(5, trusses[0]);
+            DA.SetDataList(5, trusses);
             DA.SetDataList(6, trussHeights);
             DA.SetDataList(7, trussWidths);
             DA.SetDataList(8, trussLengths);
             DA.SetDataList(9, maxDisplacements);
             DA.SetDataList(10, totalMasses);
             DA.SetData(11, csv);
-
-
-
-
-
-
-
-
-
-
 
 
 

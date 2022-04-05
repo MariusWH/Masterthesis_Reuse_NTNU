@@ -78,7 +78,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                 initialProfiles.Add("IPE100");
 
             TrussModel3D truss;
-            MaterialBank inputMaterialBank = iMaterialBank.DeepCopy();
+            MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank;
 
             if (!is3D)
@@ -94,8 +94,8 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                 truss.InsertMaterialBank(inputMaterialBank, out outMaterialBank);
             else
             {
-                outMaterialBank = iMaterialBank.DeepCopy();
-                outMaterialBank.UpdateVisuals();
+                outMaterialBank = iMaterialBank.GetDeepCopy();
+                outMaterialBank.UpdateVisualsMaterialBank();
             }
 
 

@@ -95,7 +95,7 @@ namespace MasterthesisGHA.Components.MethodOne
                 initialProfiles.Add("IPE600");
 
             TrussModel3D truss;
-            MaterialBank inputMaterialBank = iMaterialBank.DeepCopy();
+            MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank;
 
             if (!is3D )
@@ -110,7 +110,9 @@ namespace MasterthesisGHA.Components.MethodOne
             
             if (insertMaterialBank && insertNewElements)
             {
-                truss.InsertMaterialBankThenNewElements(inputMaterialBank, out outMaterialBank);
+                truss.InsertNewElements();
+                truss.InsertMaterialBank(inputMaterialBank, out outMaterialBank);
+
             }
             else if (insertMaterialBank)
             {
@@ -119,15 +121,15 @@ namespace MasterthesisGHA.Components.MethodOne
             else if (insertNewElements)
             {
                 truss.InsertNewElements();
-                outMaterialBank = iMaterialBank.DeepCopy();
+                outMaterialBank = iMaterialBank.GetDeepCopy();
             }         
             else
             {
-                outMaterialBank = iMaterialBank.DeepCopy();
+                outMaterialBank = iMaterialBank.GetDeepCopy();
             }
 
 
-            outMaterialBank.UpdateVisuals(out _, out _, out _);
+            outMaterialBank.UpdateVisualsMaterialBank(out _, out _, out _);
             truss.Solve();
             truss.Retracking();
 

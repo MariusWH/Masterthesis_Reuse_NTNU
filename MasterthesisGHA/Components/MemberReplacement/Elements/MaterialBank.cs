@@ -69,9 +69,9 @@ namespace MasterthesisGHA
             MaterialBank materialBank = materialBankA + materialBankB;
 
             if(groupMethod == true)
-                materialBank.UpdateVisuals(0);
+                materialBank.UpdateVisualsMaterialBank(0);
             else
-                materialBank.UpdateVisuals(1);
+                materialBank.UpdateVisualsMaterialBank(1);
 
             // OUTPUTS
             DA.SetData(0, materialBank);

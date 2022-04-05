@@ -1015,7 +1015,12 @@ namespace MasterthesisGHA
         }
         public void InsertMaterialBankByRankMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
         {
-            InsertMaterialBankByRankMatrix(out _, materialBank, out remainingMaterialBank, out optimumOrder);
+            Matrix<double> rank = EmissionReductionRank(materialBank);
+
+            optimumOrder = OptimumInsertOrderFromRankMatrix(rank).ToList();
+
+            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
+            remainingMaterialBank.UpdateVisuals();
         }
         public void InsertMaterialBankByRankMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank,
             out IEnumerable<int> optimumOrder, double distanceFabrication, double distanceBuilding, double distanceRecycling)

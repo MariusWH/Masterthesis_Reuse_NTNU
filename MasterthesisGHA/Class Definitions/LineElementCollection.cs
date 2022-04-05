@@ -298,7 +298,11 @@ namespace MasterthesisGHA
         public virtual void Solve()
         {
             throw new NotImplementedException();
-        }      
+        }
+        public virtual void Retracking()
+        {
+            throw new NotImplementedException();
+        }
 
         // Load Application
         public virtual void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
@@ -419,7 +423,6 @@ namespace MasterthesisGHA
         */
 
 
-
         // -- VISUALS --
         public override void GetVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxLoad)
         {
@@ -518,7 +521,6 @@ namespace MasterthesisGHA
             }
             return max;
         }
-
 
 
         // -- REUSE METHODS --
@@ -1201,7 +1203,7 @@ namespace MasterthesisGHA
                     GlobalDisplacementVector[dofsPerNode * i + 1], GlobalDisplacementVector[dofsPerNode * i + 2]);
 
         }
-        public void Retracking()
+        public override void Retracking()
         {
             foreach (InPlaceBarElement3D element in ElementsInStructure)
             {

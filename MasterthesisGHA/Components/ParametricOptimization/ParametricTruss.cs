@@ -19,11 +19,11 @@ namespace MasterthesisGHA.Components
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddBooleanParameter("2D/3D", "2D/3D", "2D (false) /3D (true)", GH_ParamAccess.item, false);
-            pManager.AddPointParameter("StartPoint", "StartPoint", "StartPoint", GH_ParamAccess.item, new Point3d(0, 0, 0));
-            pManager.AddPointParameter("EndPoint", "EndPoint", "EndPoint", GH_ParamAccess.item, new Point3d(1, 0, 0));
-            pManager.AddIntegerParameter("LengthDivisions", "LengthDivisions", "LengthDivisions", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Heigth", "Height", "Height", GH_ParamAccess.item, 1000);
-            pManager.AddNumberParameter("Width", "Width", "Width", GH_ParamAccess.item, 1000);
+            pManager.AddPointParameter("StartPoints", "StartPoints", "", GH_ParamAccess.list, new Point3d(0, 0, 0));
+            pManager.AddPointParameter("EndPoints", "EndPoints", "", GH_ParamAccess.list, new Point3d(1, 0, 0));
+            pManager.AddIntegerParameter("LengthDivisions", "LengthDivisions", "", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Heigths", "Heights", "", GH_ParamAccess.list, 1000);
+            pManager.AddNumberParameter("Widths", "Widths", "", GH_ParamAccess.list, 1000);
         }
 
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)

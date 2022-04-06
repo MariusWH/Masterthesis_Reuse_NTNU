@@ -15,9 +15,9 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxDisplacement;
 
         public LinearReplacement()
-          : base("Linear Member Replacement", "Linear",
+          : base("Linear Reuse Method", "Linear",
               "A linear best-fit method for inserting a defined material bank into a pre-defined structur geometry",
-              "Master", "Member Replacement")
+              "Master", "Reuse")
         {
             firstRun = true;
             trussSize = -1;

@@ -17,9 +17,9 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxDisplacement;
 
         public RankLCA()
-          : base("Rank LCA Member Replacement", "RankLCA",
+          : base("Rank LCA Reuse Method", "RankLCA",
               "A linear best-fit method for inserting a defined material bank into a pre-defined structur geometry",
-              "Master", "Member Replacement")
+              "Master", "Reuse")
         {
             firstRun = true;
             trussSize = -1;

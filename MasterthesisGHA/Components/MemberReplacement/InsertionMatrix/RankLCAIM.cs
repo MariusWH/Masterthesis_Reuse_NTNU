@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
@@ -7,7 +8,7 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA.Components.MethodOne
 {
-    public class LinearReplacementIM : GH_Component
+    public class RankLCAIM : GH_Component
     {
         // Stored Variables
         public bool firstRun;
@@ -15,9 +16,9 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxLoad;
         public double maxDisplacement;
 
-        public LinearReplacementIM()
-          : base("Linear Member Replacement by IM", "Linear IM",
-              "A linear best-fit method for inserting a defined material bank into a pre-defined structur geometry",
+        public RankLCAIM()
+          : base("Rank LCA Reuse Method by IM", "RankLCA IM",
+              "A linear best-fit method for inserting a defined material bank into a pre-defined structure geometry",
               "Master", "Reuse")
         {
             firstRun = true;
@@ -56,8 +57,8 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("NewMass", "NewMass", "", GH_ParamAccess.item);
 
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
-
-            pManager.AddMatrixParameter("Insertion Matrix", "IM", "", GH_ParamAccess.item);
+            pManager.AddMatrixParameter("Rank Matrix", "Rank", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Optimum Order", "Order", "", GH_ParamAccess.list);
         }
 
 
@@ -68,7 +69,7 @@ namespace MasterthesisGHA.Components.MethodOne
             bool is3D = false;
             bool insertMaterialBank = false;
             bool insertNewElements = false;
-            MaterialBank iMaterialBank = new MaterialBank();
+            MaterialBank iMaterialBankOriginal = new MaterialBank();
             List<string> iNewElementsCatalog = new List<string>();
             List<Line> iGeometryLines = new List<Line>();
             List<Point3d> iSupports = new List<Point3d>();
@@ -80,7 +81,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(0, ref is3D);
             DA.GetData(1, ref insertMaterialBank);
             DA.GetData(2, ref insertNewElements);
-            DA.GetData(3, ref iMaterialBank);
+            DA.GetData(3, ref iMaterialBankOriginal);
             DA.GetDataList(4, iNewElementsCatalog);
             DA.GetDataList(5, iGeometryLines);
             DA.GetDataList(6, iSupports);
@@ -90,15 +91,13 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(10, ref iLineLoadDistribution);
 
 
-
-
             // CODE
             List<string> initialProfiles = new List<string>();
             foreach (Line line in iGeometryLines)
                 initialProfiles.Add("IPE600");
 
             TrussModel3D truss;
-            MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
+            MaterialBank iMaterialBankCopy = iMaterialBankOriginal.GetDeepCopy();
             MaterialBank outMaterialBank;
 
             if (!is3D)
@@ -110,28 +109,36 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Solve();
             truss.Retracking();
 
-            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(0,0);
+
+            Matrix<double> rank = Matrix<double>.Build.SparseIdentity(0, 0);
+            IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
+            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
+            
 
             if (insertMaterialBank && insertNewElements)
             {
                 truss.InsertNewElements();
-                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank, out outMaterialBank);
+                rank = truss.EmissionReductionRank(iMaterialBankCopy);
+                truss.InsertMaterialBankByRankMatrix(out insertionMatrix,
+                    iMaterialBankCopy, out outMaterialBank, out optimumOrder);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank, out outMaterialBank);
+                rank = truss.EmissionReductionRank(iMaterialBankCopy);
+                truss.InsertMaterialBankByRankMatrix(out insertionMatrix,
+                    iMaterialBankCopy, out outMaterialBank, out optimumOrder);
             }
             else if (insertNewElements)
             {
                 truss.InsertNewElements();
-                outMaterialBank = iMaterialBank.GetDeepCopy();
+                rank = truss.EmissionReductionRank(iMaterialBankCopy);
+                outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }
             else
             {
-                outMaterialBank = iMaterialBank.GetDeepCopy();
+                rank = truss.EmissionReductionRank(iMaterialBankCopy);
+                outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }
-
-            
 
             outMaterialBank.UpdateVisualsInsertionMatrix(insertionMatrix, out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
             truss.Solve();
@@ -148,8 +155,8 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(5, truss.GetReusedMass());
             DA.SetData(6, truss.GetNewMass());
             DA.SetData(7, truss);
-            DA.SetData(8, ElementCollection.MathnetToOutputMatrix(insertionMatrix));
-
+            DA.SetData(8, ElementCollection.MathnetToOutputMatrix(rank));
+            DA.SetDataList(9, optimumOrder);
 
         }
         protected override System.Drawing.Bitmap Icon
@@ -167,7 +174,7 @@ namespace MasterthesisGHA.Components.MethodOne
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("7EEFFA06-CA16-4C1D-A5FF-7AF5B37CAB45"); }
+            get { return new Guid("C99BBC48-4C59-48A0-90BE-5A316A1EDD14"); }
         }
     }
 }

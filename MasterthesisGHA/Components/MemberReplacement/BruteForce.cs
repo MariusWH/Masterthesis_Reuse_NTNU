@@ -15,9 +15,9 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxDisplacement;
 
         public BruteForce()
-          : base("Brute Force Member Replacement", "BruteForce",
+          : base("Brute Force Reuse Method", "BruteForce",
               "A global optimum best-fit method for replacing structural members by calculating all permutations",
-              "Master", "Member Replacement")
+              "Master", "Reuse")
         {
             firstRun = true;
             trussSize = -1;

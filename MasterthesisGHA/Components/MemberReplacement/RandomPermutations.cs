@@ -16,9 +16,9 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxDisplacement;
 
         public RandomPermutations()
-          : base("Pseudo Random Member Replacement", "PseudoRandom",
+          : base("Pseudo Random Reuse Method", "PseudoRandom",
               "A linear best-fit method for inserting a defined material bank into a pre-defined structur geometry",
-              "Master", "Member Replacement")
+              "Master", "Reuse")
         {
             firstRun = true;
             trussSize = -1;

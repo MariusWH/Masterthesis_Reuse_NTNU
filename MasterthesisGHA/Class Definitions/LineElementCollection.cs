@@ -285,9 +285,7 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();           
         }
-
-       
-        
+    
         // -- STRUCTURAL ANALYSIS --
         protected virtual void RecalculateGlobalMatrix()
         {
@@ -420,8 +418,6 @@ namespace MasterthesisGHA
 
         */
 
-
-
         // -- VISUALS --
         public override void GetVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxLoad)
         {
@@ -520,8 +516,6 @@ namespace MasterthesisGHA
             return max;
         }
 
-
-
         // -- MEMBER REPLACEMENT METHODS --
         public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
@@ -564,7 +558,7 @@ namespace MasterthesisGHA
 
             //List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
 
-            for (int i = 0; i < ElementsInStructure.Count; i++)
+            for (int i = 0; i < insertionList.Count; i++)
             {
                 int memberIndex = insertionList[i];
 
@@ -2230,7 +2224,7 @@ namespace MasterthesisGHA
         static MaterialBank()
         {
             minimumReusableLength = 50;
-            cuttingLength = 10;
+            cuttingLength = 20;
         }
 
         // Operator Overloads
@@ -2527,7 +2521,7 @@ namespace MasterthesisGHA
                     baseCircles.Add( new Circle(basePlanes[basePlanes.Count-1], 1.1 * Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI) );
                     cylinders.Add( new Cylinder(baseCircles[baseCircles.Count-1], usedLength) );
                     geometry.Add(cylinders[cylinders.Count-1].ToBrep(true, true));
-                    color.Add(ElementCollection.materialBankColors[1]);
+                    color.Add(ElementCollection.materialBankColors[3]);
 
                     usedLengthAccumulated += usedLength;
 
@@ -2542,7 +2536,6 @@ namespace MasterthesisGHA
                 }
 
                 unusedInstance = unusedInstance + 2 * Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI + instanceSpacing;
-
             }
 
 

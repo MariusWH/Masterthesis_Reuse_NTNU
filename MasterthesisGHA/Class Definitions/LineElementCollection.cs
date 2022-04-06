@@ -556,8 +556,6 @@ namespace MasterthesisGHA
                 throw new Exception("InsertOrder contains " + insertionList.Count + " elements, while the structure contains "
                     + ElementsInStructure.Count + " members");
 
-            //List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
-
             for (int i = 0; i < insertionList.Count; i++)
             {
                 int memberIndex = insertionList[i];
@@ -568,12 +566,14 @@ namespace MasterthesisGHA
                 while (indexingFromLast-- != 0)
                 {
                     int stockElementIndex = sortedIndexing[indexingFromLast];
+                    int numberOfCuts = insertionMatrix.Row(stockElementIndex).Aggregate(0, (total, next) => next != 0 ? total + 1 : total);
+                    if(numberOfCuts != 0) numberOfCuts--;
 
-                    double usedLength = insertionMatrix.Row(stockElementIndex).Sum();
+                    double usedLength = insertionMatrix.Row(stockElementIndex).Sum() + MaterialBank.cuttingLength * numberOfCuts;
+                    
                     if (usedLength + ElementsInStructure[memberIndex].getInPlaceElementLength() > materialBank.StockElementsInMaterialBank[stockElementIndex].GetStockElementLength()
                         || materialBank.StockElementsInMaterialBank[stockElementIndex].CheckUtilization(ElementAxialForce[memberIndex]) > 1.0 )
                         continue;
-
 
                     if (stockElementIndex != -1)
                     {
@@ -1031,7 +1031,7 @@ namespace MasterthesisGHA
             return 3;
         }       
         
-        // Structural Analysis     
+        // Structural Analysis
         protected override void RecalculateGlobalMatrix()
         {
             GlobalStiffnessMatrix.Clear();
@@ -1962,7 +1962,8 @@ namespace MasterthesisGHA
             }
             else
             {
-                insertionMatrix[stockElementIndex, inPlaceElementIndex] = ElementsInStructure[inPlaceElementIndex].StartPoint.DistanceTo(ElementsInStructure[inPlaceElementIndex].EndPoint);
+                insertionMatrix[stockElementIndex, inPlaceElementIndex] =
+                    ElementsInStructure[inPlaceElementIndex].StartPoint.DistanceTo(ElementsInStructure[inPlaceElementIndex].EndPoint);
                 return true;
             }
 
@@ -2151,8 +2152,8 @@ namespace MasterthesisGHA
         public List<StockElement> StockElementsInMaterialBank;
         public List<System.Drawing.Color> MaterialBankColors;
         public List<Brep> MaterialBankVisuals;
-        private static double minimumReusableLength;
-        private static double cuttingLength;
+        public static double minimumReusableLength;
+        public static double cuttingLength;
 
         // Constructors
         public MaterialBank() 
@@ -2471,14 +2472,15 @@ namespace MasterthesisGHA
         {
             this.UpdateVisualsMaterialBank(out _, out _, out _, groupingMethod);
         }
-        public void UpdateVisualsInsertionMatrix(Matrix<double> insertionMatrix, out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode = 0)
+        public void UpdateVisualsInsertionMatrix(Matrix<double> insertionMatrix, out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode = 1)
         {
             geometry = new List<Brep>();
             color = new List<Color>();
-            colorCode = colorCode % 1;
+            colorCode = colorCode % 2;
             List<string> codeInfos = new List<string>()
             {
-                "0 - Sorted and grouped by length",
+                "0 - Sorted by length",
+                "1 - Sorted by length and constant cross section"
             };
             codeInfo = codeInfos[colorCode];
 
@@ -2502,23 +2504,37 @@ namespace MasterthesisGHA
             List<Circle> baseCircles = new List<Circle>();
             List<Cylinder> cylinders = new List<Cylinder>();
 
+            double crossSectionRadiusVisuals = 0;
+
             for (int i = 0; i < StockElementsInMaterialBank.Count; i++)
-            {               
+            {
+                if (colorCode == 0)
+                    crossSectionRadiusVisuals = Math.Sqrt( StockElementsInMaterialBank[i].CrossSectionArea ) / Math.PI;
+                else if (colorCode == 1)
+                {
+                    double maxLength = 0;
+                    StockElementsInMaterialBank.ForEach(o => maxLength = Math.Max(maxLength, o.GetStockElementLength()));
+                    crossSectionRadiusVisuals = maxLength * 5e-2;
+                }
+
+
                 basePlanes.Add( new Plane(new Point3d(-(usedInstance + unusedInstance) - startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1)) );
-                baseCircles.Add( new Circle(basePlanes[basePlanes.Count-1], Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI) );
+                baseCircles.Add( new Circle(basePlanes[basePlanes.Count-1], crossSectionRadiusVisuals) );
                 cylinders.Add( new Cylinder(baseCircles[baseCircles.Count-1], StockElementsInMaterialBank[i].GetStockElementLength()) );
                 geometry.Add(cylinders[cylinders.Count - 1].ToBrep(true, true));
                 color.Add(ElementCollection.materialBankColors[0]);
 
                 Vector<double> insertionVector = insertionMatrix.Row(i);
                 double usedLengthAccumulated = 0;
+                bool isUsed = false;
+
                 foreach(double usedLength in insertionVector)
                 {
-                    if (usedLength == 0)
-                        continue;
+                    if (usedLength == 0) continue;
+                    else isUsed = true;
 
                     basePlanes.Add( new Plane(new Point3d(-(usedInstance + unusedInstance) - startSpacing, groupSpacing, usedLengthAccumulated), new Vector3d(0, 0, 1)) );
-                    baseCircles.Add( new Circle(basePlanes[basePlanes.Count-1], 1.1 * Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI) );
+                    baseCircles.Add( new Circle(basePlanes[basePlanes.Count-1], 1.1 * crossSectionRadiusVisuals) );
                     cylinders.Add( new Cylinder(baseCircles[baseCircles.Count-1], usedLength) );
                     geometry.Add(cylinders[cylinders.Count-1].ToBrep(true, true));
                     color.Add(ElementCollection.materialBankColors[3]);
@@ -2526,16 +2542,21 @@ namespace MasterthesisGHA
                     usedLengthAccumulated += usedLength;
 
                     basePlanes.Add(new Plane(new Point3d(-(usedInstance + unusedInstance) - startSpacing, groupSpacing, usedLengthAccumulated), new Vector3d(0, 0, 1)));
-                    baseCircles.Add(new Circle(basePlanes[basePlanes.Count - 1], 1.1 * Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI));
+                    baseCircles.Add(new Circle(basePlanes[basePlanes.Count - 1], 1.1 * crossSectionRadiusVisuals));
                     cylinders.Add(new Cylinder(baseCircles[baseCircles.Count - 1], cuttingLength));
                     geometry.Add(cylinders[cylinders.Count - 1].ToBrep(true, true));
                     color.Add(ElementCollection.materialBankColors[2]);
 
                     usedLengthAccumulated += cuttingLength;
-
                 }
 
-                unusedInstance = unusedInstance + 2 * Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI + instanceSpacing;
+                if (isUsed)
+                {
+                    geometry.RemoveAt(geometry.Count - 1);
+                    color.RemoveAt(color.Count - 1);
+                }
+
+                unusedInstance = unusedInstance + 2 * crossSectionRadiusVisuals + instanceSpacing;
             }
 
 

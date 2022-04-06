@@ -111,11 +111,7 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
             IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
-            /*
-            double distanceFabrication = 100;
-            double distanceBuilding = 100;
-            double distanceRecycling = 100;
-            */
+
 
             Matrix<double> rank = Matrix<double>.Build.SparseIdentity(0, 0);
 

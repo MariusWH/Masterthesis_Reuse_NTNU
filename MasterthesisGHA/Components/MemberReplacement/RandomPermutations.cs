@@ -92,7 +92,6 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
 
-
             // CODE
             List<string> initialProfiles = new List<string>();
             foreach (Line line in iGeometryLines)

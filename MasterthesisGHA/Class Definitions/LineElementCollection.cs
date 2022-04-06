@@ -562,21 +562,24 @@ namespace MasterthesisGHA
                 throw new Exception("InsertOrder contains " + insertionList.Count + " elements, while the structure contains "
                     + ElementsInStructure.Count + " members");
 
-            List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
+            //List<List<StockElement>> possibleStockElements = PossibleStockElementForEachInPlaceElement(materialBank);
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
                 int memberIndex = insertionList[i];
 
-                List<int> sortedIndexing = new MaterialBank(possibleStockElements[i])
-                    .getUtilizationThenLengthSortedMaterialBankIndexing(ElementAxialForce[i]);
+                List<int> sortedIndexing = materialBank.getUtilizationThenLengthSortedMaterialBankIndexing(ElementAxialForce[i]);
 
-                int index = sortedIndexing.Count;
-
-                while (index-- != 0)
+                int indexingFromLast = sortedIndexing.Count;
+                while (indexingFromLast-- != 0)
                 {
-                    //int stockElementIndex = materialBank.StockElementsInMaterialBank.FindIndex(o => sortedStockElementList[index] == o);
-                    int stockElementIndex = sortedIndexing[index];
+                    int stockElementIndex = sortedIndexing[indexingFromLast];
+
+                    double usedLength = insertionMatrix.Row(stockElementIndex).Sum();
+                    if (usedLength + ElementsInStructure[memberIndex].getInPlaceElementLength() > materialBank.StockElementsInMaterialBank[stockElementIndex].GetStockElementLength()
+                        || materialBank.StockElementsInMaterialBank[stockElementIndex].CheckUtilization(ElementAxialForce[memberIndex]) > 1.0 )
+                        continue;
+
 
                     if (stockElementIndex != -1)
                     {
@@ -592,7 +595,6 @@ namespace MasterthesisGHA
         public void InsertMaterialBank(out Matrix<double> insertionMatrix, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             InsertMaterialBank(out insertionMatrix, Enumerable.Range(0, ElementsInStructure.Count), materialBank, out remainingMaterialBank);
-
         }
         public void InsertMaterialBank(IEnumerable<int> insertOrder, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
@@ -628,8 +630,7 @@ namespace MasterthesisGHA
         {
             InsertMaterialBank(Enumerable.Range(0, ElementsInStructure.Count), materialBank, out remainingMaterialBank);
         }        
-        
-       
+            
         // Brute Force Permutations
         public IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
         {
@@ -2303,20 +2304,15 @@ namespace MasterthesisGHA
         }      
         public List<int> getUtilizationThenLengthSortedMaterialBankIndexing(double axialForce)
         {
-            int value = 0;
-            Dictionary<StockElement,int> dictionary = StockElementsInMaterialBank.ToDictionary(o => o, o => value++);
+            List<Tuple<int, double, double>> indexAreaLengthTuples = new List<Tuple<int, double, double>>();
+            for (int i = 0; i < StockElementsInMaterialBank.Count; i++)
+                indexAreaLengthTuples.Add(new Tuple<int, double, double>(i, StockElementsInMaterialBank[i].CrossSectionArea, StockElementsInMaterialBank[i].GetStockElementLength()));
 
-            List<StockElement> sortedMaterialBank;
-            if (axialForce == 0)
-                sortedMaterialBank = StockElementsInMaterialBank.OrderBy(o => -o.CrossSectionArea).
-                    ThenBy(o => -o.GetStockElementLength()).ToList();
-            else
-                sortedMaterialBank = StockElementsInMaterialBank.OrderBy(o => Math.Abs(o.CheckUtilization(axialForce))).
-                    ThenBy(o => -o.GetStockElementLength()).ToList();
+            indexAreaLengthTuples.OrderByDescending(o => o.Item2).ThenBy(o => o.Item3);
 
             List<int> result = new List<int>();
-            foreach (StockElement stockElement in sortedMaterialBank)
-                result.Add(dictionary[stockElement]);
+            foreach (Tuple<int, double, double> tuple in indexAreaLengthTuples)
+                result.Add(tuple.Item1);
 
             return result;
         }
@@ -2515,13 +2511,10 @@ namespace MasterthesisGHA
             for (int i = 0; i < StockElementsInMaterialBank.Count; i++)
             {               
                 basePlanes.Add( new Plane(new Point3d(-(usedInstance + unusedInstance) - startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1)) );
-                unusedInstance = unusedInstance + 2 * Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI + instanceSpacing;
-                
                 baseCircles.Add( new Circle(basePlanes[basePlanes.Count-1], Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI) );
                 cylinders.Add( new Cylinder(baseCircles[baseCircles.Count-1], StockElementsInMaterialBank[i].GetStockElementLength()) );
                 geometry.Add(cylinders[cylinders.Count - 1].ToBrep(true, true));
                 color.Add(ElementCollection.materialBankColors[0]);
-
 
                 Vector<double> insertionVector = insertionMatrix.Row(i);
                 double usedLengthAccumulated = 0;
@@ -2547,6 +2540,8 @@ namespace MasterthesisGHA
                     usedLengthAccumulated += cuttingLength;
 
                 }
+
+                unusedInstance = unusedInstance + 2 * Math.Sqrt(StockElementsInMaterialBank[i].CrossSectionArea) / Math.PI + instanceSpacing;
 
             }
 

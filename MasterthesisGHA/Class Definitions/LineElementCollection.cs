@@ -12,24 +12,24 @@ namespace MasterthesisGHA
     public abstract class ElementCollection
     {
         // Attributes
-        protected static System.Drawing.Color supportNodeColor;
-        protected static System.Drawing.Color freeNodeColor;
-        protected static System.Drawing.Color loadArrowColor;
-        protected static System.Drawing.Color unverifiedMemberColor;
-        protected static System.Drawing.Color verifiedMemberColor;
-        protected static System.Drawing.Color overUtilizedMemberColor;      
-        protected static System.Drawing.Color bucklingMemberColor;
-        public static System.Drawing.Color reuseMemberColor;
-        public static System.Drawing.Color newMemberColor;
-        public static List<System.Drawing.Color> materialBankColors;
-        protected static System.Drawing.Color loadingPanelColor;
-        protected static System.Drawing.Color markedGeometry;
-        protected static System.Drawing.Color unmarkedGeometry;
+        protected static Color supportNodeColor;
+        protected static Color freeNodeColor;
+        protected static Color loadArrowColor;
+        protected static Color unverifiedMemberColor;
+        protected static Color verifiedMemberColor;
+        protected static Color overUtilizedMemberColor;      
+        protected static Color bucklingMemberColor;
+        public static Color reuseMemberColor;
+        public static Color newMemberColor;
+        public static List<Color> materialBankColors;
+        protected static Color loadingPanelColor;
+        protected static Color markedGeometry;
+        protected static Color unmarkedGeometry;
 
         // Static Constructor
         static ElementCollection()
         {
-            System.Drawing.Color darkerGrey = System.Drawing.Color.FromArgb(100, 100, 100);
+            Color darkerGrey = System.Drawing.Color.FromArgb(100, 100, 100);
 
             supportNodeColor = darkerGrey;
             freeNodeColor = System.Drawing.Color.DarkGray;
@@ -43,7 +43,7 @@ namespace MasterthesisGHA
             
             reuseMemberColor = System.Drawing.Color.Blue;
             newMemberColor = System.Drawing.Color.Orange;
-            materialBankColors = new List<System.Drawing.Color> 
+            materialBankColors = new List<Color> 
             {                  
                 System.Drawing.Color.DeepSkyBlue, 
                 System.Drawing.Color.LightYellow,
@@ -121,10 +121,10 @@ namespace MasterthesisGHA
         }
 
         // Visuals
-        public virtual void GetVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, out string codeInfo, int colorTheme, double size, double maxDisplacement, double maxLoad)
+        public virtual void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorTheme, double size, double maxDisplacement, double maxLoad)
         {
             geometry = new List<Brep>();
-            color = new List<System.Drawing.Color>();
+            color = new List<Color>();
             codeInfo = "";
         }
         public virtual double GetSize()
@@ -161,7 +161,7 @@ namespace MasterthesisGHA
         public Vector<double> GlobalDisplacementVector;
         public List<double> ElementAxialForce;
         public List<double> ElementUtilization;
-        public List<System.Drawing.Color> StructureColors;
+        public List<Color> StructureColors;
         public List<Brep> StructureVisuals;
 
         // Constructors
@@ -176,13 +176,13 @@ namespace MasterthesisGHA
             GlobalDisplacementVector = Vector<double>.Build.Sparse(0);
             ElementAxialForce = new List<double>();
             ElementUtilization = new List<double>();
-            StructureColors = new List<System.Drawing.Color>();
+            StructureColors = new List<Color>();
             StructureVisuals = new List<Brep>();
     }
         public Structure(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
         {           
             StructureVisuals = new List<Brep>();
-            StructureColors = new List<System.Drawing.Color>();
+            StructureColors = new List<Color>();
             FreeNodesInitial = new List<Point3d>();
 
             VerifyModel(ref lines, ref supportPoints);           
@@ -216,7 +216,7 @@ namespace MasterthesisGHA
             GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
             ElementAxialForce = new List<double>(copyFromThis.ElementAxialForce);
             ElementUtilization = new List<double>(copyFromThis.ElementUtilization);
-            StructureColors = new List<System.Drawing.Color>(copyFromThis.StructureColors);
+            StructureColors = new List<Color>(copyFromThis.StructureColors);
             StructureVisuals = new List<Brep>(copyFromThis.StructureVisuals);
         }
 
@@ -431,13 +431,13 @@ namespace MasterthesisGHA
         */
 
         // -- VISUALS --
-        public override void GetVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxLoad)
+        public override void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxLoad)
         {
             geometry = new List<Brep>();
-            color = new List<System.Drawing.Color>();
+            color = new List<Color>();
 
             List<Brep> outGeometry = new List<Brep>();
-            List<System.Drawing.Color> outColor = new List<System.Drawing.Color>();
+            List<Color> outColor = new List<Color>();
 
             colorCode = colorCode % 6;
             List<string> codeInfos = new List<string>()
@@ -459,11 +459,11 @@ namespace MasterthesisGHA
             geometry.AddRange(outGeometry);
             color.AddRange(outColor);
         }
-        public virtual void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1, bool inwardFacingArrows = true)
+        public virtual void GetLoadVisuals(out List<Brep> geometry, out List<Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1, bool inwardFacingArrows = true)
         {
             throw new NotImplementedException();
         }
-        public virtual void GetResultVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, int colorTheme, double size = -1, double maxDisplacement = -1)
+        public virtual void GetResultVisuals(out List<Brep> geometry, out List<Color> color, int colorTheme, double size = -1, double maxDisplacement = -1)
         {
             throw new NotImplementedException();
         }
@@ -558,7 +558,7 @@ namespace MasterthesisGHA
             for (int i = 0; i < ElementsInStructure.Count; i++)
                 InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
         }
-        public void InsertMaterialBank(out Matrix<double> insertionMatrix, IEnumerable<int> insertOrder, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        public void InsertMaterialBank(out Matrix<double> insertionMatrix, IEnumerable<int> insertOrder, MaterialBank materialBank)
         {
             insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
 
@@ -594,13 +594,17 @@ namespace MasterthesisGHA
                     }
                 }
             }
-
-            materialBank.UpdateVisualsMaterialBank();
-            remainingMaterialBank = materialBank.GetDeepCopy();
         }
-        public void InsertMaterialBank(out Matrix<double> insertionMatrix, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        public void InsertMaterialBank(out Matrix<double> insertionMatrix, MaterialBank materialBank, bool randomOrder = false)
         {
-            InsertMaterialBank(out insertionMatrix, Enumerable.Range(0, ElementsInStructure.Count), materialBank, out remainingMaterialBank);
+            if (randomOrder)
+            {
+                Random random = new Random();
+                List<int> initalList = Enumerable.Range(0, ElementsInStructure.Count).ToList();
+                List<int> shuffledList = Shuffle(initalList, random).ToList();
+                InsertMaterialBank(out insertionMatrix, shuffledList, materialBank);
+            }
+            else InsertMaterialBank(out insertionMatrix, Enumerable.Range(0, ElementsInStructure.Count), materialBank);
         }
         public void InsertMaterialBank(IEnumerable<int> insertOrder, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
@@ -655,6 +659,16 @@ namespace MasterthesisGHA
             return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
                     (t1, t2) => t1.Concat(new int[] { t2 }));
         }
+        public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
+        {
+            T[] elements = source.ToArray();
+            for (int i = elements.Length - 1; i >= 0; i--)
+            {
+                int swapIndex = rng.Next(i + 1);
+                yield return elements[swapIndex];
+                elements[swapIndex] = elements[i];
+            }
+        }
         public void InsertMaterialBankByAllPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
         {
             List<int> initalList = new List<int>();
@@ -698,17 +712,7 @@ namespace MasterthesisGHA
 
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
-        }
-        public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
-        {
-            T[] elements = source.ToArray();
-            for (int i = elements.Length - 1; i >= 0; i--)
-            {
-                int swapIndex = rng.Next(i + 1);
-                yield return elements[swapIndex];
-                elements[swapIndex] = elements[i];
-            }
-        }
+        }      
         public void InsertMaterialBankByRandomPermutations(int maxIterations, MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out List<List<int>> shuffledLists)
         {
             double objectiveTreshold = 100000;
@@ -739,8 +743,7 @@ namespace MasterthesisGHA
                 structureCopy = new TrussModel3D(this);
                 structureCopy.InsertMaterialBank(shuffledList, tempInputMaterialBank, out MaterialBank tempRemainingMaterialBank);
                 
-                objectiveFunction = 1.00 * structureCopy.GetReusedMass() + 1.50 * structureCopy.GetNewMass();
-                //objectiveFunction = GlobalObjectiveFunctionLCA(structureCopy, tempRemainingMaterialBank)
+                objectiveFunction = LCA.GlobalObjectiveFunctionLCA(structureCopy, tempRemainingMaterialBank);
 
 
                 objectiveFunctionOutputs.Add(objectiveFunction);
@@ -758,6 +761,29 @@ namespace MasterthesisGHA
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
         }
+        public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out List<double> objectiveFunctionOutputs)
+        {
+            bool randomOrder = true;
+            bool bestCaseLCA = false;
+            double objectiveMax = 0;
+            objectiveFunctionOutputs = new List<double>();
+            insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
+            Matrix<double> tempInsertionMatrix = Matrix<double>.Build.Sparse(0, 0);
+
+            for(int i = 0; i < iterations; i++)
+            {
+                InsertMaterialBank(out tempInsertionMatrix, materialBank, randomOrder);
+                objectiveFunctionOutputs.Add( LCA.GlobalObjectiveFunctionLCA(this, materialBank, bestCaseLCA) );
+                if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count-1] > objectiveMax)
+                {
+                    objectiveMax = objectiveFunctionOutputs[objectiveFunctionOutputs.Count-1];
+                    tempInsertionMatrix.CopyTo(insertionMatrix);
+                }               
+            }
+        }
+
+
+
 
         // Rank Matrix
         public Matrix<double> EmissionReductionRank(MaterialBank materialBank)
@@ -913,7 +939,7 @@ namespace MasterthesisGHA
         {
             InsertMaterialBankByRankMatrix(out _, materialBank, out remainingMaterialBank, out optimumOrder, distanceFabrication, distanceBuilding, distanceRecycling);
         }
-        public void InsertMaterialBankByRankMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
+        public void InsertMaterialBankByRankMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out IEnumerable<int> optimumOrder)
         {
             insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
 
@@ -921,8 +947,7 @@ namespace MasterthesisGHA
 
             optimumOrder = OptimumInsertOrderFromRankMatrix(rank).ToList();
 
-            InsertMaterialBank(out insertionMatrix, optimumOrder, materialBank, out remainingMaterialBank);
-            remainingMaterialBank.UpdateVisualsMaterialBank();
+            InsertMaterialBank(out insertionMatrix, optimumOrder, materialBank);
         }
         public void InsertMaterialBankByRankMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder, double distanceFabrication, double distanceBuilding, double distanceRecycling)
         {
@@ -1151,7 +1176,6 @@ namespace MasterthesisGHA
             }
         }
 
-
         // Load Application
         public void ApplyNodalLoads(List<double> loadList, List<Vector3d> loadVecs)
         {
@@ -1273,14 +1297,14 @@ namespace MasterthesisGHA
             }
 
         }
-        public virtual List<Triangle3d> GiftWrapLoadPanels(Vector3d loadDirection, out List<Brep> visuals, out List<System.Drawing.Color> colors, out Circle circle, out List<Line> innerEdges, out List<Line> outerEdges, out List<Line> newEdges, out List<Point3d> closePoints, int returnCount, out List<Brep> liveVisuals, out List<System.Drawing.Color> liveColors)
+        public virtual List<Triangle3d> GiftWrapLoadPanels(Vector3d loadDirection, out List<Brep> visuals, out List<Color> colors, out Circle circle, out List<Line> innerEdges, out List<Line> outerEdges, out List<Line> newEdges, out List<Point3d> closePoints, int returnCount, out List<Brep> liveVisuals, out List<Color> liveColors)
         {
             int debugCounter = 0;
 
             visuals = new List<Brep>();
-            colors = new List<System.Drawing.Color>();
+            colors = new List<Color>();
             liveVisuals = new List<Brep>();
-            liveColors = new List<System.Drawing.Color>();
+            liveColors = new List<Color>();
             liveColors.Add(System.Drawing.Color.DarkOrange);
 
             // Initialize
@@ -1479,7 +1503,7 @@ namespace MasterthesisGHA
 
 
         }
-        protected virtual void loadPanelVisuals(ref List<Brep> visuals, ref List<System.Drawing.Color> colors, ref List<Triangle3d> innerPanels, ref List<Triangle3d> outerPanels, ref List<Triangle3d> newPanels)
+        protected virtual void loadPanelVisuals(ref List<Brep> visuals, ref List<Color> colors, ref List<Triangle3d> innerPanels, ref List<Triangle3d> outerPanels, ref List<Triangle3d> newPanels)
         {
             double arrowLength = 2e2;
             double coneHeight = 3e1;
@@ -1715,9 +1739,8 @@ namespace MasterthesisGHA
 
         }
 
-
         // Visuals
-        protected System.Drawing.Color BlendColors(System.Drawing.Color color, System.Drawing.Color backColor, double amount)
+        protected Color BlendColors(Color color, Color backColor, double amount)
         {
             byte r = (byte)(color.R * amount + backColor.R * (1 - amount));
             byte g = (byte)(color.G * amount + backColor.G * (1 - amount));
@@ -1736,10 +1759,10 @@ namespace MasterthesisGHA
         {
             return factorOfLength * structureSize / maxLoad;
         }
-        public override void GetLoadVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1, bool inwardFacingArrows = true)
+        public override void GetLoadVisuals(out List<Brep> geometry, out List<Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1, bool inwardFacingArrows = true)
         {
             geometry = new List<Brep>();
-            color = new List<System.Drawing.Color>();
+            color = new List<Color>();
 
             double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
             double loadLineRadius = getStructureSizeFactor(2e-3, size);
@@ -1830,10 +1853,10 @@ namespace MasterthesisGHA
                 color.Add(Structure.loadArrowColor);
             }
         }
-        public override void GetResultVisuals(out List<Brep> geometry, out List<System.Drawing.Color> color, int colorCode = 0, double size = -1, double maxDisplacement = -1)
+        public override void GetResultVisuals(out List<Brep> geometry, out List<Color> color, int colorCode = 0, double size = -1, double maxDisplacement = -1)
         {
             geometry = new List<Brep>();
-            color = new List<System.Drawing.Color>();
+            color = new List<Color>();
 
             double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
             double initialNodeRadius = getStructureSizeFactor(8e-3, size);
@@ -1955,7 +1978,6 @@ namespace MasterthesisGHA
 
         }
 
-
         // -- MEMBER REPLACEMENT METHODS --
         public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
@@ -2024,8 +2046,8 @@ namespace MasterthesisGHA
 
         }
 
-
     }
+
 
 
 
@@ -2205,7 +2227,7 @@ namespace MasterthesisGHA
     {
         // Attributes
         public List<StockElement> StockElementsInMaterialBank;
-        public List<System.Drawing.Color> MaterialBankColors;
+        public List<Color> MaterialBankColors;
         public List<Brep> MaterialBankVisuals;
         public static double minimumReusableLength;
         public static double cuttingLength;
@@ -2215,7 +2237,7 @@ namespace MasterthesisGHA
             : base()
         {
             StockElementsInMaterialBank = new List<StockElement>();
-            MaterialBankColors = new List<System.Drawing.Color>();
+            MaterialBankColors = new List<Color>();
             MaterialBankVisuals = new List<Brep>();
         }
         public MaterialBank(List<StockElement> stockElements)
@@ -2527,7 +2549,7 @@ namespace MasterthesisGHA
         {
             this.UpdateVisualsMaterialBank(out _, out _, out _, groupingMethod);
         }
-        public void UpdateVisualsInsertionMatrix(Matrix<double> insertionMatrix, out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode = 1)
+        public void UpdateVisualsInsertionMatrix(Matrix<double> insertionMatrix, out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode = 0)
         {
             geometry = new List<Brep>();
             color = new List<Color>();

@@ -30,14 +30,14 @@ namespace MasterthesisGHA.Components.Visuals
             outColor = new List<System.Drawing.Color>();
         }
 
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Structural Model", "Model", "Data", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Normalize Visuals", "Normalize", "Use button to normalize the visuals output", GH_ParamAccess.item, false);
             pManager.AddIntegerParameter("Color Code", "Color Code", "", GH_ParamAccess.item, 0);
         }
 
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddBrepParameter("Geometry Visuals", "Geometry", "", GH_ParamAccess.list);
             pManager.AddColourParameter("Color Visuals", "Color", "", GH_ParamAccess.list);

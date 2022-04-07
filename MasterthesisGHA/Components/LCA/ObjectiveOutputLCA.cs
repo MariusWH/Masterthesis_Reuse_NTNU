@@ -19,7 +19,7 @@ namespace MasterthesisGHA
         }
 
 
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Structure Model", "Structure", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("MaterialBank Model", "MaterialBank", "", GH_ParamAccess.item);
@@ -27,7 +27,7 @@ namespace MasterthesisGHA
         }
 
 
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddNumberParameter("Carbon Equivalents", "Carbon", "", GH_ParamAccess.item);
         }

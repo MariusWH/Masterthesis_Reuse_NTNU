@@ -16,7 +16,7 @@ namespace MasterthesisGHA
               "Master", "Member Replacement")
         {
         }
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {            
             pManager.AddTextParameter("Section", "SectionName", "SectionName", GH_ParamAccess.list, "IPE200");
             pManager.AddIntegerParameter("Amount", "Amount", "Amount", GH_ParamAccess.list, 0);
@@ -30,7 +30,7 @@ namespace MasterthesisGHA
                 GH_ParamAccess.list, "0xIPE200x1000");
             pManager.AddBooleanParameter("VisualsMethod", "Visuals", "Group Visuals by lengths (true) or cross section (false)", GH_ParamAccess.item, true);
         }
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);

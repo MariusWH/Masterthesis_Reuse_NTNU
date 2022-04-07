@@ -25,7 +25,7 @@ namespace MasterthesisGHA.Components.MethodOne
             maxLoad = -1;
             maxDisplacement = -1;
         }
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddBooleanParameter("2D/3D", "2D/3D", "2D (false) /3D (true)", GH_ParamAccess.item, false);
             pManager.AddBooleanParameter("InserMaterialBank", "InsertMB", "Insert Material Bank (true)", GH_ParamAccess.item, false);
@@ -43,7 +43,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
 
         }
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddTextParameter("Info", "Info", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "", GH_ParamAccess.item);
@@ -99,7 +99,6 @@ namespace MasterthesisGHA.Components.MethodOne
 
             TrussModel3D truss;
             MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
-            MaterialBank outMaterialBank;
 
             if (!is3D)
                 truss = new TrussModel2D(iGeometryLines, initialProfiles, iSupports);
@@ -115,33 +114,31 @@ namespace MasterthesisGHA.Components.MethodOne
             if (insertMaterialBank && insertNewElements)
             {
                 truss.InsertNewElements();
-                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank, out outMaterialBank);
+                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank, out outMaterialBank);
+                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank);
             }
             else if (insertNewElements)
             {
                 truss.InsertNewElements();
-                outMaterialBank = iMaterialBank.GetDeepCopy();
             }
             else
             {
-                outMaterialBank = iMaterialBank.GetDeepCopy();
             }
 
             
 
-            outMaterialBank.UpdateVisualsInsertionMatrix(insertionMatrix, out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
+            inputMaterialBank.UpdateVisualsInsertionMatrix(insertionMatrix, out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
             truss.Solve();
             truss.Retracking();
 
 
 
             // OUTPUTS
-            DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo());
-            DA.SetData(1, outMaterialBank);
+            DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + inputMaterialBank.GetMaterialBankInfo());
+            DA.SetData(1, inputMaterialBank);
             DA.SetDataList(2, geometry);
             DA.SetDataList(3, colors);
             DA.SetData(4, truss.GetTotalMass());

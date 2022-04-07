@@ -16,7 +16,7 @@ namespace MasterthesisGHA.Components
         {
         }
 
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddBooleanParameter("2D/3D", "2D/3D", "2D (false) /3D (true)", GH_ParamAccess.list, false);
             pManager.AddPointParameter("StartPoints", "StartPoints", "", GH_ParamAccess.list, new Point3d(0, 0, 0));
@@ -26,7 +26,7 @@ namespace MasterthesisGHA.Components
             pManager.AddNumberParameter("Widths", "Widths", "", GH_ParamAccess.list, 1000);
         }
 
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddLineParameter("Structure Lines", "GeometryLines", "GeometryLines", GH_ParamAccess.tree);
             pManager.AddPointParameter("Structure Supports", "Supports", "Supports", GH_ParamAccess.tree);

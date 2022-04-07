@@ -14,7 +14,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
               "Master", "MethodTwo")
         {
         }
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddBooleanParameter("2D/3D", "2D/3D", "2D (false) /3D (true)", GH_ParamAccess.item, false);
             pManager.AddBooleanParameter("InserMaterialBank", "Insert", "Insert Material Bank (true)", GH_ParamAccess.item, false);
@@ -30,7 +30,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
         }
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddTextParameter("Info", "Info", "Info", GH_ParamAccess.item);
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "MaterialBank", GH_ParamAccess.item);

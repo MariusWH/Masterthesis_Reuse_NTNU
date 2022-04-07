@@ -25,7 +25,7 @@ namespace MasterthesisGHA.Components.MethodOne
             maxLoad = -1;
             maxDisplacement = -1;
         }
-        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddBooleanParameter("2D/3D", "2D/3D", "2D (false) /3D (true)", GH_ParamAccess.item, false);
             pManager.AddBooleanParameter("InserMaterialBank", "InsertMB", "Insert Material Bank (true)", GH_ParamAccess.item, false);
@@ -43,7 +43,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
 
         }
-        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
             pManager.AddTextParameter("Info", "Info", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("MaterialBank", "MaterialBank", "", GH_ParamAccess.item);

@@ -95,7 +95,7 @@ namespace MasterthesisGHA
             }
             return dataTree;
         }
-        public static Matrix MathnetToOutputMatrix(Matrix<double> mathnetMatrix)
+        public static Matrix MathnetToRhinoMatrix(Matrix<double> mathnetMatrix)
         {
             Matrix outputMatrix = new Matrix(mathnetMatrix.RowCount, mathnetMatrix.ColumnCount);
             for(int row = 0; row < mathnetMatrix.RowCount; row++)
@@ -103,6 +103,18 @@ namespace MasterthesisGHA
                 for(int col = 0; col < mathnetMatrix.ColumnCount; col++)
                 {
                     outputMatrix[row, col] = mathnetMatrix[row, col];
+                }
+            }
+            return outputMatrix;
+        }
+        public static Matrix<double> RhinoToMathnetMatrix(Matrix rhinoMatrix)
+        {
+            Matrix<double> outputMatrix = Matrix<double>.Build.Dense(rhinoMatrix.RowCount, rhinoMatrix.ColumnCount);
+            for (int row = 0; row < rhinoMatrix.RowCount; row++)
+            {
+                for (int col = 0; col < rhinoMatrix.ColumnCount; col++)
+                {
+                    outputMatrix[row, col] = rhinoMatrix[row, col];
                 }
             }
             return outputMatrix;
@@ -643,7 +655,7 @@ namespace MasterthesisGHA
             return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
                     (t1, t2) => t1.Concat(new int[] { t2 }));
         }
-        public void InsertMaterialBankBruteForce(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
+        public void InsertMaterialBankByAllPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
         {
             List<int> initalList = new List<int>();
             for (int i = 0; i < ElementsInStructure.Count; i++)
@@ -687,8 +699,6 @@ namespace MasterthesisGHA
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
         }
-
-        // Pseudo Random Permutations
         public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
         {
             T[] elements = source.ToArray();
@@ -699,9 +709,8 @@ namespace MasterthesisGHA
                 elements[swapIndex] = elements[i];
             }
         }
-        public void InsertMaterialBankByRandomPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank, double distanceFabrication, double distanceBuilding, double distanceRecycling, out List<double> objectiveFunctionOutputs, out List<List<int>> shuffledLists)
+        public void InsertMaterialBankByRandomPermutations(int maxIterations, MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out List<List<int>> shuffledLists)
         {
-            int maxIterations = (int)1e1;
             double objectiveTreshold = 100000;
             double objectiveFunction = 0;
             objectiveFunctionOutputs = new List<double>();
@@ -728,8 +737,12 @@ namespace MasterthesisGHA
                 MaterialBank tempInputMaterialBank = materialBank.GetDeepCopy();
 
                 structureCopy = new TrussModel3D(this);
-                structureCopy.InsertMaterialBank(shuffledList, tempInputMaterialBank, out _);
+                structureCopy.InsertMaterialBank(shuffledList, tempInputMaterialBank, out MaterialBank tempRemainingMaterialBank);
+                
                 objectiveFunction = 1.00 * structureCopy.GetReusedMass() + 1.50 * structureCopy.GetNewMass();
+                //objectiveFunction = GlobalObjectiveFunctionLCA(structureCopy, tempRemainingMaterialBank)
+
+
                 objectiveFunctionOutputs.Add(objectiveFunction);
 
                 if ((objectiveFunction < optimum) || firstRun)
@@ -744,8 +757,6 @@ namespace MasterthesisGHA
 
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
-
-
         }
 
         // Rank Matrix
@@ -924,6 +935,9 @@ namespace MasterthesisGHA
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
         }
+
+
+        // Objective Functions For Optimization and Testing
         public double LocalObjectiveFunctionLCA(InPlaceElement member, StockElement stockElement, double axialForce, double distanceFabrication, double distanceBuilding, double distanceRecycling)
         {
             double reuseLength = member.getInPlaceElementLength();
@@ -947,22 +961,63 @@ namespace MasterthesisGHA
                 0.0011 * stockElement.getMass(reuseLength) * distanceBuilding +
                 0.00011 * stockElement.getMass(wasteLength) * distanceRecycling;
 
-            double emissionReduction = newMemberLCA - reuseMemberLCA;
-            if (emissionReduction < 0)
+            double carbonEmissionReduction = newMemberLCA - reuseMemberLCA;
+            if (carbonEmissionReduction < 0)
             {
                 return -1;
             }
             else
             {
-                return emissionReduction;
+                return carbonEmissionReduction;
             }
 
         }
-
-        // Gloabl Objective Functions For Testing
-        public double GlobalObjectiveFunctionLCA(Structure structure, MaterialBank materialBank, double axialForce, double distanceFabrication, double distanceBuilding, double distanceRecycling)
+        public double GlobalObjectiveFunctionLCA(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix)
         {
-            throw new NotImplementedException();
+            double carbonEmissionTotal = 0;
+
+            for( int stockElementIndex = 0; stockElementIndex < materialBank.StockElementsInMaterialBank.Count; stockElementIndex++ )
+            {
+                StockElement stockElement = materialBank.StockElementsInMaterialBank[stockElementIndex];
+
+                double reuseLength = 0;
+                double wasteLength = 0;
+                bool cut = false;
+
+                foreach ( double insertionLength in insertionMatrix.Row(stockElementIndex) )
+                {
+                    reuseLength += insertionLength;
+                    if (insertionLength != 0)
+                    {
+                        if (!cut) cut = true;
+                        else wasteLength += MaterialBank.cuttingLength;
+                    }
+                }
+
+                double remainingLength = materialBank.StockElementsInMaterialBank[stockElementIndex].GetStockElementLength() - reuseLength;
+                if (remainingLength < MaterialBank.minimumReusableLength)
+                    wasteLength += remainingLength;
+
+                carbonEmissionTotal +=
+                    0.287 * stockElement.getMass() +
+                    0.81 * stockElement.getMass(wasteLength) +
+                    0.110 * stockElement.getMass(reuseLength) +
+                    0.0011 * stockElement.getMass() * stockElement.DistanceFabrication +
+                    0.0011 * stockElement.getMass(reuseLength) * stockElement.DistanceBuilding +
+                    0.00011 * stockElement.getMass(wasteLength) * stockElement.DistanceRecycling;
+            }
+
+            for (int memberIndex = 0; memberIndex < structure.ElementsInStructure.Count; memberIndex++)
+            {
+                InPlaceElement member = structure.ElementsInStructure[memberIndex];
+
+                carbonEmissionTotal +=
+                    0.957 * member.getMass() +
+                    0.00011 * member.getMass() * 1 + // * distanceBuilding
+                    0.110 * member.getMass();
+            }
+
+            return carbonEmissionTotal;
         }
 
 

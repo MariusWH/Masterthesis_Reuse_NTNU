@@ -107,14 +107,13 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Solve();
             truss.Retracking();
 
-
             List<double> objectiveFunctionResults = new List<double>();
             IEnumerable<IEnumerable<int>> permutations = truss.GetPermutations(truss.ElementsInStructure.Count);
             
 
             if (insertMaterialBank)
             {
-                truss.InsertMaterialBankBruteForce(inputMaterialBank, out outMaterialBank, out objectiveFunctionResults, out permutations);
+                truss.InsertMaterialBankByAllPermutations(inputMaterialBank, out outMaterialBank, out objectiveFunctionResults, out permutations);
             }
             else if (insertNewElements)
             {

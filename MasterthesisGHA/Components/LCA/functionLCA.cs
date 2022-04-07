@@ -1,4 +1,5 @@
-﻿using System;
+﻿/*
+using System;
 using System.Collections.Generic;
 
 using Grasshopper.Kernel;
@@ -90,3 +91,4 @@ namespace MasterthesisGHA.Components
         }
     }
 }
+*/

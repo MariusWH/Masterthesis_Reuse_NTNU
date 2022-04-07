@@ -111,24 +111,19 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Retracking();
 
             IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
-            double distanceFabrication = 100;
-            double distanceBuilding = 100;
-            double distanceRecycling = 100;
 
             List<double> objectiveFunctions = new List<double>();
             List<List<int>> shuffledLists = new List<List<int>>();
 
+            int maxIterations = (int)1e3;
+
             if (insertMaterialBank && insertNewElements)
             {
-                truss.InsertMaterialBankByRandomPermutations(inputMaterialBank, out outMaterialBank,
-                    distanceFabrication, distanceBuilding, distanceRecycling, out objectiveFunctions,
-                    out shuffledLists);
+                truss.InsertMaterialBankByRandomPermutations(maxIterations,inputMaterialBank, out outMaterialBank, out objectiveFunctions,out shuffledLists);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBankByRandomPermutations(inputMaterialBank, out outMaterialBank,
-                    distanceFabrication, distanceBuilding, distanceRecycling, out objectiveFunctions,
-                    out shuffledLists);
+                truss.InsertMaterialBankByRandomPermutations(maxIterations, inputMaterialBank, out outMaterialBank, out objectiveFunctions, out shuffledLists);
             }
             else if (insertNewElements)
             {

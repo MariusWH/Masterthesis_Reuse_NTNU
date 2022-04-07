@@ -161,7 +161,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(5, truss.GetReusedMass());
             DA.SetData(6, truss.GetNewMass());
             DA.SetData(7, truss);
-            DA.SetData(8, ElementCollection.MathnetToOutputMatrix(rank));
+            DA.SetData(8, ElementCollection.MathnetToRhinoMatrix(rank));
             DA.SetDataList(9, optimumOrder);
 
         }

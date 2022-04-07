@@ -28,10 +28,8 @@ namespace MasterthesisGHA
         public static Dictionary<string, double> AreaMomentOfInertiaZZDictionary;
         public static Dictionary<string, double> PolarMomentOfInertiaDictionary;
 
-
         // Constructor        
-        protected LineElement(string profileName, double crossSectionArea, double areaMomentOfInertiaYY, 
-            double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus)
+        protected LineElement(string profileName, double crossSectionArea, double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus)
         {
             ProfileName = profileName;
             CrossSectionArea = crossSectionArea;
@@ -48,13 +46,11 @@ namespace MasterthesisGHA
 
         }
 
-
         // Get functions
         public virtual string getElementInfo()
         {
             return "Not Implemented";
         }
-
 
         // Static Constructor and Methods
         static LineElement()
@@ -117,9 +113,7 @@ namespace MasterthesisGHA
         public bool IsFromMaterialBank;
 
         // Constructor
-        public InPlaceElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, double crossSectionArea,
-            double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus, Point3d startPoint,
-            Point3d endPoint)
+        public InPlaceElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, double crossSectionArea, double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus, Point3d startPoint, Point3d endPoint)
             : base(profileName, crossSectionArea, areaMomentOfInertiaYY, areaMomentOfInertiaZZ, polarMomentOfInertia, youngsModulus)
         {
             StartPoint = startPoint;
@@ -129,8 +123,7 @@ namespace MasterthesisGHA
             UpdateNodes(ref FreeNodes, ref SupportNodes, startPoint, endPoint);
             UpdateLocalStiffnessMatrix();
         }
-        public InPlaceElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint,
-            Point3d endPoint)
+        public InPlaceElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
             : this(ref FreeNodes, ref SupportNodes, profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYYDictionary[profileName],
                   AreaMomentOfInertiaZZDictionary[profileName], PolarMomentOfInertiaDictionary[profileName], 210e3, startPoint, endPoint)
         {
@@ -241,8 +234,7 @@ namespace MasterthesisGHA
     public class InPlaceBarElement3D : InPlaceElement
     {
         // Constructor
-        public InPlaceBarElement3D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint,
-            Point3d endPoint)
+        public InPlaceBarElement3D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
             : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
         {
 
@@ -345,8 +337,7 @@ namespace MasterthesisGHA
     public class InPlaceBarElement2D : InPlaceBarElement3D
     {
         // Constructor
-        public InPlaceBarElement2D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, 
-            Point3d endPoint)
+        public InPlaceBarElement2D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
             : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
         {
 
@@ -408,8 +399,7 @@ namespace MasterthesisGHA
         public double DistanceRecycling;
 
         // Constructor
-        public StockElement(string profileName, double reusableElementLength, 
-            double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
+        public StockElement(string profileName, double reusableElementLength, double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
             : base(profileName)
         {
             ReusableElementLength = reusableElementLength;
@@ -419,8 +409,7 @@ namespace MasterthesisGHA
             DistanceBuilding = distanceBuilding;
             DistanceRecycling = distanceRecycling;
         }
-        public StockElement(string profileName, double reusableElementLength, bool isInStructure,
-            double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
+        public StockElement(string profileName, double reusableElementLength, bool isInStructure, double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
             : this(profileName, reusableElementLength, distanceFabrication, distanceBuilding, distanceRecycling)
         {
             IsInStructure = isInStructure;

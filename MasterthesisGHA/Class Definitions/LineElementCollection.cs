@@ -266,6 +266,18 @@ namespace MasterthesisGHA
                 mass += element.getMass();
             return mass;
         }
+        public double GetStiffnessMartrixRank()
+        {
+            return GlobalStiffnessMatrix.Rank();
+        }
+        public double GetStiffnessMartrixNullity()
+        {
+            return GlobalStiffnessMatrix.RowCount - GetStiffnessMartrixRank();
+        }
+        public double GetStiffnessMatrixDeterminant()
+        {
+            return GlobalStiffnessMatrix.Determinant();
+        }
         
         // Virtual Methods
         protected virtual void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
@@ -528,7 +540,10 @@ namespace MasterthesisGHA
             return max;
         }
 
+
         // -- MEMBER REPLACEMENT METHODS --
+
+        // Direct
         public virtual List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
             throw new NotImplementedException();
@@ -541,7 +556,17 @@ namespace MasterthesisGHA
         {
             throw new NotImplementedException();
         }
+
+        // Matrix
+        public virtual Matrix<double> GetVerificationMatrix(MaterialBank materialBank)
+        {
+            throw new NotImplementedException();
+        }
         protected virtual bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int stockElementIndex, int inPlaceElementIndex, ref MaterialBank materialBank, bool keepCutOff = true)
+        {
+            throw new NotImplementedException();
+        }
+        public virtual Matrix<double> GetRelativeLengthMatrix(MaterialBank materialBank)
         {
             throw new NotImplementedException();
         }
@@ -550,7 +575,6 @@ namespace MasterthesisGHA
 
         // -- REUSE METHODS --
 
-        // Linear
         public void InsertNewElements()
         {
             List<string> areaSortedElements = LineElement.GetCrossSectionAreaSortedProfilesList();
@@ -561,7 +585,6 @@ namespace MasterthesisGHA
         public void InsertMaterialBank(out Matrix<double> insertionMatrix, IEnumerable<int> insertOrder, MaterialBank materialBank)
         {
             insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
-
             List<int> insertionList = insertOrder.ToList();
 
             if (insertionList.Count > ElementsInStructure.Count)
@@ -639,36 +662,9 @@ namespace MasterthesisGHA
         public void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
             InsertMaterialBank(Enumerable.Range(0, ElementsInStructure.Count), materialBank, out remainingMaterialBank);
-        }        
-            
+        }
+
         // Brute Force Permutations
-        public IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
-        {
-            if (length == 1) 
-                return list.Select(t => new T[] { t });
-
-            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
-                    (t1, t2) => t1.Concat(new T[] { t2 }));
-        }
-        public IEnumerable<IEnumerable<int>> GetPermutations(int length)
-        {
-            IEnumerable<int> list = Enumerable.Range(0, length-1);
-            if (length == 1)
-                return list.Select(t => new int[] { t });
-
-            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
-                    (t1, t2) => t1.Concat(new int[] { t2 }));
-        }
-        public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
-        {
-            T[] elements = source.ToArray();
-            for (int i = elements.Length - 1; i >= 0; i--)
-            {
-                int swapIndex = rng.Next(i + 1);
-                yield return elements[swapIndex];
-                elements[swapIndex] = elements[i];
-            }
-        }
         public void InsertMaterialBankByAllPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
         {
             List<int> initalList = new List<int>();
@@ -712,7 +708,7 @@ namespace MasterthesisGHA
 
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
-        }      
+        }
         public void InsertMaterialBankByRandomPermutations(int maxIterations, MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out List<List<int>> shuffledLists)
         {
             double objectiveTreshold = 100000;
@@ -742,8 +738,8 @@ namespace MasterthesisGHA
 
                 structureCopy = new TrussModel3D(this);
                 structureCopy.InsertMaterialBank(shuffledList, tempInputMaterialBank, out MaterialBank tempRemainingMaterialBank);
-                
-                objectiveFunction = LCA.GlobalObjectiveFunctionLCA(structureCopy, tempRemainingMaterialBank);
+
+                objectiveFunction = ObjectiveFunctions.GlobalLCA(structureCopy, tempRemainingMaterialBank);
 
 
                 objectiveFunctionOutputs.Add(objectiveFunction);
@@ -770,56 +766,62 @@ namespace MasterthesisGHA
             insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
             Matrix<double> tempInsertionMatrix = Matrix<double>.Build.Sparse(0, 0);
 
-            for(int i = 0; i < iterations; i++)
+            for (int i = 0; i < iterations; i++)
             {
                 InsertMaterialBank(out tempInsertionMatrix, materialBank, randomOrder);
-                objectiveFunctionOutputs.Add( LCA.GlobalObjectiveFunctionLCA(this, materialBank, bestCaseLCA) );
-                if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count-1] > objectiveMax)
+                objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, bestCaseLCA));
+                if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1] > objectiveMax)
                 {
-                    objectiveMax = objectiveFunctionOutputs[objectiveFunctionOutputs.Count-1];
+                    objectiveMax = objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1];
                     tempInsertionMatrix.CopyTo(insertionMatrix);
-                }               
+                }
             }
         }
-
-
-
-
-        // Rank Matrix
-        public Matrix<double> EmissionReductionRank(MaterialBank materialBank)
+        public IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
         {
-            Matrix<double> emissionReductionRank = Matrix<double>.Build.Dense(ElementsInStructure.Count,
+            if (length == 1) 
+                return list.Select(t => new T[] { t });
+
+            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new T[] { t2 }));
+        }
+        public IEnumerable<IEnumerable<int>> GetPermutations(int length)
+        {
+            IEnumerable<int> list = Enumerable.Range(0, length-1);
+            if (length == 1)
+                return list.Select(t => new int[] { t });
+
+            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new int[] { t2 }));
+        }
+        public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
+        {
+            T[] elements = source.ToArray();
+            for (int i = elements.Length - 1; i >= 0; i--)
+            {
+                int swapIndex = rng.Next(i + 1);
+                yield return elements[swapIndex];
+                elements[swapIndex] = elements[i];
+            }
+        }
+       
+        // Objective Matrix
+        public Matrix<double> LocalLCAMatrix(MaterialBank materialBank)
+        {
+            Matrix<double> localLCA = Matrix<double>.Build.Dense(ElementsInStructure.Count,
                 materialBank.StockElementsInMaterialBank.Count);
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
                 for (int j = 0; j < materialBank.StockElementsInMaterialBank.Count; j++)
                 {
-                    emissionReductionRank[i, j] = LocalObjectiveFunctionLCA(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j],
-                        ElementAxialForce[i],
-                        materialBank.StockElementsInMaterialBank[j].DistanceFabrication,
-                        materialBank.StockElementsInMaterialBank[j].DistanceBuilding,
-                        materialBank.StockElementsInMaterialBank[j].DistanceRecycling);
+                    localLCA[i, j] =
+                        ObjectiveFunctions.LocalLCA(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j], ElementAxialForce[i], "simplified");
                 }
             }
-            return emissionReductionRank;
+            return localLCA;
         }
-        public Matrix<double> EmissionReductionRank(MaterialBank materialBank, double distanceFabrication, double distanceBuilding, double distanceRecycling)
-        {
-            Matrix<double>  emissionReductionRank = Matrix<double>.Build.Dense(ElementsInStructure.Count,
-                materialBank.StockElementsInMaterialBank.Count);
-
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                for (int j = 0; j < materialBank.StockElementsInMaterialBank.Count; j++)
-                {
-                    emissionReductionRank[i, j] = LocalObjectiveFunctionLCA(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j],
-                        ElementAxialForce[i], distanceFabrication, distanceBuilding, distanceRecycling);
-                }
-            }
-            return emissionReductionRank;
-        }
-        public IEnumerable<int> OptimumInsertOrderFromRankMatrix(Matrix<double> rankMatrix, int method = 0)
+        public IEnumerable<int> OptimumInsertOrderFromLocalLCAMatrix(Matrix<double> rankMatrix, int method = 0)
         {
             List<int> order = new List<int>(rankMatrix.RowCount);
             int rowCount = rankMatrix.RowCount;
@@ -928,122 +930,24 @@ namespace MasterthesisGHA
         }
         public void InsertMaterialBankByRankMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
         {
-            Matrix<double> rank = EmissionReductionRank(materialBank);
+            Matrix<double> rank = LocalLCAMatrix(materialBank);
 
-            optimumOrder = OptimumInsertOrderFromRankMatrix(rank).ToList();
+            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
 
             InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
-        }
-        public void InsertMaterialBankByRankMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder, double distanceFabrication, double distanceBuilding, double distanceRecycling)
-        {
-            InsertMaterialBankByRankMatrix(out _, materialBank, out remainingMaterialBank, out optimumOrder, distanceFabrication, distanceBuilding, distanceRecycling);
         }
         public void InsertMaterialBankByRankMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out IEnumerable<int> optimumOrder)
         {
             insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
 
-            Matrix<double> rank = EmissionReductionRank(materialBank);
+            Matrix<double> rank = LocalLCAMatrix(materialBank);
 
-            optimumOrder = OptimumInsertOrderFromRankMatrix(rank).ToList();
+            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
 
             InsertMaterialBank(out insertionMatrix, optimumOrder, materialBank);
         }
-        public void InsertMaterialBankByRankMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder, double distanceFabrication, double distanceBuilding, double distanceRecycling)
-        {
-            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
-
-            Matrix<double> rank = EmissionReductionRank(materialBank, distanceFabrication, distanceBuilding, distanceRecycling);
-
-            optimumOrder = OptimumInsertOrderFromRankMatrix(rank).ToList();
-
-            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
-            remainingMaterialBank.UpdateVisualsMaterialBank();
-        }
-
-
-        // Objective Functions For Optimization and Testing
-        public double LocalObjectiveFunctionLCA(InPlaceElement member, StockElement stockElement, double axialForce, double distanceFabrication, double distanceBuilding, double distanceRecycling)
-        {
-            double reuseLength = member.getInPlaceElementLength();
-            double wasteLength = stockElement.GetStockElementLength() - member.getInPlaceElementLength();
-
-            if (wasteLength < 0 || stockElement.CheckUtilization(axialForce) > 1 || stockElement.CheckAxialBuckling(axialForce, reuseLength) > 1)
-            {
-                return -1;
-            }
-
-            double newMemberLCA =
-                0.957 * member.getMass() +
-                0.00011 * member.getMass() * distanceBuilding +
-                0.110 * member.getMass();
-
-            double reuseMemberLCA =
-                0.287 * stockElement.getMass() +
-                0.81 * stockElement.getMass(wasteLength) +
-                0.110 * stockElement.getMass(reuseLength) +
-                0.0011 * stockElement.getMass() * distanceFabrication +
-                0.0011 * stockElement.getMass(reuseLength) * distanceBuilding +
-                0.00011 * stockElement.getMass(wasteLength) * distanceRecycling;
-
-            double carbonEmissionReduction = newMemberLCA - reuseMemberLCA;
-            if (carbonEmissionReduction < 0)
-            {
-                return -1;
-            }
-            else
-            {
-                return carbonEmissionReduction;
-            }
-
-        }
-        public double GlobalObjectiveFunctionLCA(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix)
-        {
-            double carbonEmissionTotal = 0;
-
-            for( int stockElementIndex = 0; stockElementIndex < materialBank.StockElementsInMaterialBank.Count; stockElementIndex++ )
-            {
-                StockElement stockElement = materialBank.StockElementsInMaterialBank[stockElementIndex];
-
-                double reuseLength = 0;
-                double wasteLength = 0;
-                bool cut = false;
-
-                foreach ( double insertionLength in insertionMatrix.Row(stockElementIndex) )
-                {
-                    reuseLength += insertionLength;
-                    if (insertionLength != 0)
-                    {
-                        if (!cut) cut = true;
-                        else wasteLength += MaterialBank.cuttingLength;
-                    }
-                }
-
-                double remainingLength = materialBank.StockElementsInMaterialBank[stockElementIndex].GetStockElementLength() - reuseLength;
-                if (remainingLength < MaterialBank.minimumReusableLength)
-                    wasteLength += remainingLength;
-
-                carbonEmissionTotal +=
-                    0.287 * stockElement.getMass() +
-                    0.81 * stockElement.getMass(wasteLength) +
-                    0.110 * stockElement.getMass(reuseLength) +
-                    0.0011 * stockElement.getMass() * stockElement.DistanceFabrication +
-                    0.0011 * stockElement.getMass(reuseLength) * stockElement.DistanceBuilding +
-                    0.00011 * stockElement.getMass(wasteLength) * stockElement.DistanceRecycling;
-            }
-
-            for (int memberIndex = 0; memberIndex < structure.ElementsInStructure.Count; memberIndex++)
-            {
-                InPlaceElement member = structure.ElementsInStructure[memberIndex];
-
-                carbonEmissionTotal +=
-                    0.957 * member.getMass() +
-                    0.00011 * member.getMass() * 1 + // * distanceBuilding
-                    0.110 * member.getMass();
-            }
-
-            return carbonEmissionTotal;
-        }
+        
 
 
     }
@@ -1978,6 +1882,7 @@ namespace MasterthesisGHA
 
         }
 
+
         // -- MEMBER REPLACEMENT METHODS --
         public override List<List<StockElement>> PossibleStockElementForEachInPlaceElement(MaterialBank materialBank)
         {
@@ -2031,22 +1936,75 @@ namespace MasterthesisGHA
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
             }
         }
+        
         protected override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int stockElementIndex, int inPlaceElementIndex, ref MaterialBank materialBank, bool keepCutOff = true)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
             {
                 throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
             }
-            else
+            else if( keepCutOff )
             {
                 insertionMatrix[stockElementIndex, inPlaceElementIndex] =
                     ElementsInStructure[inPlaceElementIndex].StartPoint.DistanceTo(ElementsInStructure[inPlaceElementIndex].EndPoint);
                 return true;
             }
+            else
+            {
+                insertionMatrix[stockElementIndex, inPlaceElementIndex] =
+                    materialBank.StockElementsInMaterialBank[stockElementIndex].GetStockElementLength();
+                return true;
+            }
 
         }
+        public override Matrix<double> GetVerificationMatrix(MaterialBank materialBank)
+        {
+            Matrix<double> verificationMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
+            
+            for (int memberIndex = 0; memberIndex < ElementsInStructure.Count; memberIndex++)
+            {
+                InPlaceElement member = ElementsInStructure[memberIndex];
+                for (int materialBankIndex = 0; materialBankIndex < materialBank.StockElementsInMaterialBank.Count; materialBankIndex++)
+                {
+                    StockElement materialBankElement = materialBank.StockElementsInMaterialBank[materialBankIndex];
+                    double memberLength = member.StartPoint.DistanceTo(member.EndPoint);
+
+                    if (materialBankElement.CheckUtilization(ElementAxialForce[memberIndex]) < 1 &&
+                        materialBankElement.CheckAxialBuckling(ElementAxialForce[memberIndex], memberLength) < 1 &&
+                        materialBankElement.GetStockElementLength() > memberLength)
+                        verificationMatrix[materialBankIndex, memberIndex] = 1;
+                }
+            }
+
+            return verificationMatrix;
+        }
+        public override Matrix<double> GetRelativeLengthMatrix(MaterialBank materialBank)
+        {
+            Matrix<double> relativeLengthMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
+
+            for (int memberIndex = 0; memberIndex < ElementsInStructure.Count; memberIndex++)
+            {
+                InPlaceElement member = ElementsInStructure[memberIndex];
+                for (int materialBankIndex = 0; materialBankIndex < materialBank.StockElementsInMaterialBank.Count; materialBankIndex++)
+                {
+                    StockElement materialBankElement = materialBank.StockElementsInMaterialBank[materialBankIndex];
+                    double memberLength = member.StartPoint.DistanceTo(member.EndPoint);
+
+                    if (materialBankElement.CheckUtilization(ElementAxialForce[memberIndex]) < 1 &&
+                        materialBankElement.CheckAxialBuckling(ElementAxialForce[memberIndex], memberLength) < 1 &&
+                        materialBankElement.GetStockElementLength() > memberLength)
+                        relativeLengthMatrix[materialBankIndex, memberIndex] = memberLength / materialBankElement.GetStockElementLength();
+                }
+            }
+
+            return relativeLengthMatrix;
+        }
+
+
 
     }
+    
+
 
 
 

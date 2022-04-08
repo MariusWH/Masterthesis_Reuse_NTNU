@@ -62,7 +62,9 @@ namespace MasterthesisGHA
             pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
             pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);           
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
-
+            pManager.AddNumberParameter("Rank", "Rank", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Nullity", "Nullity", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Determinant", "Determinant", "", GH_ParamAccess.item);
         }
 
 
@@ -113,7 +115,9 @@ namespace MasterthesisGHA
                 truss.ApplySelfWeight();
             }
 
-
+            double rank = truss.GetStiffnessMartrixRank();
+            double nullity = truss.GetStiffnessMartrixNullity();
+            double determinant = truss.GetStiffnessMatrixDeterminant();
             truss.Solve();
             truss.Retracking();
             
@@ -126,6 +130,9 @@ namespace MasterthesisGHA
             DA.SetData(3, truss.GetLoadVector());
             DA.SetDataList(4, truss.ElementAxialForce);
             DA.SetData(5, truss);
+            DA.SetData(6, rank);
+            DA.SetData(7, nullity);
+            DA.SetData(8, determinant);
 
         }
 

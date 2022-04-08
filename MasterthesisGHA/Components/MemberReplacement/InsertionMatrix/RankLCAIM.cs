@@ -118,25 +118,25 @@ namespace MasterthesisGHA.Components.MethodOne
             if (insertMaterialBank && insertNewElements)
             {
                 truss.InsertNewElements();
-                rank = truss.EmissionReductionRank(iMaterialBankCopy);
+                rank = truss.LocalLCAMatrix(iMaterialBankCopy);
                 truss.InsertMaterialBankByRankMatrix(out insertionMatrix,
                     iMaterialBankCopy, out optimumOrder);
             }
             else if (insertMaterialBank)
             {
-                rank = truss.EmissionReductionRank(iMaterialBankCopy);
+                rank = truss.LocalLCAMatrix(iMaterialBankCopy);
                 truss.InsertMaterialBankByRankMatrix(out insertionMatrix,
                     iMaterialBankCopy, out optimumOrder);
             }
             else if (insertNewElements)
             {
                 truss.InsertNewElements();
-                rank = truss.EmissionReductionRank(iMaterialBankCopy);
+                rank = truss.LocalLCAMatrix(iMaterialBankCopy);
                 outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }
             else
             {
-                rank = truss.EmissionReductionRank(iMaterialBankCopy);
+                rank = truss.LocalLCAMatrix(iMaterialBankCopy);
                 outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }
 

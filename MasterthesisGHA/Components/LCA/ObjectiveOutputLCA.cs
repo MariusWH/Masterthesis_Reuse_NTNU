@@ -47,7 +47,7 @@ namespace MasterthesisGHA
 
 
             // Code
-            double carbon = LCA.GlobalObjectiveFunctionLCA(structure, materialBank, ElementCollection.RhinoToMathnetMatrix(insertionMatrix));
+            double carbon = ObjectiveFunctions.GlobalLCA(structure, materialBank, ElementCollection.RhinoToMathnetMatrix(insertionMatrix));
 
             // Output
             DA.SetData(0, carbon);

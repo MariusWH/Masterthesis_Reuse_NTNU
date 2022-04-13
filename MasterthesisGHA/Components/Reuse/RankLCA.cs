@@ -8,7 +8,7 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA.Components.MethodOne
 {
-    public class RankLCAIM : GH_Component
+    public class RankLCA : GH_Component
     {
         // Stored Variables
         public bool firstRun;
@@ -16,9 +16,9 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxLoad;
         public double maxDisplacement;
 
-        public RankLCAIM()
-          : base("Rank LCA Reuse Method by IM", "RankLCA IM",
-              "A linear best-fit method for inserting a defined material bank into a pre-defined structure geometry",
+        public RankLCA()
+          : base("Rank LCA Reuse Method", "RankLCA",
+              "A linear best-fit method for inserting a defined material bank into a pre-defined structur geometry",
               "Master", "Reuse")
         {
             firstRun = true;
@@ -110,47 +110,53 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Retracking();
 
 
-            Matrix<double> rank = Matrix<double>.Build.SparseIdentity(0, 0);
             IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
-            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
-            
+
+
+            Matrix<double> rank = Matrix<double>.Build.SparseIdentity(0, 0);
 
             if (insertMaterialBank && insertNewElements)
             {
                 truss.InsertNewElements();
+                
                 rank = truss.LocalLCAMatrix(iMaterialBankCopy);
-                truss.InsertMaterialBankByRankMatrix(out insertionMatrix,
-                    iMaterialBankCopy, out optimumOrder);
+                
+                truss.InsertMaterialBankByObjectiveMatrix(
+                    iMaterialBankCopy, out outMaterialBank, out optimumOrder);
             }
             else if (insertMaterialBank)
             {
                 rank = truss.LocalLCAMatrix(iMaterialBankCopy);
-                truss.InsertMaterialBankByRankMatrix(out insertionMatrix,
-                    iMaterialBankCopy, out optimumOrder);
+
+                truss.InsertMaterialBankByObjectiveMatrix(
+                    iMaterialBankCopy, out outMaterialBank, out optimumOrder);
             }
             else if (insertNewElements)
             {
                 truss.InsertNewElements();
+
                 rank = truss.LocalLCAMatrix(iMaterialBankCopy);
+
                 outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }
             else
             {
                 rank = truss.LocalLCAMatrix(iMaterialBankCopy);
+
                 outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }
 
-            iMaterialBankCopy.UpdateVisualsInsertionMatrix(insertionMatrix, out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
+            outMaterialBank.UpdateVisualsMaterialBank();
             truss.Solve();
             truss.Retracking();
 
 
 
             // OUTPUTS
-            DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + iMaterialBankCopy.GetMaterialBankInfo());
-            DA.SetData(1, iMaterialBankCopy);
-            DA.SetDataList(2, geometry);
-            DA.SetDataList(3, colors);
+            DA.SetData("Info", truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo());
+            DA.SetData(1, outMaterialBank);
+            DA.SetDataList(2, outMaterialBank.MaterialBankVisuals);
+            DA.SetDataList(3, outMaterialBank.MaterialBankColors);
             DA.SetData(4, truss.GetTotalMass());
             DA.SetData(5, truss.GetReusedMass());
             DA.SetData(6, truss.GetNewMass());
@@ -159,6 +165,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetDataList(9, optimumOrder);
 
         }
+
         protected override System.Drawing.Bitmap Icon
         {
             get
@@ -168,13 +175,9 @@ namespace MasterthesisGHA.Components.MethodOne
                 return null;
             }
         }
-
-        /// <summary>
-        /// Gets the unique ID for this component. Do not change this ID after release.
-        /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("C99BBC48-4C59-48A0-90BE-5A316A1EDD14"); }
+            get { return new Guid("FB7D4607-FE5D-4E08-B8D4-BB5200925C8E"); }
         }
     }
 }

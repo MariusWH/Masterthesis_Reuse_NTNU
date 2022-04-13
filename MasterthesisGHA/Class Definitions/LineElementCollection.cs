@@ -760,7 +760,6 @@ namespace MasterthesisGHA
         public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out List<double> objectiveFunctionOutputs)
         {
             bool randomOrder = true;
-            bool bestCaseLCA = false;
             double objectiveMax = 0;
             objectiveFunctionOutputs = new List<double>();
             insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
@@ -769,7 +768,8 @@ namespace MasterthesisGHA
             for (int i = 0; i < iterations; i++)
             {
                 InsertMaterialBank(out tempInsertionMatrix, materialBank, randomOrder);
-                objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, bestCaseLCA));
+                objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, insertionMatrix));
+                
                 if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1] > objectiveMax)
                 {
                     objectiveMax = objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1];
@@ -804,8 +804,27 @@ namespace MasterthesisGHA
                 elements[swapIndex] = elements[i];
             }
         }
-       
+
         // Objective Matrix
+        public void InsertMaterialBankByObjectiveMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
+        {
+            Matrix<double> rank = LocalLCAMatrix(materialBank);
+
+            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
+
+            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
+            remainingMaterialBank.UpdateVisualsMaterialBank();
+        }
+        public void InsertMaterialBankByObjectiveMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out IEnumerable<int> optimumOrder)
+        {
+            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
+
+            Matrix<double> rank = LocalLCAMatrix(materialBank);
+
+            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
+
+            InsertMaterialBank(out insertionMatrix, optimumOrder, materialBank);
+        }
         public Matrix<double> LocalLCAMatrix(MaterialBank materialBank)
         {
             Matrix<double> localLCA = Matrix<double>.Build.Dense(ElementsInStructure.Count,
@@ -928,25 +947,7 @@ namespace MasterthesisGHA
 
             return order;
         }
-        public void InsertMaterialBankByRankMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
-        {
-            Matrix<double> rank = LocalLCAMatrix(materialBank);
-
-            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
-
-            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
-            remainingMaterialBank.UpdateVisualsMaterialBank();
-        }
-        public void InsertMaterialBankByRankMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out IEnumerable<int> optimumOrder)
-        {
-            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
-
-            Matrix<double> rank = LocalLCAMatrix(materialBank);
-
-            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
-
-            InsertMaterialBank(out insertionMatrix, optimumOrder, materialBank);
-        }
+        
         
 
 

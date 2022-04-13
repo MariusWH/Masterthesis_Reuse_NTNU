@@ -61,13 +61,6 @@ namespace MasterthesisGHA.Components
                 
 
 
-            
-
-
-
-
-
-
 
             // OUTPUT
             DA.SetDataList(0, profiles);

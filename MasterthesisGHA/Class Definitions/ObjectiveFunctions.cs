@@ -20,19 +20,48 @@ namespace MasterthesisGHA
             List<double> constantsAdvancedLCA = new List<double>() { 0.287, 0.00081, 0.110, 0.0011, 0.0011, 0.00011, 0.957, 0.00011, 0.110 };
             List<double> constantsSimplifiedLCA = new List<double>() { 0.21, 0.00081, 0, 0, 0, 0, 1.75, 0, 0 };
         }
-        
 
 
-        // Methods
-        public static double GlobalLCA(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix, string method = "simplified")
+
+        public enum reuseRateMethod { byCount, byMass };
+        public enum lcaMethod { simplified, advanced };
+
+
+
+        // Global Objectives (Structure)
+        public static double ReuseRate(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix, reuseRateMethod method = reuseRateMethod.byCount)
+        {
+            switch (method)
+            {
+                case reuseRateMethod.byCount:
+                    int inserts = 0;
+                    for (int i = 0; i < insertionMatrix.ColumnCount; i++)
+                        if (insertionMatrix.Column(i).AbsoluteMaximum() > 0) inserts++;
+                    return inserts / insertionMatrix.ColumnCount;
+
+                case reuseRateMethod.byMass:
+                    double reuseMass = 0;
+                    double newMass = 0;
+                    for (int i = 0; i < insertionMatrix.ColumnCount; i++)
+                    {
+                        double insertedLength = insertionMatrix.Column(i).AbsoluteMaximum();
+                        if (insertedLength > 0) reuseMass += structure.ElementsInStructure[i].getMass();
+                        else newMass += structure.ElementsInStructure[i].getMass();
+                    }                    
+                    return reuseMass / (reuseMass + newMass);
+
+            }
+            return 0;
+        }
+        public static double GlobalLCA(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix, lcaMethod method = lcaMethod.simplified)
         {
             List<double> constants = new List<double>();
             switch (method)
             {
-                case "simplified":
+                case lcaMethod.simplified:
                     constants = constantsSimplifiedLCA;
                     break;
-                case "advanced":
+                case lcaMethod.advanced:
                     constants = constantsAdvancedLCA;
                     break;
             }
@@ -81,20 +110,36 @@ namespace MasterthesisGHA
             }
 
             return carbonEmissionTotal;
-        }     
-        public static double GlobalLCA(Structure structure, MaterialBank materialBank)
+        }
+        public static double simpleTestFunction(Structure structure, MaterialBank materialBank)
         {
             return 1.00 * structure.GetReusedMass() + 1.50 * structure.GetNewMass();
         }
-        public static double LocalLCA(InPlaceElement member, StockElement stockElement, double axialForce, string method = "simplified")
+
+
+        // Local Objectives (Member)
+        public static double StructuralIntegrity(InPlaceElement member, StockElement stockElement, double axialForce, double momentY, double momentZ, double momentX)
+        {
+            double axialUtilization = member.getAxialBucklingUtilization(axialForce); // + getBendingMomentUtilization(double momentY, double momemntZ)
+            // -> shearUtilizatiuon
+            // -> combinedUtilization
+
+            double bucklingUtilization = member.getAxialBucklingUtilization(axialForce);
+
+            if (axialUtilization > 1) return 0;
+            else if (bucklingUtilization > 1) return 0;
+            else return 1;
+        }
+
+        public static double LocalLCA(InPlaceElement member, StockElement stockElement, double axialForce, lcaMethod method = lcaMethod.simplified)
         {
             List<double> constants = new List<double>();
             switch (method)
             {
-                case "simplified":
+                case lcaMethod.simplified:
                     constants = constantsSimplifiedLCA;
                     break;
-                case "advanced":
+                case lcaMethod.advanced:
                     constants = constantsAdvancedLCA;
                     break;
             }
@@ -134,7 +179,7 @@ namespace MasterthesisGHA
         }
 
 
-
+        
 
 
     }

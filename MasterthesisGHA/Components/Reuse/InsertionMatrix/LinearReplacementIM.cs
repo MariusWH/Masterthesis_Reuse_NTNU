@@ -114,11 +114,11 @@ namespace MasterthesisGHA.Components.MethodOne
             if (insertMaterialBank && insertNewElements)
             {
                 truss.InsertNewElements();
-                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank);
+                truss.InsertMaterialBank(inputMaterialBank, out insertionMatrix);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBank(out insertionMatrix, inputMaterialBank);
+                truss.InsertMaterialBank(inputMaterialBank, out insertionMatrix);
             }
             else if (insertNewElements)
             {

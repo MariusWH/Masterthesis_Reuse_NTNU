@@ -184,21 +184,33 @@ namespace MasterthesisGHA
         {
             return LocalStiffnessMatrix;
         }
-        public virtual double CheckUtilization(double axialLoad)
+        public virtual double getAxialUtilization(double axialLoad)
         {
             return Math.Abs( axialLoad / (CrossSectionArea * YieldStress) );
         }
-        public virtual double CheckAxialBuckling(double axialLoad)
+        public virtual double getAxialBucklingUtilization(double axialLoad)
         {
             double minAreaMomentOfInertia = Math.Min(AreaMomentOfInertiaYY, AreaMomentOfInertiaZZ);
             double effectiveLoadFactor = 1.0;
             double eulerCriticalLoad = (Math.PI * Math.PI * YoungsModulus * minAreaMomentOfInertia)
-                / (effectiveLoadFactor * StartPoint.DistanceTo(EndPoint));
+                / (effectiveLoadFactor * StartPoint.DistanceTo(EndPoint) * StartPoint.DistanceTo(EndPoint));
             
             if (axialLoad > 0)
                 return 0;
             else
                 return -axialLoad / eulerCriticalLoad;
+        }
+        public virtual double getBendingMomentUtilization(double momentY, double momemntZ)
+        {
+            throw new NotImplementedException();
+        }
+        public virtual double getShearForceUtilization(double shearForceY, double shearForceZ)
+        {
+            throw new NotImplementedException();
+        }
+        public virtual double getTorsionalMomentUtilization(double momentX)
+        {
+            throw new NotImplementedException();
         }
         public virtual double getMass()
         {

@@ -574,7 +574,161 @@ namespace MasterthesisGHA
 
 
         // -- REUSE METHODS --
+        
+        // Maximum Reuse Rate
+        public void InsertWithMaxReuseRate(MaterialBank materialBank, out Matrix<double> insertionMatrix )
+        {
+            Matrix<double> verificationMatrix = getReusableMatrix(materialBank);
+            IEnumerable<int> insertionOrder = OptimumInsertOrderFromReuseRate(verificationMatrix);
+            InsertMaterialBank(materialBank, insertionOrder, out insertionMatrix);
+        }
 
+        // Objective Matrix
+        public void InsertMaterialBankByObjectiveMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
+        {
+            Matrix<double> rank = getLocalLCAMatrix(materialBank);
+
+            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
+
+            InsertMaterialBank(materialBank, optimumOrder, out remainingMaterialBank);
+            remainingMaterialBank.UpdateVisualsMaterialBank();
+        }
+        public void InsertMaterialBankByObjectiveMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out IEnumerable<int> optimumOrder)
+        {
+            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
+
+            Matrix<double> rank = getLocalLCAMatrix(materialBank);
+
+            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
+
+            InsertMaterialBank(materialBank, optimumOrder, out insertionMatrix);
+        }
+
+
+        // Brute Force Permutations
+        public void InsertMaterialBankByAllPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
+        {
+            List<int> initalList = new List<int>();
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                initalList.Add(i);
+            }
+            allOrderedLists = GetPermutations(initalList, initalList.Count);
+            int factorial = Enumerable.Range(1, initalList.Count).Aggregate(1, (p, item) => p * item);
+            if (factorial > 1e3 || factorial == 0)
+                throw new Exception("Structure is top big to perform brute force calculation");
+
+            InsertNewElements();
+            TrussModel3D structureCopy = new TrussModel3D();
+
+            objectiveFunctionOutputs = new List<double>();
+            double objectiveFunction = 0;
+            double optimum = 0;
+
+            IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
+
+            bool firstRun = true;
+            foreach (IEnumerable<int> list in allOrderedLists)
+            {
+                MaterialBank tempInputMaterialBank = materialBank.GetDeepCopy();
+                MaterialBank tempOutputMaterialBank = materialBank.GetDeepCopy();
+
+                structureCopy = new TrussModel3D(this);
+                structureCopy.InsertMaterialBank(tempInputMaterialBank, list, out tempOutputMaterialBank);
+                objectiveFunction = 1.00 * structureCopy.GetReusedMass() + 1.50 * structureCopy.GetNewMass();
+
+                if ((objectiveFunction < optimum) || firstRun)
+                {
+                    optimum = objectiveFunction;
+                    firstRun = false;
+                    optimumOrder = list.ToList();
+                }
+
+                objectiveFunctionOutputs.Add(objectiveFunction);
+            }
+
+            InsertMaterialBank(materialBank, optimumOrder, out remainingMaterialBank);
+            remainingMaterialBank.UpdateVisualsMaterialBank();
+        }
+        public void InsertMaterialBankByRandomPermutations(int maxIterations, MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out List<List<int>> shuffledLists)
+        {
+            double objectiveTreshold = 100000;
+            double objectiveFunction = 0;
+            objectiveFunctionOutputs = new List<double>();
+
+            List<int> initalList = Enumerable.Range(0, ElementsInStructure.Count).ToList();
+            InsertNewElements();
+
+            TrussModel3D structureCopy;
+            Random random = new Random();
+            List<int> shuffledList;
+            shuffledLists = new List<List<int>>();
+            List<int> optimumOrder = new List<int>();
+
+
+            double optimum = 0;
+            int iterationsCounter = 0;
+            bool firstRun = true;
+
+            while (objectiveFunction < objectiveTreshold && iterationsCounter < maxIterations)
+            {
+                shuffledList = Shuffle(initalList, random).ToList();
+                shuffledLists.Add(shuffledList.ToList());
+
+                MaterialBank tempInputMaterialBank = materialBank.GetDeepCopy();
+
+                structureCopy = new TrussModel3D(this);
+                structureCopy.InsertMaterialBank(tempInputMaterialBank, shuffledList, out MaterialBank tempRemainingMaterialBank);
+
+                objectiveFunction = ObjectiveFunctions.simpleTestFunction(structureCopy, tempRemainingMaterialBank);
+
+
+                objectiveFunctionOutputs.Add(objectiveFunction);
+
+                if ((objectiveFunction < optimum) || firstRun)
+                {
+                    optimum = objectiveFunction;
+                    firstRun = false;
+                    optimumOrder = shuffledList.ToList();
+                }
+
+                iterationsCounter++;
+            }
+
+            InsertMaterialBank(materialBank, optimumOrder, out remainingMaterialBank);
+            remainingMaterialBank.UpdateVisualsMaterialBank();
+        }
+        public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out List<double> objectiveFunctionOutputs)
+        {
+            bool randomOrder = true;
+            double objectiveMax = 0;
+            objectiveFunctionOutputs = new List<double>();
+            insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
+            Matrix<double> tempInsertionMatrix = Matrix<double>.Build.Sparse(0, 0);
+
+            for (int i = 0; i < iterations; i++)
+            {
+                InsertMaterialBank(materialBank, out tempInsertionMatrix, randomOrder);
+                objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, insertionMatrix));
+
+                if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1] > objectiveMax)
+                {
+                    objectiveMax = objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1];
+                    tempInsertionMatrix.CopyTo(insertionMatrix);
+                }
+            }
+        }
+
+
+
+        // Branch & Bound
+
+
+
+
+
+
+        // Protected Methods
         public void InsertNewElements()
         {
             List<string> areaSortedElements = LineElement.GetCrossSectionAreaSortedProfilesList();
@@ -582,7 +736,36 @@ namespace MasterthesisGHA
             for (int i = 0; i < ElementsInStructure.Count; i++)
                 InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
         }
-        public void InsertMaterialBank(out Matrix<double> insertionMatrix, IEnumerable<int> insertOrder, MaterialBank materialBank)
+        public void InsertMaterialBank(MaterialBank materialBank, IEnumerable<int> insertOrder, out Matrix<double> insertionMatrix, out MaterialBank remainingMaterialBank, int method)
+        {
+            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
+            remainingMaterialBank = materialBank.GetDeepCopy();
+
+            // Methods
+            // 0 - No priority sorting (initial member construction order)
+            // 1 - Member-local carbon emission reduction priority based on LCA
+            // 2 - Member-local cost savings priority based on Reuse Financial Analysis
+            // 3 - Brute Force Permutations (all or uniformly disitributed pseudo random permutations)
+            // 4 - 
+            // 5 - 
+
+            method = method % 4;
+
+            switch (method)
+            {
+                case 0:
+                    break;
+                case 1:
+                    break;
+                case 2:
+                    break;
+                case 3:
+                    break;
+            }
+
+
+        }
+        public void InsertMaterialBank(MaterialBank materialBank, IEnumerable<int> insertOrder, out Matrix<double> insertionMatrix)
         {
             insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
             List<int> insertionList = insertOrder.ToList();
@@ -602,12 +785,12 @@ namespace MasterthesisGHA
                 {
                     int stockElementIndex = sortedIndexing[indexingFromLast];
                     int numberOfCuts = insertionMatrix.Row(stockElementIndex).Aggregate(0, (total, next) => next != 0 ? total + 1 : total);
-                    if(numberOfCuts != 0) numberOfCuts--;
+                    if (numberOfCuts != 0) numberOfCuts--;
 
                     double usedLength = insertionMatrix.Row(stockElementIndex).Sum() + MaterialBank.cuttingLength * numberOfCuts;
-                    
+
                     if (usedLength + ElementsInStructure[memberIndex].getInPlaceElementLength() > materialBank.StockElementsInMaterialBank[stockElementIndex].GetStockElementLength()
-                        || materialBank.StockElementsInMaterialBank[stockElementIndex].CheckUtilization(ElementAxialForce[memberIndex]) > 1.0 )
+                        || materialBank.StockElementsInMaterialBank[stockElementIndex].CheckUtilization(ElementAxialForce[memberIndex]) > 1.0)
                         continue;
 
                     if (stockElementIndex != -1)
@@ -618,18 +801,18 @@ namespace MasterthesisGHA
                 }
             }
         }
-        public void InsertMaterialBank(out Matrix<double> insertionMatrix, MaterialBank materialBank, bool randomOrder = false)
+        public void InsertMaterialBank(MaterialBank materialBank, out Matrix<double> insertionMatrix, bool randomOrder = false)
         {
             if (randomOrder)
             {
                 Random random = new Random();
                 List<int> initalList = Enumerable.Range(0, ElementsInStructure.Count).ToList();
                 List<int> shuffledList = Shuffle(initalList, random).ToList();
-                InsertMaterialBank(out insertionMatrix, shuffledList, materialBank);
+                InsertMaterialBank(materialBank, shuffledList, out insertionMatrix);
             }
-            else InsertMaterialBank(out insertionMatrix, Enumerable.Range(0, ElementsInStructure.Count), materialBank);
+            else InsertMaterialBank(materialBank, Enumerable.Range(0, ElementsInStructure.Count), out insertionMatrix);
         }
-        public void InsertMaterialBank(IEnumerable<int> insertOrder, MaterialBank materialBank, out MaterialBank remainingMaterialBank)
+        public void InsertMaterialBank(MaterialBank materialBank, IEnumerable<int> insertOrder, out MaterialBank remainingMaterialBank)
         {
             List<int> list = new List<int>();
             insertOrder.ToList().ForEach(x => list.Add(x));
@@ -661,171 +844,33 @@ namespace MasterthesisGHA
         }
         public void InsertMaterialBank(MaterialBank materialBank, out MaterialBank remainingMaterialBank)
         {
-            InsertMaterialBank(Enumerable.Range(0, ElementsInStructure.Count), materialBank, out remainingMaterialBank);
+            InsertMaterialBank(materialBank, Enumerable.Range(0, ElementsInStructure.Count), out remainingMaterialBank);
         }
 
-        // Brute Force Permutations
-        public void InsertMaterialBankByAllPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
+        public Matrix<double> getReusableMatrix(MaterialBank materialBank)
         {
-            List<int> initalList = new List<int>();
+            Matrix<double> localVerification = Matrix<double>.Build.Dense(ElementsInStructure.Count,
+                materialBank.StockElementsInMaterialBank.Count);
+
             for (int i = 0; i < ElementsInStructure.Count; i++)
             {
-                initalList.Add(i);
-            }
-            allOrderedLists = GetPermutations(initalList, initalList.Count);
-            int factorial = Enumerable.Range(1, initalList.Count).Aggregate(1, (p, item) => p * item);
-            if (factorial > 1e3 || factorial == 0)
-                throw new Exception("Structure is top big to perform brute force calculation");
-
-            InsertNewElements();
-            TrussModel3D structureCopy = new TrussModel3D();
-
-            objectiveFunctionOutputs = new List<double>();
-            double objectiveFunction = 0;
-            double optimum = 0;
-
-            IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
-
-            bool firstRun = true;
-            foreach (IEnumerable<int> list in allOrderedLists)
-            {
-                MaterialBank tempInputMaterialBank = materialBank.GetDeepCopy();
-                MaterialBank tempOutputMaterialBank = materialBank.GetDeepCopy();
-
-                structureCopy = new TrussModel3D(this);
-                structureCopy.InsertMaterialBank(list, tempInputMaterialBank, out tempOutputMaterialBank);
-                objectiveFunction = 1.00 * structureCopy.GetReusedMass() + 1.50 * structureCopy.GetNewMass();
-
-                if ((objectiveFunction < optimum) || firstRun)
+                for (int j = 0; j < materialBank.StockElementsInMaterialBank.Count; j++)
                 {
-                    optimum = objectiveFunction;
-                    firstRun = false;
-                    optimumOrder = list.ToList();
-                }
+                    InPlaceElement member = ElementsInStructure[i];
+                    StockElement reuseElement = materialBank.StockElementsInMaterialBank[j];
 
-                objectiveFunctionOutputs.Add(objectiveFunction);
-            }
+                    double axialForce = ElementAxialForce[i];
+                    double momentX = 0;
+                    double momentY = 0;
+                    double momentZ = 0;
 
-            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
-            remainingMaterialBank.UpdateVisualsMaterialBank();
-        }
-        public void InsertMaterialBankByRandomPermutations(int maxIterations, MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out List<List<int>> shuffledLists)
-        {
-            double objectiveTreshold = 100000;
-            double objectiveFunction = 0;
-            objectiveFunctionOutputs = new List<double>();
-
-            List<int> initalList = Enumerable.Range(0, ElementsInStructure.Count).ToList();
-            InsertNewElements();
-
-            TrussModel3D structureCopy;
-            Random random = new Random();
-            List<int> shuffledList;
-            shuffledLists = new List<List<int>>();
-            List<int> optimumOrder = new List<int>();
-
-
-            double optimum = 0;
-            int iterationsCounter = 0;
-            bool firstRun = true;
-
-            while (objectiveFunction < objectiveTreshold && iterationsCounter < maxIterations)
-            {
-                shuffledList = Shuffle(initalList, random).ToList();
-                shuffledLists.Add(shuffledList.ToList());
-
-                MaterialBank tempInputMaterialBank = materialBank.GetDeepCopy();
-
-                structureCopy = new TrussModel3D(this);
-                structureCopy.InsertMaterialBank(shuffledList, tempInputMaterialBank, out MaterialBank tempRemainingMaterialBank);
-
-                objectiveFunction = ObjectiveFunctions.GlobalLCA(structureCopy, tempRemainingMaterialBank);
-
-
-                objectiveFunctionOutputs.Add(objectiveFunction);
-
-                if ((objectiveFunction < optimum) || firstRun)
-                {
-                    optimum = objectiveFunction;
-                    firstRun = false;
-                    optimumOrder = shuffledList.ToList();
-                }
-
-                iterationsCounter++;
-            }
-
-            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
-            remainingMaterialBank.UpdateVisualsMaterialBank();
-        }
-        public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out List<double> objectiveFunctionOutputs)
-        {
-            bool randomOrder = true;
-            double objectiveMax = 0;
-            objectiveFunctionOutputs = new List<double>();
-            insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
-            Matrix<double> tempInsertionMatrix = Matrix<double>.Build.Sparse(0, 0);
-
-            for (int i = 0; i < iterations; i++)
-            {
-                InsertMaterialBank(out tempInsertionMatrix, materialBank, randomOrder);
-                objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, insertionMatrix));
-                
-                if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1] > objectiveMax)
-                {
-                    objectiveMax = objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1];
-                    tempInsertionMatrix.CopyTo(insertionMatrix);
+                    localVerification[i, j] =
+                        ObjectiveFunctions.StructuralIntegrity(member, reuseElement, axialForce, momentY, momentZ, momentX);
                 }
             }
+            return localVerification;
         }
-        public IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
-        {
-            if (length == 1) 
-                return list.Select(t => new T[] { t });
-
-            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
-                    (t1, t2) => t1.Concat(new T[] { t2 }));
-        }
-        public IEnumerable<IEnumerable<int>> GetPermutations(int length)
-        {
-            IEnumerable<int> list = Enumerable.Range(0, length-1);
-            if (length == 1)
-                return list.Select(t => new int[] { t });
-
-            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
-                    (t1, t2) => t1.Concat(new int[] { t2 }));
-        }
-        public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
-        {
-            T[] elements = source.ToArray();
-            for (int i = elements.Length - 1; i >= 0; i--)
-            {
-                int swapIndex = rng.Next(i + 1);
-                yield return elements[swapIndex];
-                elements[swapIndex] = elements[i];
-            }
-        }
-
-        // Objective Matrix
-        public void InsertMaterialBankByObjectiveMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
-        {
-            Matrix<double> rank = LocalLCAMatrix(materialBank);
-
-            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
-
-            InsertMaterialBank(optimumOrder, materialBank, out remainingMaterialBank);
-            remainingMaterialBank.UpdateVisualsMaterialBank();
-        }
-        public void InsertMaterialBankByObjectiveMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out IEnumerable<int> optimumOrder)
-        {
-            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
-
-            Matrix<double> rank = LocalLCAMatrix(materialBank);
-
-            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
-
-            InsertMaterialBank(out insertionMatrix, optimumOrder, materialBank);
-        }
-        public Matrix<double> LocalLCAMatrix(MaterialBank materialBank)
+        public Matrix<double> getLocalLCAMatrix(MaterialBank materialBank)
         {
             Matrix<double> localLCA = Matrix<double>.Build.Dense(ElementsInStructure.Count,
                 materialBank.StockElementsInMaterialBank.Count);
@@ -835,12 +880,25 @@ namespace MasterthesisGHA
                 for (int j = 0; j < materialBank.StockElementsInMaterialBank.Count; j++)
                 {
                     localLCA[i, j] =
-                        ObjectiveFunctions.LocalLCA(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j], ElementAxialForce[i], "simplified");
+                        ObjectiveFunctions.LocalLCA(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j], ElementAxialForce[i], ObjectiveFunctions.lcaMethod.simplified);
                 }
             }
             return localLCA;
         }
-        public IEnumerable<int> OptimumInsertOrderFromLocalLCAMatrix(Matrix<double> rankMatrix, int method = 0)
+        public IEnumerable<int> OptimumInsertOrderFromReuseRate(Matrix<double> reusableMatrix)
+        {
+            List<int> order = new List<int>(reusableMatrix.RowCount);
+
+            List<Tuple<int, Vector<double>>> indexedColumns = new List<Tuple<int, Vector<double>>>();
+            for (int col = 0; col < reusableMatrix.ColumnCount; col++)
+                indexedColumns.Add(new Tuple<int, Vector<double>>(col, reusableMatrix.Column(col)));
+
+            indexedColumns.OrderBy(o => o.Item2.Sum());
+            indexedColumns.ForEach(o => order.Add(o.Item1));
+
+            return order;
+        }
+        protected IEnumerable<int> OptimumInsertOrderFromLocalLCAMatrix(Matrix<double> rankMatrix, int method = 0)
         {
             List<int> order = new List<int>(rankMatrix.RowCount);
             int rowCount = rankMatrix.RowCount;
@@ -851,14 +909,10 @@ namespace MasterthesisGHA
                     indexedRankMatrix.Add(new Tuple<int, int, double>(row, col, rankMatrix[row, col]));
 
             switch (method)
-            {                
+            {
                 case 0:
-                    {   
-                        // Initial list sorting
-                        // List<(int, int, double)> orderByGlobalMax = rankMatrix.EnumerateIndexed().OrderBy(x => -x.Item3).ToList();
+                    {
                         List<Tuple<int, int, double>> orderByGlobalMax = indexedRankMatrix.OrderBy(x => -x.Item3).ToList();
-
-
                         int tempRow;
 
                         while (rowCount-- != 0)
@@ -866,16 +920,15 @@ namespace MasterthesisGHA
                             if (orderByGlobalMax.First().Item3 == -1)
                             {
                                 break;
-                            }                              
+                            }
                             tempRow = orderByGlobalMax.First().Item1;
                             order.Add(orderByGlobalMax[0].Item1); // Get row index from global maximum
                             orderByGlobalMax.RemoveAll(x => x.Item1 == tempRow); // Remove all values from that row
-                            
+
                         }
                         break;
                     }
-                
-                    
+
                 case 1:
                     {
                         double max;
@@ -894,62 +947,38 @@ namespace MasterthesisGHA
                         }
                         break;
                     }
-
-                    /*
-                     case 0:
-                    {
-                        System.ValueTuple<int, int, double> rankMatrixTuple = new System.ValueTuple<int, int, double>(1, 2, 1.0);
-                        rankMatrixTuple.ToTuple();
-
-                        // Initial list sorting
-                        List<(int, int, double)> orderByGlobalMaxValueTuple = rankMatrix.EnumerateIndexed().OrderBy(x => -x.Item3).ToList();
-                        List<Tuple<int, int, double>> orderByGlobalMax = new List<Tuple<int, int, double>>();
-                        orderByGlobalMaxValueTuple.ForEach(x => orderByGlobalMax.Add( x.ToTuple() ));
-                        
-                        int tempRow;
-
-                        while (rowCount-- != 0)
-                        {
-                            if (orderByGlobalMax.First().Item3 == -1)
-                            {
-                                break;
-                            }                              
-                            tempRow = orderByGlobalMax.First().Item1;
-                            order.Add(orderByGlobalMax[0].Item1); // Get row index from global maximum
-                            orderByGlobalMax.RemoveAll(x => x.Item1 == tempRow); // Remove all values from that row
-                            
-                        }
-                        break;
-                    }
-                
-                    
-                case 1:
-                    {
-                        double max;
-                        IList<(int, int, double)> allMax;
-
-                        while (rowCount-- != 0)
-                        {
-                            max = rankMatrix.Enumerate().Where(x => x >= 0).Max();
-                            if (max == -1)
-                            {
-                                break;
-                            }
-                            allMax = rankMatrix.EnumerateIndexed().Where(x => x.Item3 == max).ToList();
-                            order.Add(allMax[0].Item1);
-                            rankMatrix.ClearRow(allMax[0].Item1);
-                        }
-                        break;
-                    }
-                     */
-
             }
 
             return order;
         }
-        
-        
 
+        public IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> list, int length)
+        {
+            if (length == 1)
+                return list.Select(t => new T[] { t });
+
+            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new T[] { t2 }));
+        }
+        public IEnumerable<IEnumerable<int>> GetPermutations(int length)
+        {
+            IEnumerable<int> list = Enumerable.Range(0, length - 1);
+            if (length == 1)
+                return list.Select(t => new int[] { t });
+
+            return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)),
+                    (t1, t2) => t1.Concat(new int[] { t2 }));
+        }
+        public IEnumerable<T> Shuffle<T>(IEnumerable<T> source, Random rng)
+        {
+            T[] elements = source.ToArray();
+            for (int i = elements.Length - 1; i >= 0; i--)
+            {
+                int swapIndex = rng.Next(i + 1);
+                yield return elements[swapIndex];
+                elements[swapIndex] = elements[i];
+            }
+        }
 
     }
 
@@ -1782,8 +1811,8 @@ namespace MasterthesisGHA
                 // 4 - Discrete Node Displacements (Red/Green)
                 // 5 - Continuous Node Displacements (White-Blue)
 
-                double utilizationBuckling = ElementsInStructure[i].CheckAxialBuckling(ElementAxialForce[i]);
-                double utilizationStress = ElementsInStructure[i].CheckUtilization(ElementAxialForce[i]);
+                double utilizationBuckling = ElementsInStructure[i].getAxialBucklingUtilization(ElementAxialForce[i]);
+                double utilizationStress = ElementsInStructure[i].getAxialUtilization(ElementAxialForce[i]);
 
                 if (colorCode == 0)
                 {

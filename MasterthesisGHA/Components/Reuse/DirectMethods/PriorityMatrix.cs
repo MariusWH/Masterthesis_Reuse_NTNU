@@ -8,7 +8,7 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA.Components.MethodOne
 {
-    public class RankLCA : GH_Component
+    public class PriorityMatrix : GH_Component
     {
         // Stored Variables
         public bool firstRun;
@@ -16,7 +16,7 @@ namespace MasterthesisGHA.Components.MethodOne
         public double maxLoad;
         public double maxDisplacement;
 
-        public RankLCA()
+        public PriorityMatrix()
           : base("Rank LCA Reuse Method", "RankLCA",
               "A linear best-fit method for inserting a defined material bank into a pre-defined structur geometry",
               "Master", "Reuse")
@@ -111,22 +111,20 @@ namespace MasterthesisGHA.Components.MethodOne
 
 
             IEnumerable<int> optimumOrder = Enumerable.Empty<int>();
-
-
             Matrix<double> rank = Matrix<double>.Build.SparseIdentity(0, 0);
 
             if (insertMaterialBank && insertNewElements)
             {
                 truss.InsertNewElements();
                 
-                rank = truss.LocalLCAMatrix(iMaterialBankCopy);
+                rank = truss.getLocalLCAMatrix(iMaterialBankCopy);
                 
                 truss.InsertMaterialBankByObjectiveMatrix(
                     iMaterialBankCopy, out outMaterialBank, out optimumOrder);
             }
             else if (insertMaterialBank)
             {
-                rank = truss.LocalLCAMatrix(iMaterialBankCopy);
+                rank = truss.getLocalLCAMatrix(iMaterialBankCopy);
 
                 truss.InsertMaterialBankByObjectiveMatrix(
                     iMaterialBankCopy, out outMaterialBank, out optimumOrder);
@@ -135,13 +133,13 @@ namespace MasterthesisGHA.Components.MethodOne
             {
                 truss.InsertNewElements();
 
-                rank = truss.LocalLCAMatrix(iMaterialBankCopy);
+                rank = truss.getLocalLCAMatrix(iMaterialBankCopy);
 
                 outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }
             else
             {
-                rank = truss.LocalLCAMatrix(iMaterialBankCopy);
+                rank = truss.getLocalLCAMatrix(iMaterialBankCopy);
 
                 outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }

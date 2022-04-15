@@ -588,7 +588,7 @@ namespace MasterthesisGHA
         {
             Matrix<double> rank = getLocalLCAMatrix(materialBank);
 
-            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
+            optimumOrder = OptimumInsertOrderFromLocalLCA(rank).ToList();
 
             InsertMaterialBank(materialBank, optimumOrder, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
@@ -599,10 +599,12 @@ namespace MasterthesisGHA
 
             Matrix<double> rank = getLocalLCAMatrix(materialBank);
 
-            optimumOrder = OptimumInsertOrderFromLocalLCAMatrix(rank).ToList();
+            optimumOrder = OptimumInsertOrderFromLocalLCA(rank).ToList();
 
             InsertMaterialBank(materialBank, optimumOrder, out insertionMatrix);
         }
+
+        // Combined Reuse Rate and Objective Optimization
 
 
         // Brute Force Permutations
@@ -718,8 +720,6 @@ namespace MasterthesisGHA
                 }
             }
         }
-
-
 
         // Branch & Bound
 
@@ -898,7 +898,7 @@ namespace MasterthesisGHA
 
             return order;
         }
-        protected IEnumerable<int> OptimumInsertOrderFromLocalLCAMatrix(Matrix<double> rankMatrix, int method = 0)
+        protected IEnumerable<int> OptimumInsertOrderFromLocalLCA(Matrix<double> rankMatrix, int method = 0)
         {
             List<int> order = new List<int>(rankMatrix.RowCount);
             int rowCount = rankMatrix.RowCount;
@@ -948,6 +948,20 @@ namespace MasterthesisGHA
                         break;
                     }
             }
+
+            return order;
+        }
+        public IEnumerable<int> OptimumInsertOrderFromReuseRateThenLocalLCA(Matrix<double> reusableMatrix)
+        {
+            List<int> order = new List<int>(reusableMatrix.RowCount);
+
+            List<Tuple<int, Vector<double>>> indexedColumns = new List<Tuple<int, Vector<double>>>();
+            for (int col = 0; col < reusableMatrix.ColumnCount; col++)
+                indexedColumns.Add(new Tuple<int, Vector<double>>(col, reusableMatrix.Column(col)));
+
+            indexedColumns.OrderBy(o => o.Item2.Sum()).ThenByDescending(o => o.Item2.Maximum());
+            indexedColumns = indexedColumns.FindAll(o => o.Item2.Maximum() > 0); // iterate and remove used memeber positions
+            indexedColumns.ForEach(o => order.Add(o.Item1));
 
             return order;
         }

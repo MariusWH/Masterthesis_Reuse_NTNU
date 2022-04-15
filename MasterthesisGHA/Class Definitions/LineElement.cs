@@ -102,7 +102,7 @@ namespace MasterthesisGHA
 
 
 
-    public abstract class InPlaceElement : LineElement
+    public abstract class MemberElement : LineElement
     {
         // Variables (Not inherited)
         public readonly Point3d StartPoint;
@@ -113,7 +113,7 @@ namespace MasterthesisGHA
         public bool IsFromMaterialBank;
 
         // Constructor
-        public InPlaceElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, double crossSectionArea, double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus, Point3d startPoint, Point3d endPoint)
+        public MemberElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, double crossSectionArea, double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus, Point3d startPoint, Point3d endPoint)
             : base(profileName, crossSectionArea, areaMomentOfInertiaYY, areaMomentOfInertiaZZ, polarMomentOfInertia, youngsModulus)
         {
             StartPoint = startPoint;
@@ -123,7 +123,7 @@ namespace MasterthesisGHA
             UpdateNodes(ref FreeNodes, ref SupportNodes, startPoint, endPoint);
             UpdateLocalStiffnessMatrix();
         }
-        public InPlaceElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
+        public MemberElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
             : this(ref FreeNodes, ref SupportNodes, profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYYDictionary[profileName],
                   AreaMomentOfInertiaZZDictionary[profileName], PolarMomentOfInertiaDictionary[profileName], 210e3, startPoint, endPoint)
         {
@@ -131,20 +131,20 @@ namespace MasterthesisGHA
         }
 
         // Constructor (From Material Bank)
-        public InPlaceElement(StockElement stockElement, InPlaceElement inPlaceElement)
+        public MemberElement(ReuseElement stockElement, MemberElement member)
             : base(stockElement.ProfileName)
         {
-            StartPoint = inPlaceElement.StartPoint;
-            EndPoint = inPlaceElement.EndPoint;
-            StartNodeIndex = inPlaceElement.StartNodeIndex;
-            EndNodeIndex = inPlaceElement.EndNodeIndex;
+            StartPoint = member.StartPoint;
+            EndPoint = member.EndPoint;
+            StartNodeIndex = member.StartNodeIndex;
+            EndNodeIndex = member.EndNodeIndex;
             IsFromMaterialBank = true;
 
             UpdateLocalStiffnessMatrix();
         }
 
         // Equal Operators
-        public static bool operator ==(InPlaceElement A, InPlaceElement B)
+        public static bool operator ==(MemberElement A, MemberElement B)
         {
             if (A.StartPoint != B.StartPoint ||
                 A.EndPoint != B.EndPoint ||
@@ -154,7 +154,7 @@ namespace MasterthesisGHA
 
             return true;
         }
-        public static bool operator !=(InPlaceElement A, InPlaceElement B)
+        public static bool operator !=(MemberElement A, MemberElement B)
         {
             if (A == B)
                 return false;
@@ -243,7 +243,7 @@ namespace MasterthesisGHA
 
 
 
-    public class InPlaceBarElement3D : InPlaceElement
+    public class InPlaceBarElement3D : MemberElement
     {
         // Constructor
         public InPlaceBarElement3D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
@@ -251,7 +251,7 @@ namespace MasterthesisGHA
         {
 
         }
-        public InPlaceBarElement3D(StockElement stockElement, InPlaceElement inPlaceElement)
+        public InPlaceBarElement3D(ReuseElement stockElement, MemberElement inPlaceElement)
             : base(stockElement, inPlaceElement)
         {
 
@@ -354,8 +354,8 @@ namespace MasterthesisGHA
         {
 
         }
-        public InPlaceBarElement2D(StockElement stockElement, InPlaceElement inPlaceElement)
-            : base(stockElement, inPlaceElement)
+        public InPlaceBarElement2D(ReuseElement reuseElement, MemberElement member)
+            : base(reuseElement, member)
         {
 
         }
@@ -401,7 +401,7 @@ namespace MasterthesisGHA
 
 
 
-    public class StockElement : LineElement
+    public class ReuseElement : LineElement
     {
         // Variables (Not inherited)
         private double ReusableElementLength;
@@ -411,7 +411,7 @@ namespace MasterthesisGHA
         public double DistanceRecycling;
 
         // Constructor
-        public StockElement(string profileName, double reusableElementLength, double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
+        public ReuseElement(string profileName, double reusableElementLength, double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
             : base(profileName)
         {
             ReusableElementLength = reusableElementLength;
@@ -421,7 +421,7 @@ namespace MasterthesisGHA
             DistanceBuilding = distanceBuilding;
             DistanceRecycling = distanceRecycling;
         }
-        public StockElement(string profileName, double reusableElementLength, bool isInStructure, double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
+        public ReuseElement(string profileName, double reusableElementLength, bool isInStructure, double distanceFabrication = 100, double distanceBuilding = 100, double distanceRecycling = 100)
             : this(profileName, reusableElementLength, distanceFabrication, distanceBuilding, distanceRecycling)
         {
             IsInStructure = isInStructure;
@@ -431,7 +431,7 @@ namespace MasterthesisGHA
         public override string getElementInfo()
         {
             string info = "StockElement{ ";
-            info += "{L=" + GetStockElementLength() + "}, ";
+            info += "{L=" + getReusableLength() + "}, ";
             info += "{A=" + CrossSectionArea + "}, ";
             info += "{Iyy=" + AreaMomentOfInertiaYY + "}, ";
             info += "{Izz=" + AreaMomentOfInertiaZZ + "}, ";
@@ -441,21 +441,15 @@ namespace MasterthesisGHA
 
             return info;
         }
-        public double GetStockElementLength()
+        public double getReusableLength()
         {
             return ReusableElementLength;
         }
-        public void SetStockElementLength(double newLength)
-        {
-            if (newLength < 0)
-                throw new Exception("Reusable Length can not be less than zero!");
-            ReusableElementLength = newLength;
-        }      
-        public double CheckUtilization(double axialLoad)
+        public double getNormalStressUtilization(double axialLoad)
         {
             return axialLoad/(CrossSectionArea*YieldStress);
         }
-        public double CheckAxialBuckling(double axialLoad, double inPlaceLength)
+        public double getAxialBucklingUtilization(double axialLoad, double inPlaceLength)
         {
             double weakI = Math.Min(AreaMomentOfInertiaYY, AreaMomentOfInertiaZZ);
             double effectiveLoadFactor = 1.0;
@@ -467,22 +461,27 @@ namespace MasterthesisGHA
             else
                 return -axialLoad / eulerCriticalLoad;
         }
-        public virtual double getMass()
+        public double getMass()
         {
             double density = 7800 / 1e9;
             return CrossSectionArea * ReusableElementLength * density;
         }
-        public virtual double getMass(double length)
+        public double getMass(double length)
         {
             double density = 7800 / 1e9;
             return CrossSectionArea * length * density;
         }
-        
+        public void setReusableLength(double newLength)
+        {
+            if (newLength < 0)
+                throw new Exception("Reusable Length can not be less than zero!");
+            ReusableElementLength = newLength;
+        }
 
         // Copy
-        public StockElement DeepCopy()
+        public ReuseElement DeepCopy()
         {
-            return new StockElement(this.ProfileName, this.ReusableElementLength, this.IsInStructure,
+            return new ReuseElement(this.ProfileName, this.ReusableElementLength, this.IsInStructure,
                 this.DistanceFabrication, this.DistanceBuilding, this.DistanceRecycling);
         }
 

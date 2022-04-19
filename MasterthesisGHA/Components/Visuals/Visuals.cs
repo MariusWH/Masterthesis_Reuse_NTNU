@@ -32,7 +32,7 @@ namespace MasterthesisGHA.Components.Visuals
 
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Structural Model", "Model", "Data", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Model", "Model", "Data", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Normalize Visuals", "Normalize", "Use button to normalize the visuals output", GH_ParamAccess.item, false);
             pManager.AddIntegerParameter("Color Code", "Color Code", "", GH_ParamAccess.item, 0);
         }

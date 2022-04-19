@@ -49,7 +49,7 @@ namespace MasterthesisGHA
                         if (maxInsertedLength > 0)
                         {
                             foreach (double insertedLength in insertionMatrix.Column(i))
-                                reuseMass += materialBank.StockElementsInMaterialBank[i].getMass(insertedLength);
+                                reuseMass += materialBank.ElementsInMaterialBank[i].getMass(insertedLength);
                         }                          
                         else newMass += structure.ElementsInStructure[i].getMass();
                     }                    
@@ -73,9 +73,9 @@ namespace MasterthesisGHA
 
             double carbonEmissionTotal = 0;
           
-            for (int stockElementIndex = 0; stockElementIndex < materialBank.StockElementsInMaterialBank.Count; stockElementIndex++)
+            for (int stockElementIndex = 0; stockElementIndex < materialBank.ElementsInMaterialBank.Count; stockElementIndex++)
             {
-                ReuseElement stockElement = materialBank.StockElementsInMaterialBank[stockElementIndex];
+                ReuseElement stockElement = materialBank.ElementsInMaterialBank[stockElementIndex];
                 double reuseLength = 0;
                 double wasteLength = 0;
                 bool cut = false;
@@ -90,7 +90,7 @@ namespace MasterthesisGHA
                     }
                 }
 
-                double remainingLength = materialBank.StockElementsInMaterialBank[stockElementIndex].getReusableLength() - reuseLength;
+                double remainingLength = materialBank.ElementsInMaterialBank[stockElementIndex].getReusableLength() - reuseLength;
                 if (remainingLength < MaterialBank.minimumReusableLength)
                     wasteLength += remainingLength;
 
@@ -120,9 +120,9 @@ namespace MasterthesisGHA
         {
             double totalCost = 0;
 
-            for (int stockElementIndex = 0; stockElementIndex < materialBank.StockElementsInMaterialBank.Count; stockElementIndex++)
+            for (int stockElementIndex = 0; stockElementIndex < materialBank.ElementsInMaterialBank.Count; stockElementIndex++)
             {
-                ReuseElement stockElement = materialBank.StockElementsInMaterialBank[stockElementIndex];
+                ReuseElement stockElement = materialBank.ElementsInMaterialBank[stockElementIndex];
                 double reuseLength = 0;
                 double wasteLength = 0;
                 bool cut = false;
@@ -137,7 +137,7 @@ namespace MasterthesisGHA
                     }
                 }
 
-                double remainingLength = materialBank.StockElementsInMaterialBank[stockElementIndex].getReusableLength() - reuseLength;
+                double remainingLength = materialBank.ElementsInMaterialBank[stockElementIndex].getReusableLength() - reuseLength;
                 if (remainingLength < MaterialBank.minimumReusableLength)
                     wasteLength += remainingLength;
 
@@ -188,11 +188,13 @@ namespace MasterthesisGHA
             switch (method)
             {
                 case lcaMethod.simplified:
-                    constants = constantsSimplifiedLCA;
+                    constants = new List<double>() { 0.21, 0.00081, 0, 0, 0, 0, 1.75, 0, 0 }; ;
                     break;
                 case lcaMethod.advanced:
-                    constants = constantsAdvancedLCA;
+                    constants = new List<double>() { 0.287, 0.00081, 0.110, 0.0011, 0.0011, 0.00011, 0.957, 0.00011, 0.110 };
                     break;
+                default:
+                    throw new Exception("Method not found!");
             }
 
             double reuseLength = member.getInPlaceElementLength();

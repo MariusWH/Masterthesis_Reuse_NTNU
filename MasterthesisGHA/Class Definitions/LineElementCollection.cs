@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Rhino.Geometry;
 using MathNet.Numerics.LinearAlgebra;
 using System.Drawing;
+using Gurobi;
 
 namespace MasterthesisGHA
 {
@@ -544,11 +545,15 @@ namespace MasterthesisGHA
         // -- MEMBER REPLACEMENT METHODS --
 
         // Direct
-        public virtual List<List<ReuseElement>> PossibleReuseElementForEachMember(MaterialBank materialBank)
+        public virtual List<List<ReuseElement>> GetReusabilityTree(MaterialBank materialBank)
         {
             throw new NotImplementedException();
         }
-        protected virtual bool InsertReuseElement(int inPlaceElementIndex, ref MaterialBank materialBank, ReuseElement stockElement, bool keepCutOff = true)
+        protected virtual bool InsertReuseElementAndCutMaterialBank(int inPlaceElementIndex, ref MaterialBank materialBank, ReuseElement stockElement, bool keepCutOff = true)
+        {
+            throw new NotImplementedException();
+        }
+        protected virtual void InsertReuseElementAndCutMaterialBank(int positionIndex, int elementIndex, ref MaterialBank materialBank, bool keepCutOff = true)
         {
             throw new NotImplementedException();
         }
@@ -558,30 +563,136 @@ namespace MasterthesisGHA
         }
 
         // Matrix
-        public virtual Matrix<double> GetReusabilityMatrix(MaterialBank materialBank)
-        {
-            throw new NotImplementedException();
-        }
         protected virtual bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int stockElementIndex, int inPlaceElementIndex, ref MaterialBank materialBank, bool keepCutOff = true)
         {
             throw new NotImplementedException();
         }
-        public virtual Matrix<double> GetRelativeLengthMatrix(MaterialBank materialBank)
+        public virtual void InsertReuseElementsFromInsertionMatrix(Matrix<double> insertionMatrix, MaterialBank materialBank, out MaterialBank outMaterialBank)
         {
-            throw new NotImplementedException();
+            if (insertionMatrix.RowCount != ElementsInStructure.Count) throw new Exception("# of rows in Insertion Matrix is not equal to positions in Structure");
+            if (insertionMatrix.ColumnCount != materialBank.ElementsInMaterialBank.Count) throw new Exception("# of columns in Insertion Matrix is not equal to elements in Material Bank");
+
+            outMaterialBank = materialBank.GetDeepCopy();
+
+            bool keepCutOff = true;
+            for (int row = 0; row < insertionMatrix.RowCount; row++)
+            {
+                for (int col = 0; col < insertionMatrix.ColumnCount; col++)
+                {
+                    if(insertionMatrix[row,col] != 0) InsertReuseElementAndCutMaterialBank(row, col, ref outMaterialBank, keepCutOff);
+                }
+            }
         }
 
 
+        public Matrix<double> getStructuralIntegrityMatrix(MaterialBank materialBank)
+        {
+            Matrix<double> structuralIntegrityMatrix = Matrix<double>.Build.Dense(ElementsInStructure.Count,
+                materialBank.ElementsInMaterialBank.Count);
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                for (int j = 0; j < materialBank.ElementsInMaterialBank.Count; j++)
+                {
+                    MemberElement member = ElementsInStructure[i];
+                    ReuseElement reuseElement = materialBank.ElementsInMaterialBank[j];
+
+                    double axialForce = ElementAxialForce[i];
+                    double momentX = 0;
+                    double momentY = 0;
+                    double momentZ = 0;
+
+                    structuralIntegrityMatrix[i, j] =
+                        ObjectiveFunctions.StructuralIntegrity(member, reuseElement, axialForce, momentY, momentZ, momentX);
+                }
+            }
+            return structuralIntegrityMatrix;
+        }
+        public Matrix<double> getSufficientLengthMatrix(MaterialBank materialBank)
+        {
+            Matrix<double> sufficientLengthMatrix = Matrix<double>.Build.Dense(ElementsInStructure.Count,
+                materialBank.ElementsInMaterialBank.Count);
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                for (int j = 0; j < materialBank.ElementsInMaterialBank.Count; j++)
+                {
+                    MemberElement member = ElementsInStructure[i];
+                    ReuseElement reuseElement = materialBank.ElementsInMaterialBank[j];
+
+                    if (member.getInPlaceElementLength() > reuseElement.getReusableLength()) sufficientLengthMatrix[i, j] = 0;
+                    else sufficientLengthMatrix[i, j] = 1;
+
+                }
+            }
+            return sufficientLengthMatrix;
+        }
+        public Matrix<double> getReusabilityMatrix(MaterialBank materialBank)
+        {
+            return getStructuralIntegrityMatrix(materialBank).PointwiseMultiply(getSufficientLengthMatrix(materialBank));
+        }
+        public Matrix<double> getObjectiveMatrix(MaterialBank materialBank, bool normalized = false)
+        {
+            Matrix<double> localLCA = Matrix<double>.Build.Dense(ElementsInStructure.Count,
+                materialBank.ElementsInMaterialBank.Count);
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+                for (int j = 0; j < materialBank.ElementsInMaterialBank.Count; j++)
+                    localLCA[i, j] = ObjectiveFunctions.LocalLCA(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForce[i]);
+
+            if (normalized) localLCA /= localLCA.Enumerate().Max();
+            return localLCA;
+        }
+        public Matrix<double> getPriorityMatrix(MaterialBank materialBank)
+        {
+            return getReusabilityMatrix(materialBank).PointwiseMultiply(getObjectiveMatrix(materialBank));
+        }
+        public Matrix<double> getRelativeReusedLengthMatrix(MaterialBank materialBank)
+        {
+            Matrix<double> relativeLengthMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, materialBank.ElementsInMaterialBank.Count);
+
+            for (int memberIndex = 0; memberIndex < ElementsInStructure.Count; memberIndex++)
+            {
+                MemberElement member = ElementsInStructure[memberIndex];
+                for (int materialBankIndex = 0; materialBankIndex < materialBank.ElementsInMaterialBank.Count; materialBankIndex++)
+                {
+                    ReuseElement materialBankElement = materialBank.ElementsInMaterialBank[materialBankIndex];
+                    double memberLength = member.StartPoint.DistanceTo(member.EndPoint);
+
+                    if (materialBankElement.getNormalStressUtilization(ElementAxialForce[memberIndex]) < 1 &&
+                        materialBankElement.getAxialBucklingUtilization(ElementAxialForce[memberIndex], memberLength) < 1 &&
+                        materialBankElement.getReusableLength() > memberLength)
+                        relativeLengthMatrix[memberIndex, materialBankIndex] = memberLength / materialBankElement.getReusableLength();
+                }
+            }
+
+            return relativeLengthMatrix;
+        }
+        public Matrix<double> getLocalLCAMatrixOLD(MaterialBank materialBank, bool normalized = true)
+        {
+            Matrix<double> localLCA = Matrix<double>.Build.Dense(ElementsInStructure.Count,
+                materialBank.ElementsInMaterialBank.Count);
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+                for (int j = 0; j < materialBank.ElementsInMaterialBank.Count; j++)
+                {
+                    localLCA[i, j] =
+                        ObjectiveFunctions.LocalLCAWithIntegrityAndLengthCheck(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForce[i], ObjectiveFunctions.lcaMethod.simplified);
+                }
+            }
+            if (normalized) localLCA = localLCA / localLCA.Enumerate().Max();
+            return localLCA;
+        }
+
 
         // -- REUSE METHODS --
-        public enum linearReuseMethod { maxReuseRate, maxCarbonReduction, maxReuseRateThenCarbonReduction };
-
 
 
         // Maximum Reuse Rate
         public void InsertWithMaxReuseRate(MaterialBank materialBank, out Matrix<double> insertionMatrix)
         {
-            Matrix<double> verificationMatrix = getReusableMatrix(materialBank);
+            Matrix<double> verificationMatrix = getStructuralIntegrityMatrix(materialBank);
             IEnumerable<int> insertionOrder = OptimumInsertOrderFromReuseRate(verificationMatrix);
             InsertMaterialBank(materialBank, insertionOrder, out insertionMatrix);
         }
@@ -589,21 +700,15 @@ namespace MasterthesisGHA
         // Objective Matrix
         public void InsertMaterialBankByPriorityMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
         {
-            Matrix<double> rank = getLocalLCAMatrix(materialBank);
-
-            optimumOrder = OptimumInsertOrderFromLocalLCA(rank).ToList();
-
+            Matrix<double> priorityMatrix = getObjectiveMatrix(materialBank);
+            optimumOrder = OptimumInsertOrderFromLocalLCA(priorityMatrix).ToList();
             InsertMaterialBank(materialBank, optimumOrder, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
         }
         public void InsertMaterialBankByPriorityMatrix(out Matrix<double> insertionMatrix, MaterialBank materialBank, out IEnumerable<int> optimumOrder)
         {
-            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
-
-            Matrix<double> rank = getLocalLCAMatrix(materialBank);
-
-            optimumOrder = OptimumInsertOrderFromLocalLCA(rank).ToList();
-
+            Matrix<double> priorityMatrix = getObjectiveMatrix(materialBank);
+            optimumOrder = OptimumInsertOrderFromLocalLCA(priorityMatrix).ToList();
             InsertMaterialBank(materialBank, optimumOrder, out insertionMatrix);
         }
 
@@ -726,7 +831,64 @@ namespace MasterthesisGHA
         }
 
         // Branch & Bound
+        
+        
 
+
+        
+        
+
+
+
+
+
+
+        public void GurobiExample()
+        {
+            try
+            {
+
+                // Create an empty environment, set options and start
+                GRBEnv env = new GRBEnv(true);
+                env.Set("LogFile", "mip1.log");
+                env.Start();
+
+                // Create empty model
+                GRBModel model = new GRBModel(env);
+
+                // Create variables
+                GRBVar x = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "x");
+                GRBVar y = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "y");
+                GRBVar z = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "z");
+
+                // Set objective: maximize x + y + 2 z
+                model.SetObjective(x + y + 2 * z, GRB.MAXIMIZE);
+
+                // Add constraint: x + 2 y + 3 z <= 4
+                model.AddConstr(x + 2 * y + 3 * z <= 4.0, "c0");
+
+                // Add constraint: x + y >= 1
+                model.AddConstr(x + y >= 1.0, "c1");
+
+                // Optimize model
+                model.Optimize();
+
+                Console.WriteLine(x.VarName + " " + x.X);
+                Console.WriteLine(y.VarName + " " + y.X);
+                Console.WriteLine(z.VarName + " " + z.X);
+
+                Console.WriteLine("Obj: " + model.ObjVal);
+
+                // Dispose of model and env
+                model.Dispose();
+                env.Dispose();
+
+            }
+            catch (GRBException e)
+            {
+                Console.WriteLine("Error code: " + e.ErrorCode + ". " + e.Message);
+            }
+        }
 
 
 
@@ -742,7 +904,7 @@ namespace MasterthesisGHA
         }
         public void InsertMaterialBank(MaterialBank materialBank, IEnumerable<int> insertOrder, out Matrix<double> insertionMatrix, out MaterialBank remainingMaterialBank, int method)
         {
-            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
+            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.ElementsInMaterialBank.Count, ElementsInStructure.Count);
             remainingMaterialBank = materialBank.GetDeepCopy();
 
             // Methods
@@ -771,7 +933,7 @@ namespace MasterthesisGHA
         }
         public void InsertMaterialBank(MaterialBank materialBank, IEnumerable<int> insertOrder, out Matrix<double> insertionMatrix)
         {
-            insertionMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
+            insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, materialBank.ElementsInMaterialBank.Count);
             List<int> insertionList = insertOrder.ToList();
 
             if (insertionList.Count > ElementsInStructure.Count)
@@ -788,13 +950,13 @@ namespace MasterthesisGHA
                 while (indexingFromLast-- != 0)
                 {
                     int stockElementIndex = sortedIndexing[indexingFromLast];
-                    int numberOfCuts = insertionMatrix.Row(stockElementIndex).Aggregate(0, (total, next) => next != 0 ? total + 1 : total);
+                    int numberOfCuts = insertionMatrix.Column(stockElementIndex).Aggregate(0, (total, next) => next != 0 ? total + 1 : total);
                     if (numberOfCuts != 0) numberOfCuts--;
 
-                    double usedLength = insertionMatrix.Row(stockElementIndex).Sum() + MaterialBank.cuttingLength * numberOfCuts;
+                    double usedLength = insertionMatrix.Column(stockElementIndex).Sum() + MaterialBank.cuttingLength * numberOfCuts;
 
-                    if (usedLength + ElementsInStructure[memberIndex].getInPlaceElementLength() > materialBank.StockElementsInMaterialBank[stockElementIndex].getReusableLength()
-                        || materialBank.StockElementsInMaterialBank[stockElementIndex].getNormalStressUtilization(ElementAxialForce[memberIndex]) > 1.0)
+                    if (usedLength + ElementsInStructure[memberIndex].getInPlaceElementLength() > materialBank.ElementsInMaterialBank[stockElementIndex].getReusableLength()
+                        || materialBank.ElementsInMaterialBank[stockElementIndex].getNormalStressUtilization(ElementAxialForce[memberIndex]) > 1.0)
                         continue;
 
                     if (stockElementIndex != -1)
@@ -825,7 +987,7 @@ namespace MasterthesisGHA
                 throw new Exception("InsertOrder contains " + list.Count + " elements, while the structure contains "
                     + ElementsInStructure.Count + " members");
 
-            List<List<ReuseElement>> possibleStockElements = PossibleReuseElementForEachMember(materialBank);
+            List<List<ReuseElement>> possibleStockElements = GetReusabilityTree(materialBank);
 
             for (int i = 0; i < list.Count; i++)
             {
@@ -835,11 +997,7 @@ namespace MasterthesisGHA
                 int index = sortedStockElementList.Count;
                 while (index-- != 0)
                 {
-                    if (InsertReuseElement(elementIndex, ref materialBank, sortedStockElementList[index], true))
-                    {
-
-                        break;
-                    }
+                    if (InsertReuseElementAndCutMaterialBank(elementIndex, ref materialBank, sortedStockElementList[index], true)) break;
                 }
             }
 
@@ -851,45 +1009,8 @@ namespace MasterthesisGHA
             InsertMaterialBank(materialBank, Enumerable.Range(0, ElementsInStructure.Count), out remainingMaterialBank);
         }
 
-        public Matrix<double> getReusableMatrix(MaterialBank materialBank)
-        {
-            Matrix<double> localVerification = Matrix<double>.Build.Dense(ElementsInStructure.Count,
-                materialBank.StockElementsInMaterialBank.Count);
+        
 
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                for (int j = 0; j < materialBank.StockElementsInMaterialBank.Count; j++)
-                {
-                    MemberElement member = ElementsInStructure[i];
-                    ReuseElement reuseElement = materialBank.StockElementsInMaterialBank[j];
-
-                    double axialForce = ElementAxialForce[i];
-                    double momentX = 0;
-                    double momentY = 0;
-                    double momentZ = 0;
-
-                    localVerification[i, j] =
-                        ObjectiveFunctions.StructuralIntegrity(member, reuseElement, axialForce, momentY, momentZ, momentX);
-                }
-            }
-            return localVerification;
-        }
-        public Matrix<double> getLocalLCAMatrix(MaterialBank materialBank, bool normalized = true)
-        {
-            Matrix<double> localLCA = Matrix<double>.Build.Dense(ElementsInStructure.Count,
-                materialBank.StockElementsInMaterialBank.Count);
-
-            for (int i = 0; i < ElementsInStructure.Count; i++)
-            {
-                for (int j = 0; j < materialBank.StockElementsInMaterialBank.Count; j++)
-                {
-                    localLCA[i, j] =
-                        ObjectiveFunctions.LocalLCAWithIntegrityAndLengthCheck(ElementsInStructure[i], materialBank.StockElementsInMaterialBank[j], ElementAxialForce[i], ObjectiveFunctions.lcaMethod.simplified);
-                }
-            }
-            if (normalized) localLCA = localLCA / localLCA.Enumerate().Max();
-            return localLCA;
-        }
         public IEnumerable<int> OptimumInsertOrderFromReuseRate(Matrix<double> reusableMatrix)
         {
             List<int> order = new List<int>(reusableMatrix.RowCount);
@@ -1931,16 +2052,16 @@ namespace MasterthesisGHA
 
 
         // -- MEMBER REPLACEMENT METHODS --
-        public override List<List<ReuseElement>> PossibleReuseElementForEachMember(MaterialBank materialBank)
+        public override List<List<ReuseElement>> GetReusabilityTree(MaterialBank materialBank)
         {
             List<List<ReuseElement>> reusablesSuggestionTree = new List<List<ReuseElement>>();
             int elementCounter = 0;
             foreach (InPlaceBarElement3D elementInStructure in ElementsInStructure)
             {
                 List<ReuseElement> StockElementSuggestionList = new List<ReuseElement>();
-                for (int i = 0; i < materialBank.StockElementsInMaterialBank.Count; i++)
+                for (int i = 0; i < materialBank.ElementsInMaterialBank.Count; i++)
                 {
-                    ReuseElement stockElement = materialBank.StockElementsInMaterialBank[i];
+                    ReuseElement stockElement = materialBank.ElementsInMaterialBank[i];
 
                     double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
                     if (stockElement.getNormalStressUtilization(ElementAxialForce[elementCounter]) < 1
@@ -1952,20 +2073,28 @@ namespace MasterthesisGHA
             }
             return reusablesSuggestionTree;
         }
-        protected override bool InsertReuseElement(int inPlaceElementIndex, ref MaterialBank materialBank, ReuseElement reuseElement, bool keepCutOff = true)
+        protected override bool InsertReuseElementAndCutMaterialBank(int positionIndex, ref MaterialBank materialBank, ReuseElement reuseElement, bool keepCutOff = true)
         {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            if (positionIndex < 0 || positionIndex > ElementsInStructure.Count)
             {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+                throw new Exception("The In-Place-Element index " + positionIndex.ToString() + " is not valid!");
             }
-            else if (materialBank.RemoveStockElementFromMaterialBank(reuseElement, ElementsInStructure[inPlaceElementIndex], keepCutOff))
+            else if (materialBank.RemoveReuseElementFromMaterialBank(reuseElement, ElementsInStructure[positionIndex], keepCutOff))
             {
-                MemberElement temp = new InPlaceBarElement3D(reuseElement, ElementsInStructure[inPlaceElementIndex]);
-                ElementsInStructure.RemoveAt(inPlaceElementIndex);
-                ElementsInStructure.Insert(inPlaceElementIndex, temp);
+                MemberElement temp = new InPlaceBarElement3D(reuseElement, ElementsInStructure[positionIndex]);
+                ElementsInStructure.RemoveAt(positionIndex);
+                ElementsInStructure.Insert(positionIndex, temp);
                 return true;
             }
             return false;
+        }
+        protected override void InsertReuseElementAndCutMaterialBank(int positionIndex, int elementIndex, ref MaterialBank materialBank, bool keepCutOff = true)
+        {
+            materialBank.RemoveReuseElementFromMaterialBank(elementIndex, ElementsInStructure[positionIndex], keepCutOff);
+
+            MemberElement temp = new InPlaceBarElement3D(materialBank.ElementsInMaterialBank[elementIndex].DeepCopy(), ElementsInStructure[positionIndex]);
+            ElementsInStructure.RemoveAt(positionIndex);
+            ElementsInStructure.Insert(positionIndex, temp);
         }
         protected override void InsertNewElement(int inPlaceElementIndex, List<string> sortedNewElements, double minimumArea)
         {
@@ -1984,68 +2113,27 @@ namespace MasterthesisGHA
             }
         }
         
-        protected override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int stockElementIndex, int inPlaceElementIndex, ref MaterialBank materialBank, bool keepCutOff = true)
+        protected override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int reuseElementIndex, int positionIndex, ref MaterialBank materialBank, bool keepCutOff = true)
         {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            if (positionIndex < 0 || positionIndex > ElementsInStructure.Count)
             {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+                throw new Exception("The In-Place-Element index " + positionIndex.ToString() + " is not valid!");
             }
             else if( keepCutOff )
             {
-                insertionMatrix[stockElementIndex, inPlaceElementIndex] =
-                    ElementsInStructure[inPlaceElementIndex].StartPoint.DistanceTo(ElementsInStructure[inPlaceElementIndex].EndPoint);
+                insertionMatrix[positionIndex, reuseElementIndex] =
+                    ElementsInStructure[positionIndex].StartPoint.DistanceTo(ElementsInStructure[positionIndex].EndPoint);
                 return true;
             }
             else
             {
-                insertionMatrix[stockElementIndex, inPlaceElementIndex] =
-                    materialBank.StockElementsInMaterialBank[stockElementIndex].getReusableLength();
+                insertionMatrix[positionIndex, reuseElementIndex] =
+                    materialBank.ElementsInMaterialBank[reuseElementIndex].getReusableLength();
                 return true;
             }
 
         }
-        public override Matrix<double> GetReusabilityMatrix(MaterialBank materialBank)
-        {
-            Matrix<double> verificationMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
-            
-            for (int memberIndex = 0; memberIndex < ElementsInStructure.Count; memberIndex++)
-            {
-                MemberElement member = ElementsInStructure[memberIndex];
-                for (int materialBankIndex = 0; materialBankIndex < materialBank.StockElementsInMaterialBank.Count; materialBankIndex++)
-                {
-                    ReuseElement materialBankElement = materialBank.StockElementsInMaterialBank[materialBankIndex];
-                    double memberLength = member.StartPoint.DistanceTo(member.EndPoint);
-
-                    if (materialBankElement.getNormalStressUtilization(ElementAxialForce[memberIndex]) < 1 &&
-                        materialBankElement.getAxialBucklingUtilization(ElementAxialForce[memberIndex], memberLength) < 1 &&
-                        materialBankElement.getReusableLength() > memberLength)
-                        verificationMatrix[materialBankIndex, memberIndex] = 1;
-                }
-            }
-
-            return verificationMatrix;
-        }
-        public override Matrix<double> GetRelativeLengthMatrix(MaterialBank materialBank)
-        {
-            Matrix<double> relativeLengthMatrix = Matrix<double>.Build.Sparse(materialBank.StockElementsInMaterialBank.Count, ElementsInStructure.Count);
-
-            for (int memberIndex = 0; memberIndex < ElementsInStructure.Count; memberIndex++)
-            {
-                MemberElement member = ElementsInStructure[memberIndex];
-                for (int materialBankIndex = 0; materialBankIndex < materialBank.StockElementsInMaterialBank.Count; materialBankIndex++)
-                {
-                    ReuseElement materialBankElement = materialBank.StockElementsInMaterialBank[materialBankIndex];
-                    double memberLength = member.StartPoint.DistanceTo(member.EndPoint);
-
-                    if (materialBankElement.getNormalStressUtilization(ElementAxialForce[memberIndex]) < 1 &&
-                        materialBankElement.getAxialBucklingUtilization(ElementAxialForce[memberIndex], memberLength) < 1 &&
-                        materialBankElement.getReusableLength() > memberLength)
-                        relativeLengthMatrix[materialBankIndex, memberIndex] = memberLength / materialBankElement.getReusableLength();
-                }
-            }
-
-            return relativeLengthMatrix;
-        }
+        
 
 
 
@@ -2167,16 +2255,16 @@ namespace MasterthesisGHA
         }
 
         // -- MEMBER REPLACEMENT METHODS --
-        public override List<List<ReuseElement>> PossibleReuseElementForEachMember(MaterialBank materialBank)
+        public override List<List<ReuseElement>> GetReusabilityTree(MaterialBank materialBank)
         {
             List<List<ReuseElement>> reusablesSuggestionTree = new List<List<ReuseElement>>();
             int elementCounter = 0;
             foreach (InPlaceBarElement2D elementInStructure in ElementsInStructure)
             {
                 List<ReuseElement> StockElementSuggestionList = new List<ReuseElement>();
-                for (int i = 0; i < materialBank.StockElementsInMaterialBank.Count; i++)
+                for (int i = 0; i < materialBank.ElementsInMaterialBank.Count; i++)
                 {
-                    ReuseElement stockElement = materialBank.StockElementsInMaterialBank[i];
+                    ReuseElement stockElement = materialBank.ElementsInMaterialBank[i];
 
                     double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
                     if (stockElement.getNormalStressUtilization(ElementAxialForce[elementCounter]) < 1
@@ -2188,13 +2276,13 @@ namespace MasterthesisGHA
             }
             return reusablesSuggestionTree;
         }
-        protected override bool InsertReuseElement(int inPlaceElementIndex, ref MaterialBank materialBank, ReuseElement stockElement, bool keepCutOff = true)
+        protected override bool InsertReuseElementAndCutMaterialBank(int inPlaceElementIndex, ref MaterialBank materialBank, ReuseElement stockElement, bool keepCutOff = true)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
             {
                 throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
             }
-            else if (materialBank.RemoveStockElementFromMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex], keepCutOff))
+            else if (materialBank.RemoveReuseElementFromMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex], keepCutOff))
             {
                 MemberElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
@@ -2231,7 +2319,7 @@ namespace MasterthesisGHA
     public class MaterialBank : ElementCollection
     {
         // Attributes
-        public List<ReuseElement> StockElementsInMaterialBank;
+        public List<ReuseElement> ElementsInMaterialBank;
         public List<Color> MaterialBankColors;
         public List<Brep> MaterialBankVisuals;
         public static double minimumReusableLength;
@@ -2241,14 +2329,14 @@ namespace MasterthesisGHA
         public MaterialBank() 
             : base()
         {
-            StockElementsInMaterialBank = new List<ReuseElement>();
+            ElementsInMaterialBank = new List<ReuseElement>();
             MaterialBankColors = new List<Color>();
             MaterialBankVisuals = new List<Brep>();
         }
         public MaterialBank(List<ReuseElement> stockElements)
             :this()
         {
-            StockElementsInMaterialBank.AddRange(stockElements);
+            ElementsInMaterialBank.AddRange(stockElements);
         }
         public MaterialBank(List<string> profiles, List<int> quantities, List<double> lengths)
             :this()
@@ -2259,7 +2347,7 @@ namespace MasterthesisGHA
             for (int i = 0; i < quantities.Count; i++)
             {
                 for (int j = 0; j < quantities[i]; j++)
-                    this.InsertStockElementIntoMaterialBank(new ReuseElement(profiles[i], lengths[i]));
+                    this.InsertReuseElementIntoMaterialBank(new ReuseElement(profiles[i], lengths[i]));
             }
         }
         public MaterialBank(List<string> profiles, List<int> quantities, List<double> lengths, List<double> distancesFabrication, List<double> distancesBuilding, List<double> distancesRecycling)
@@ -2285,7 +2373,7 @@ namespace MasterthesisGHA
             for (int i = 0; i < quantities.Count; i++)
             {
                 for (int j = 0; j < quantities[i]; j++)
-                    this.InsertStockElementIntoMaterialBank(
+                    this.InsertReuseElementIntoMaterialBank(
                         new ReuseElement(profiles[i], lengths[i], distancesFabrication[i], distancesBuilding[i], distancesRecycling[i]));
             }
 
@@ -2301,7 +2389,7 @@ namespace MasterthesisGHA
                 double commandLengths = Convert.ToDouble(commandArray[2]);
 
                 for (int i = 0; i < commandQuantities; i++)
-                    this.InsertStockElementIntoMaterialBank(new ReuseElement(commandProfiles, commandLengths));
+                    this.InsertReuseElementIntoMaterialBank(new ReuseElement(commandProfiles, commandLengths));
             }
         }
         static MaterialBank()
@@ -2314,8 +2402,8 @@ namespace MasterthesisGHA
         public static MaterialBank operator +(MaterialBank materialBankA, MaterialBank materialBankB)
         {
             MaterialBank returnMateralBank = new MaterialBank();
-            returnMateralBank.StockElementsInMaterialBank.AddRange(materialBankA.StockElementsInMaterialBank);
-            returnMateralBank.StockElementsInMaterialBank.AddRange(materialBankB.StockElementsInMaterialBank);
+            returnMateralBank.ElementsInMaterialBank.AddRange(materialBankA.ElementsInMaterialBank);
+            returnMateralBank.ElementsInMaterialBank.AddRange(materialBankB.ElementsInMaterialBank);
             returnMateralBank.MaterialBankColors.AddRange(materialBankA.MaterialBankColors);
             returnMateralBank.MaterialBankColors.AddRange(materialBankB.MaterialBankColors);
             returnMateralBank.MaterialBankVisuals.AddRange(materialBankA.MaterialBankVisuals);
@@ -2329,7 +2417,7 @@ namespace MasterthesisGHA
         {
             MaterialBank returnMateralBank = new MaterialBank();
 
-            StockElementsInMaterialBank.ForEach(o => returnMateralBank.StockElementsInMaterialBank.Add(o.DeepCopy()));
+            ElementsInMaterialBank.ForEach(o => returnMateralBank.ElementsInMaterialBank.Add(o.DeepCopy()));
             materialBankColors.ForEach(o => returnMateralBank.MaterialBankColors.Add(System.Drawing.Color.FromArgb(o.ToArgb())));
             MaterialBankVisuals.ForEach(o => returnMateralBank.MaterialBankVisuals.Add(o.DuplicateBrep()));
 
@@ -2338,7 +2426,7 @@ namespace MasterthesisGHA
         public string GetMaterialBankInfo()
         {
             string info = "Material Bank:\n";
-            foreach ( ReuseElement stockElement in StockElementsInMaterialBank )
+            foreach ( ReuseElement stockElement in ElementsInMaterialBank )
                 info += "\n" + stockElement.getElementInfo();
 
             return info;
@@ -2346,7 +2434,7 @@ namespace MasterthesisGHA
         public double GetMaterialBankMass()
         {
             double mass = 0;
-            foreach (ReuseElement stockElement in StockElementsInMaterialBank)
+            foreach (ReuseElement stockElement in ElementsInMaterialBank)
             {
                 mass += stockElement.getMass();
             }
@@ -2356,34 +2444,34 @@ namespace MasterthesisGHA
         // Sorting Methods
         public void sortMaterialBankByLength()
         {
-            StockElementsInMaterialBank = getLengthSortedMaterialBank();
+            ElementsInMaterialBank = getLengthSortedMaterialBank();
         }
         public void sortMaterialBankByArea()
         {
-            StockElementsInMaterialBank = getAreaSortedMaterialBank();
+            ElementsInMaterialBank = getAreaSortedMaterialBank();
         }
         public List<ReuseElement> getLengthSortedMaterialBank()
         {
-            return StockElementsInMaterialBank.OrderBy(o => o.getReusableLength()).ToList(); ;
+            return ElementsInMaterialBank.OrderBy(o => o.getReusableLength()).ToList(); ;
         }
         public List<ReuseElement> getAreaSortedMaterialBank()
         {
-            return StockElementsInMaterialBank.OrderBy(o => o.CrossSectionArea).ToList();
+            return ElementsInMaterialBank.OrderBy(o => o.CrossSectionArea).ToList();
         }
         public List<ReuseElement> getUtilizationThenLengthSortedMaterialBank(double axialForce)
         {
             if (axialForce == 0)
-                return StockElementsInMaterialBank.OrderBy(o => -o.CrossSectionArea).
+                return ElementsInMaterialBank.OrderBy(o => -o.CrossSectionArea).
                     ThenBy(o => -o.getReusableLength()).ToList();
             else
-                return StockElementsInMaterialBank.OrderBy(o => Math.Abs( o.getNormalStressUtilization(axialForce) )).
+                return ElementsInMaterialBank.OrderBy(o => Math.Abs( o.getNormalStressUtilization(axialForce) )).
                     ThenBy(o => -o.getReusableLength()).ToList();
         }      
         public List<int> getUtilizationThenLengthSortedMaterialBankIndexing(double axialForce)
         {
             List<Tuple<int, double, double>> indexAreaLengthTuples = new List<Tuple<int, double, double>>();
-            for (int i = 0; i < StockElementsInMaterialBank.Count; i++)
-                indexAreaLengthTuples.Add(new Tuple<int, double, double>(i, StockElementsInMaterialBank[i].CrossSectionArea, StockElementsInMaterialBank[i].getReusableLength()));
+            for (int i = 0; i < ElementsInMaterialBank.Count; i++)
+                indexAreaLengthTuples.Add(new Tuple<int, double, double>(i, ElementsInMaterialBank[i].CrossSectionArea, ElementsInMaterialBank[i].getReusableLength()));
 
             indexAreaLengthTuples.OrderByDescending(o => o.Item2).ThenBy(o => o.Item3);
 
@@ -2395,35 +2483,58 @@ namespace MasterthesisGHA
         }
 
         // Replace Methods By Cutting Reuse Members
-        private void InsertStockElementIntoMaterialBank(ReuseElement stockElement)
+        private void InsertReuseElementIntoMaterialBank(ReuseElement reuseElement)
         {
-            StockElementsInMaterialBank.Add(stockElement);
+            ElementsInMaterialBank.Add(reuseElement);
         }
-        public bool RemoveStockElementFromMaterialBank(ReuseElement stockElement, MemberElement inPlaceElement, bool keepCutOff)
+        public bool RemoveReuseElementFromMaterialBank(ReuseElement reuseElement, MemberElement memberElement, bool keepCutOff)
         {
-            int index = StockElementsInMaterialBank.FindIndex(o => stockElement == o && !o.IsInStructure);
+            int index = ElementsInMaterialBank.FindIndex(o => reuseElement == o && !o.IsInStructure);
             if ( index == -1 )
             {
                 return false;
             }  
             else if (keepCutOff)
             {
-                ReuseElement temp = stockElement.DeepCopy();
+                ReuseElement temp = reuseElement.DeepCopy();
 
                 ReuseElement cutOffPart = new ReuseElement(temp.ProfileName,
-                    temp.getReusableLength() - inPlaceElement.StartPoint.DistanceTo(inPlaceElement.EndPoint));
+                    temp.getReusableLength() - memberElement.StartPoint.DistanceTo(memberElement.EndPoint));
                 cutOffPart.IsInStructure = false;
 
                 ReuseElement insertPart = new ReuseElement(temp.ProfileName,
-                    inPlaceElement.StartPoint.DistanceTo(inPlaceElement.EndPoint));
+                    memberElement.StartPoint.DistanceTo(memberElement.EndPoint));
                 insertPart.IsInStructure = true;
 
-                StockElementsInMaterialBank[index] = insertPart;
-                StockElementsInMaterialBank.Add(cutOffPart);
+                ElementsInMaterialBank[index] = insertPart;
+                ElementsInMaterialBank.Add(cutOffPart);
             }
             else
             {
-                StockElementsInMaterialBank[index].IsInStructure = true;             
+                ElementsInMaterialBank[index].IsInStructure = true;             
+            }
+            return true;
+        }
+        public bool RemoveReuseElementFromMaterialBank(int elementIndex, MemberElement memberElement, bool keepCutOff)
+        {
+            if (keepCutOff)
+            {
+                ReuseElement temp = ElementsInMaterialBank[elementIndex].DeepCopy();
+
+                ReuseElement cutOffPart = new ReuseElement(temp.ProfileName,
+                    temp.getReusableLength() - memberElement.StartPoint.DistanceTo(memberElement.EndPoint));
+                cutOffPart.IsInStructure = false;
+
+                ReuseElement insertPart = new ReuseElement(temp.ProfileName,
+                    memberElement.StartPoint.DistanceTo(memberElement.EndPoint));
+                insertPart.IsInStructure = true;
+
+                ElementsInMaterialBank[elementIndex] = insertPart;
+                ElementsInMaterialBank.Add(cutOffPart);
+            }
+            else
+            {
+                ElementsInMaterialBank[elementIndex].IsInStructure = true;
             }
             return true;
         }
@@ -2450,7 +2561,7 @@ namespace MasterthesisGHA
             };
             codeInfo = codeInfos[colorCode];
           
-            if (StockElementsInMaterialBank.Count == 0)
+            if (ElementsInMaterialBank.Count == 0)
                 return;
 
             int groupingMethod = -1;
@@ -2481,8 +2592,8 @@ namespace MasterthesisGHA
             double startSpacing = 100;
              
 
-            ReuseElement priorElement = StockElementsInMaterialBank[0];
-            foreach (ReuseElement element in StockElementsInMaterialBank)
+            ReuseElement priorElement = ElementsInMaterialBank[0];
+            foreach (ReuseElement element in ElementsInMaterialBank)
             {
                 if (groupingMethod == 0)
                 {
@@ -2569,7 +2680,7 @@ namespace MasterthesisGHA
             };
             codeInfo = codeInfos[colorCode];
 
-            if (StockElementsInMaterialBank.Count == 0)
+            if (ElementsInMaterialBank.Count == 0)
                 return;
 
             int groupingMethod = -1;
@@ -2591,21 +2702,21 @@ namespace MasterthesisGHA
 
             double crossSectionRadiusVisuals = 0;
 
-            for (int i = 0; i < StockElementsInMaterialBank.Count; i++)
+            for (int i = 0; i < ElementsInMaterialBank.Count; i++)
             {
                 if (colorCode == 0)
-                    crossSectionRadiusVisuals = Math.Sqrt( StockElementsInMaterialBank[i].CrossSectionArea ) / Math.PI;
+                    crossSectionRadiusVisuals = Math.Sqrt( ElementsInMaterialBank[i].CrossSectionArea ) / Math.PI;
                 else if (colorCode == 1)
                 {
                     double maxLength = 0;
-                    StockElementsInMaterialBank.ForEach(o => maxLength = Math.Max(maxLength, o.getReusableLength()));
+                    ElementsInMaterialBank.ForEach(o => maxLength = Math.Max(maxLength, o.getReusableLength()));
                     crossSectionRadiusVisuals = maxLength * 5e-2;
                 }
 
 
                 basePlanes.Add( new Plane(new Point3d(-(usedInstance + unusedInstance) - startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1)) );
                 baseCircles.Add( new Circle(basePlanes[basePlanes.Count-1], crossSectionRadiusVisuals) );
-                cylinders.Add( new Cylinder(baseCircles[baseCircles.Count-1], StockElementsInMaterialBank[i].getReusableLength()) );
+                cylinders.Add( new Cylinder(baseCircles[baseCircles.Count-1], ElementsInMaterialBank[i].getReusableLength()) );
                 geometry.Add(cylinders[cylinders.Count - 1].ToBrep(true, true));
                 color.Add(ElementCollection.materialBankColors[0]);
 

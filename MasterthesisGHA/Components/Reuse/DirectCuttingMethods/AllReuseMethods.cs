@@ -121,6 +121,7 @@ namespace MasterthesisGHA.Components.MethodOne
                     
                     case 1: // Insertion Matrix with No Optimization 
                         truss.InsertMaterialBank(inputMaterialBank, out insertionMatrix);
+                        truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
                         outputInfo += "insertion matrix method with no optimization.\n";
                         break;
 
@@ -131,6 +132,7 @@ namespace MasterthesisGHA.Components.MethodOne
 
                     case 3: // Insertion Matrix with Priority Matrix Optimization
                         truss.InsertMaterialBankByPriorityMatrix(out insertionMatrix, inputMaterialBank, out _);
+                        truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
                         outputInfo += "insertion matrix method with priority matrix optimization.\n";
                         break;
 

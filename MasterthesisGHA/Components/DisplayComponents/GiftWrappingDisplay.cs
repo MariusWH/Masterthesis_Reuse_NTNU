@@ -33,7 +33,7 @@ namespace MasterthesisGHA
         public GiftWrappingDisplay()
           : base("Gift Wrapping Display", "Gift Wrapping",
               "",
-              "Master", "FEM")
+              "Master", "Display")
         {
             trussSize = -1;
             maxLoad = -1;

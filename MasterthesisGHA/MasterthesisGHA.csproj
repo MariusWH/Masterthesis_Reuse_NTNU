@@ -25,6 +25,9 @@
   </ItemGroup>
   
   <ItemGroup>
+    <Reference Include="gurobi95.netstandard20">
+      <HintPath>..\..\..\..\..\..\gurobi951\win64\lib\gurobi95.netstandard20.dll</HintPath>
+    </Reference>
     <Reference Include="MathNet.Numerics">
       <HintPath>..\..\..\..\Downloads\mathnet.numerics.4.15.0\lib\net461\MathNet.Numerics.dll</HintPath>
       <CopyLocal>True</CopyLocal>

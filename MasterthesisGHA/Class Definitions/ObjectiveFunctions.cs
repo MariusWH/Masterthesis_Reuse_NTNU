@@ -80,7 +80,7 @@ namespace MasterthesisGHA
                 double wasteLength = 0;
                 bool cut = false;
 
-                foreach (double insertionLength in insertionMatrix.Row(stockElementIndex))
+                foreach (double insertionLength in insertionMatrix.Column(stockElementIndex))
                 {
                     reuseLength += insertionLength;
                     if (insertionLength != 0)
@@ -105,7 +105,7 @@ namespace MasterthesisGHA
 
             for (int memberIndex = 0; memberIndex < structure.ElementsInStructure.Count; memberIndex++)
             {                
-                if (insertionMatrix.Column(memberIndex).AbsoluteMaximum() != 0) continue;
+                if (insertionMatrix.Row(memberIndex).AbsoluteMaximum() != 0) continue;
 
                 MemberElement member = structure.ElementsInStructure[memberIndex];
                 carbonEmissionTotal +=

@@ -101,7 +101,7 @@ namespace MasterthesisGHA.Components.MethodOne
             Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
             MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank = iMaterialBank.GetDeepCopy();
-            optimizationMethod = optimizationMethod % 5;
+            optimizationMethod = optimizationMethod % 6;
             string outputInfo = string.Empty;
 
             if (insertNewElements)
@@ -147,6 +147,11 @@ namespace MasterthesisGHA.Components.MethodOne
                             truss.InsertMaterialBankByRandomPermutations((int)1e3, inputMaterialBank, out outMaterialBank, out _, out _);
                             outputInfo += "direct method with 1000 pseudo random permutations optimization.\n";
                         } 
+                        break;
+
+                    case 5: // Direct Cutting with Branch and Bound Optimization
+                        truss.InsertMaterialBankByBNB(inputMaterialBank, out outMaterialBank, out _);
+                        outputInfo += "direct method with branch and bound optimization.\n";
                         break;
                 }
             }

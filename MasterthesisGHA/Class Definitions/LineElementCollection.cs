@@ -688,7 +688,6 @@ namespace MasterthesisGHA
 
         // -- REUSE METHODS --
 
-
         // Maximum Reuse Rate
         public void InsertWithMaxReuseRate(MaterialBank materialBank, out Matrix<double> insertionMatrix)
         {
@@ -831,7 +830,28 @@ namespace MasterthesisGHA
         }
 
         // Branch & Bound
-        
+        public void InsertMaterialBankByBNB(MaterialBank inputMaterialBank, out MaterialBank outputMaterialBank, out double objective)
+        {
+            Matrix<double> priorityMatrix = getPriorityMatrix(inputMaterialBank);
+            Node node = new Node();
+            Matrix<double> costMatrix = node.getCostMatrix(priorityMatrix);
+            Node solutionNode = node.Solve(costMatrix);
+
+            List<Tuple<int, int>> solutionPath = solutionNode.path;
+            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, inputMaterialBank.ElementsInMaterialBank.Count);
+            outputMaterialBank = inputMaterialBank.GetDeepCopy();
+            foreach (Tuple<int, int> insertion in solutionPath)
+            {
+                insertionMatrix[insertion.Item1, insertion.Item2] = ElementsInStructure[insertion.Item1].getInPlaceElementLength();
+                InsertReuseElementAndCutMaterialBank(insertion.Item1, insertion.Item2, ref outputMaterialBank);
+            }
+
+            objective = ObjectiveFunctions.GlobalLCA(this, inputMaterialBank, insertionMatrix);
+
+            //double solutionCost = solutionNode.lowerBoundCost;
+            //string solutionPathString = "";
+            //foreach (Tuple<int, int> coordinate in solutionPath) solutionPathString += "[" + coordinate.Item1.ToString() + "," + coordinate.Item2.ToString() + "]\n";
+        }
         
 
 

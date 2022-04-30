@@ -93,7 +93,7 @@ namespace MasterthesisGHA.Components
             Node solutionNode = node.Solve(costMatrix);
 
             List<Tuple<int,int>> solutionPath = solutionNode.path;
-            double solutionCost = solutionNode.cost;
+            double solutionCost = solutionNode.lowerBoundCost;
 
             string solutionPathString = "";
             foreach(Tuple<int,int> coordinate in solutionPath) solutionPathString += "["+coordinate.Item1.ToString()+","+coordinate.Item2.ToString()+"]\n";

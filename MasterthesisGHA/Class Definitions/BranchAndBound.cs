@@ -11,7 +11,7 @@ namespace MasterthesisGHA
     {
         public List<Tuple<int, int>> path;
         public Matrix<double> reducedCostMatrix;
-        public double cost; // lower bound
+        public double lowerBoundCost; // lower bound
         public int vertex; // reuse element
         public int level; // position insertions
 
@@ -23,8 +23,6 @@ namespace MasterthesisGHA
             newNode.path.Add(new Tuple<int, int>(position, reuseElement));
 
             newNode.reducedCostMatrix = costMatrix.Clone();
-            newNode.cost = 0;
-            newNode.cost += newNode.reducedCostMatrix[position, reuseElement];
 
             for (int i = 0; i < costMatrix.ColumnCount; i++)
                 newNode.reducedCostMatrix[position, i] = double.PositiveInfinity; // Remove position
@@ -32,10 +30,11 @@ namespace MasterthesisGHA
                 newNode.reducedCostMatrix[i, reuseElement] = double.PositiveInfinity; // Remove reuse element (Used)
 
             newNode.reducedCostMatrix = costMatrixReduction(newNode.reducedCostMatrix, out double reductionCost);
-            newNode.cost += reductionCost;
+            newNode.lowerBoundCost += reductionCost; // Root reduction cost
+            newNode.lowerBoundCost += newNode.reducedCostMatrix[position, reuseElement]; // Root node cost
 
             newNode.vertex = reuseElement;
-            newNode.level = position;
+            newNode.level = 0;
 
             return newNode;
         }
@@ -47,8 +46,8 @@ namespace MasterthesisGHA
             newNode.path.Add(new Tuple<int, int>(position, reuseElement));
 
             newNode.reducedCostMatrix = parentNode.reducedCostMatrix.Clone();
-            newNode.cost = parentNode.cost;
-            newNode.cost += newNode.reducedCostMatrix[position, reuseElement];
+            newNode.lowerBoundCost = parentNode.lowerBoundCost;
+            newNode.lowerBoundCost += newNode.reducedCostMatrix[position, reuseElement];
 
             for (int i = 0; i < newNode.reducedCostMatrix.ColumnCount; i++)
                 newNode.reducedCostMatrix[position, i] = double.PositiveInfinity; // Remove position
@@ -56,7 +55,7 @@ namespace MasterthesisGHA
                 newNode.reducedCostMatrix[i, reuseElement] = double.PositiveInfinity; // Remove reuse element (Used)
 
             newNode.reducedCostMatrix = costMatrixReduction(newNode.reducedCostMatrix, out double reductionCost);
-            newNode.cost += reductionCost;
+            newNode.lowerBoundCost += reductionCost;
 
             newNode.vertex = reuseElement;
             newNode.level = position;
@@ -102,8 +101,9 @@ namespace MasterthesisGHA
 
         public Node Solve(Matrix<double> costMatrix)
         {
-            Queue<Node> liveNodes = new Queue<Node>();
-
+            //Queue<Node> liveNodes = new Queue<Node>();
+            List<Node> liveNodes = new List<Node>();
+            
             // Initial Live Nodes
             int position = 0;
             while(liveNodes.Count == 0)
@@ -113,7 +113,8 @@ namespace MasterthesisGHA
                     if (costMatrix[position, reuseElement] == double.PositiveInfinity) continue;
                     List<Tuple<int, int>> path = new List<Tuple<int, int>>();
                     path.Add(new Tuple<int, int>(position, reuseElement));
-                    liveNodes.Enqueue(RootNode(costMatrix, position, reuseElement));
+                    //liveNodes.Enqueue(RootNode(costMatrix, position, reuseElement));
+                    liveNodes.Add(RootNode(costMatrix, position, reuseElement));
                 }
                 if(++position == costMatrix.RowCount) return RootNode(costMatrix, 0, 0);
             }
@@ -121,27 +122,33 @@ namespace MasterthesisGHA
             // Branch From Initial Live Nodes
             while(liveNodes.Count != 0)
             {
-                Node liveNode = liveNodes.Dequeue();
-                if (liveNodes.Count > 1000)
+                liveNodes = liveNodes.OrderBy(o => o.lowerBoundCost).ToList();
+                Node minimumCostNode = liveNodes[0];
+                liveNodes.RemoveAt(0);
+
+                //Node liveNode = liveNodes.Dequeue();
+
+                if (liveNodes.Count > 50000)
                 {
-                    return liveNodes.OrderBy(o => o.cost).First();
+                    //return liveNodes.OrderBy(o => o.lowerBoundCost).First();
+                    return minimumCostNode;
                 }
 
-                position = liveNode.path[liveNode.path.Count - 1].Item1 + 1;
+                position = minimumCostNode.path[minimumCostNode.path.Count - 1].Item1 + 1;
                 bool noChildNodes = true;
                 while (noChildNodes)
                 {
                     for (int reuseElement = 0; reuseElement < costMatrix.ColumnCount; reuseElement++)
                     {
-                        if (costMatrix[position, reuseElement] == double.PositiveInfinity) continue;
+                        if (minimumCostNode.reducedCostMatrix[position, reuseElement] == double.PositiveInfinity) continue;
                         else noChildNodes = false;
 
-                        List<Tuple<int, int>> path = new List<Tuple<int, int>>();
-                        path.Add(new Tuple<int, int>(position, reuseElement));
-                        liveNodes.Enqueue(ChildNode(liveNode, position, reuseElement));
+                        //liveNodes.Enqueue(ChildNode(minimumCostNode, position, reuseElement));
+                        liveNodes.Add(ChildNode(minimumCostNode, position, reuseElement));
                     }
 
-                    if (++position == liveNode.reducedCostMatrix.RowCount - 1) return liveNode;
+                    if (++position == minimumCostNode.reducedCostMatrix.RowCount - 1) 
+                        return minimumCostNode;
                 }   
             }
 

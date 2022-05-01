@@ -98,8 +98,18 @@ namespace MasterthesisGHA
             return costMatrix;
         }
 
-
-        public Node SolveLinear(Matrix<double> costMatrix)
+        public enum bnbMethod { linearSearch, fullSearch }
+        public Node Solve(Matrix<double> costMatrix, bnbMethod method = bnbMethod.fullSearch)
+        {
+            switch (method)
+            {
+                case bnbMethod.linearSearch: return SolveLinearSearch(costMatrix);
+                case bnbMethod.fullSearch: return SolveFullSearch(costMatrix);
+            }
+            throw new Exception("BnB search method not found");
+                
+        }
+        public Node SolveLinearSearch(Matrix<double> costMatrix)
         {
             List<Node> liveNodes = new List<Node>();
             
@@ -149,7 +159,7 @@ namespace MasterthesisGHA
 
             throw new Exception("Optimal Node Not Found!");
         }
-        public Node Solve(Matrix<double> costMatrix)
+        public Node SolveFullSearch(Matrix<double> costMatrix, int maxLiveNodes = 5000)
         {
             List<Node> liveNodes = new List<Node>();
 
@@ -172,7 +182,8 @@ namespace MasterthesisGHA
                 Node minimumCostNode = liveNodes[0];
                 liveNodes.RemoveAt(0);
 
-                if (liveNodes.Count > 5000) return minimumCostNode;
+                if (liveNodes.Count > maxLiveNodes) 
+                    return minimumCostNode;
 
                 position = minimumCostNode.path[minimumCostNode.path.Count - 1].Item1 + 1;
                 bool noChildNodes = true;

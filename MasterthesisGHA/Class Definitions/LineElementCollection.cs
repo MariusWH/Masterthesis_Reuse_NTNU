@@ -279,14 +279,18 @@ namespace MasterthesisGHA
         {
             return GlobalStiffnessMatrix.Determinant();
         }
-        
-        // Virtual Methods
-        protected virtual void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
-        {
-            throw new NotImplementedException();
 
+        // Structure Methods
+        public virtual string PrintStructureInfo()
+        {
+            string info = "";
+            if (GetDofsPerNode() == 3) info += "Spatial Truss Structure:\n";
+            else if (GetDofsPerNode() == 2) info += "Planar Truss Structure:\n";
+            else if (GetDofsPerNode() == 6) info += "Spatial Frame Structure: \n";
+            foreach (LineElement element in ElementsInStructure) info += "\n" + element.getElementInfo();
+            return info;
         }
-        protected virtual void ConstructElementsFromLines(List<Line> lines, List<string> profileNames)
+        protected void ConstructElementsFromLines(List<Line> lines, List<string> profileNames)
         {
             int i_profile = 0;
             for (int i = 0; i < lines.Count; i++)
@@ -295,22 +299,38 @@ namespace MasterthesisGHA
                 Point3d startPoint = lines[i].PointAt(0);
                 Point3d endPoint = lines[i].PointAt(1);
                 if (GetDofsPerNode() == 3)
-                    ElementsInStructure.Add(new InPlaceBarElement3D(ref FreeNodes, ref SupportNodes, profileNames[i_profile], startPoint, endPoint));
+                    ElementsInStructure.Add(new SpatialBar(ref FreeNodes, ref SupportNodes, profileNames[i_profile], startPoint, endPoint));
                 else if (GetDofsPerNode() == 2)
-                    ElementsInStructure.Add(new InPlaceBarElement2D(ref FreeNodes, ref SupportNodes, profileNames[i_profile], startPoint, endPoint));
+                    ElementsInStructure.Add(new PlanarBar(ref FreeNodes, ref SupportNodes, profileNames[i_profile], startPoint, endPoint));
+                else if (GetDofsPerNode() == 6)
+                    ElementsInStructure.Add(new SpatialBeam(ref FreeNodes, ref SupportNodes, profileNames[i_profile], startPoint, endPoint));
+
             }
-            //FreeNodesInitial = FreeNodes;
             FreeNodesInitial = FreeNodes.Select(node => new Point3d(node)).ToList();
         }
+        protected virtual void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
+        {
+            if (lines.Count == 0)
+                throw new Exception("Line Input is not valid!");
+            
+            int minSupports = 0;
+
+            if (GetDofsPerNode() == 2) minSupports = 2;
+            else if (GetDofsPerNode() == 3) minSupports = 3;
+            else if (GetDofsPerNode() == 6) minSupports = 1;
+
+            if (anchoredPoints.Count < minSupports)
+                throw new Exception("Anchored points needs to be at least 2 to prevent rigid body motion!");
+
+        }
+
+        // Specific Structure Type Methods
         protected virtual int GetDofsPerNode()
         {
             return 0;
         }
-        public virtual string PrintStructureInfo()
-        {
-            throw new NotImplementedException();           
-        }
-    
+
+
         // -- STRUCTURAL ANALYSIS --
         protected virtual void RecalculateGlobalMatrix()
         {
@@ -335,7 +355,7 @@ namespace MasterthesisGHA
             int dofsPerNode = GetDofsPerNode();
             double gravitationalAcceleration = 9.81;
 
-            foreach (InPlaceBarElement3D member in ElementsInStructure)
+            foreach (SpatialBar member in ElementsInStructure)
             {
                 if (member.StartNodeIndex != -1)
                     GlobalLoadVector[dofsPerNode * member.StartNodeIndex + (dofsPerNode-1)] += -member.getMass() * gravitationalAcceleration / 2;
@@ -729,7 +749,7 @@ namespace MasterthesisGHA
                 throw new Exception("Structure is top big to perform brute force calculation");
 
             InsertNewElements();
-            TrussModel3D structureCopy = new TrussModel3D();
+            SpatialTruss structureCopy = new SpatialTruss();
 
             objectiveFunctionOutputs = new List<double>();
             double objectiveFunction = 0;
@@ -743,7 +763,7 @@ namespace MasterthesisGHA
                 MaterialBank tempInputMaterialBank = materialBank.GetDeepCopy();
                 MaterialBank tempOutputMaterialBank = materialBank.GetDeepCopy();
 
-                structureCopy = new TrussModel3D(this);
+                structureCopy = new SpatialTruss(this);
                 structureCopy.InsertMaterialBank(tempInputMaterialBank, list, out tempOutputMaterialBank);
                 objectiveFunction = 1.00 * structureCopy.GetReusedMass() + 1.50 * structureCopy.GetNewMass();
 
@@ -769,7 +789,7 @@ namespace MasterthesisGHA
             List<int> initalList = Enumerable.Range(0, ElementsInStructure.Count).ToList();
             InsertNewElements();
 
-            TrussModel3D structureCopy;
+            SpatialTruss structureCopy;
             Random random = new Random();
             List<int> shuffledList;
             shuffledLists = new List<List<int>>();
@@ -787,7 +807,7 @@ namespace MasterthesisGHA
 
                 MaterialBank tempInputMaterialBank = materialBank.GetDeepCopy();
 
-                structureCopy = new TrussModel3D(this);
+                structureCopy = new SpatialTruss(this);
                 structureCopy.InsertMaterialBank(tempInputMaterialBank, shuffledList, out MaterialBank tempRemainingMaterialBank);
 
                 objectiveFunction = ObjectiveFunctions.SimpleTestFunction(structureCopy, tempRemainingMaterialBank);
@@ -852,17 +872,6 @@ namespace MasterthesisGHA
             //string solutionPathString = "";
             //foreach (Tuple<int, int> coordinate in solutionPath) solutionPathString += "[" + coordinate.Item1.ToString() + "," + coordinate.Item2.ToString() + "]\n";
         }
-        
-
-
-        
-        
-
-
-
-
-
-
         public void GurobiExample()
         {
             try
@@ -1148,21 +1157,21 @@ namespace MasterthesisGHA
 
 
 
-    public class TrussModel3D : Structure
+    public class SpatialTruss : Structure
     {
         // Constructors
-        public TrussModel3D()
+        public SpatialTruss()
             : base()
         {
 
         }
-        public TrussModel3D(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
+        public SpatialTruss(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
             : base(lines, profileNames, supportPoints)
         {
             
 
         }
-        public TrussModel3D(Structure copyFromThis)
+        public SpatialTruss(Structure copyFromThis)
             : this()
         {
             ElementsInStructure = copyFromThis.ElementsInStructure.ToList();
@@ -1180,24 +1189,6 @@ namespace MasterthesisGHA
         }
 
         // General Methods
-        protected override void VerifyModel(ref List<Line> lines, ref List<Point3d> anchoredPoints)
-        {
-            if (lines.Count == 0)
-                throw new Exception("Line Input is not valid!");
-
-            if (anchoredPoints.Count < 2)
-                throw new Exception("Anchored points needs to be at least 2 to prevent rigid body motion!");
-
-        }
-        public override string PrintStructureInfo()
-        {
-            string info = "3D Truss Structure:\n";
-            foreach (InPlaceBarElement3D inPlaceBarElement3D in ElementsInStructure)
-            {
-                info += "\n" + inPlaceBarElement3D.getElementInfo();
-            }
-            return info;
-        }
         protected override int GetDofsPerNode()
         {
             return 3;
@@ -1249,7 +1240,7 @@ namespace MasterthesisGHA
         }
         public override void Retracking()
         {
-            foreach (InPlaceBarElement3D element in ElementsInStructure)
+            foreach (SpatialBar element in ElementsInStructure)
             {
                 double L0 = element.StartPoint.DistanceTo(element.EndPoint);
                 double L1 = 0;
@@ -1298,7 +1289,7 @@ namespace MasterthesisGHA
         {
             loadDirection.Unitize();
             int dofsPerNode = GetDofsPerNode();
-            foreach (InPlaceBarElement3D element in ElementsInStructure)
+            foreach (SpatialBar element in ElementsInStructure)
             {
                 foreach (Line loadElement in loadElements)
                 {
@@ -2070,13 +2061,12 @@ namespace MasterthesisGHA
 
         }
 
-
         // -- MEMBER REPLACEMENT METHODS --
         public override List<List<ReuseElement>> GetReusabilityTree(MaterialBank materialBank)
         {
             List<List<ReuseElement>> reusablesSuggestionTree = new List<List<ReuseElement>>();
             int elementCounter = 0;
-            foreach (InPlaceBarElement3D elementInStructure in ElementsInStructure)
+            foreach (SpatialBar elementInStructure in ElementsInStructure)
             {
                 List<ReuseElement> StockElementSuggestionList = new List<ReuseElement>();
                 for (int i = 0; i < materialBank.ElementsInMaterialBank.Count; i++)
@@ -2101,7 +2091,7 @@ namespace MasterthesisGHA
             }
             else if (materialBank.RemoveReuseElementFromMaterialBank(reuseElement, ElementsInStructure[positionIndex], keepCutOff))
             {
-                MemberElement temp = new InPlaceBarElement3D(reuseElement, ElementsInStructure[positionIndex]);
+                MemberElement temp = new SpatialBar(reuseElement, ElementsInStructure[positionIndex]);
                 ElementsInStructure.RemoveAt(positionIndex);
                 ElementsInStructure.Insert(positionIndex, temp);
                 return true;
@@ -2112,7 +2102,7 @@ namespace MasterthesisGHA
         {
             materialBank.RemoveReuseElementFromMaterialBank(elementIndex, ElementsInStructure[positionIndex], keepCutOff);
 
-            MemberElement temp = new InPlaceBarElement3D(materialBank.ElementsInMaterialBank[elementIndex].DeepCopy(), ElementsInStructure[positionIndex]);
+            MemberElement temp = new SpatialBar(materialBank.ElementsInMaterialBank[elementIndex].DeepCopy(), ElementsInStructure[positionIndex]);
             ElementsInStructure.RemoveAt(positionIndex);
             ElementsInStructure.Insert(positionIndex, temp);
         }
@@ -2126,13 +2116,12 @@ namespace MasterthesisGHA
             {
                 string newProfile = sortedNewElements.First(o => LineElement.CrossSectionAreaDictionary[o] > minimumArea);
                 ReuseElement newElement = new ReuseElement(newProfile, 0);
-                MemberElement temp = new InPlaceBarElement3D(newElement, ElementsInStructure[inPlaceElementIndex]);
+                MemberElement temp = new SpatialBar(newElement, ElementsInStructure[inPlaceElementIndex]);
                 temp.IsFromMaterialBank = false;
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
             }
-        }
-        
+        }        
         protected override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int reuseElementIndex, int positionIndex, ref MaterialBank materialBank, bool keepCutOff = true)
         {
             if (positionIndex < 0 || positionIndex > ElementsInStructure.Count)
@@ -2154,59 +2143,32 @@ namespace MasterthesisGHA
 
         }
         
-
-
-
     }
-    
 
 
 
 
 
 
-
-
-
-    public class TrussModel2D : TrussModel3D
-    {   
+    public class PlanarTruss : SpatialTruss
+    {
         // Constructors
-        public TrussModel2D(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
+        public PlanarTruss(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
             : base(lines, profileNames, supportPoints)
         {
 
         }
 
         // Overriden Methods
-        public override string PrintStructureInfo()
-        {
-            string info = "2D Truss Structure:\n";
-            foreach (InPlaceBarElement2D inPlaceBarElement2D in ElementsInStructure)
-            {
-                info += "\n" + inPlaceBarElement2D.getElementInfo();
-            }
-            return info;
-        }
         protected override int GetDofsPerNode()
         {
             return 2;
         }
-        /*
-        protected override void ConstructElementsFromLines(List<Line> lines, List<string> profileNames)
-        {
-            for (int i = 0; i < lines.Count; i++)
-            {
-                Point3d startPoint = lines[i].PointAt(0);
-                Point3d endPoint = lines[i].PointAt(1);
-                ElementsInStructure.Add(new InPlaceBarElement2D(ref FreeNodes, ref SupportNodes, profileNames[i], startPoint, endPoint));
-            }
-            FreeNodesInitial = FreeNodes.Select(node => new Point3d(node)).ToList();
-        }*/
         public override void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
         {
             loadDirection.Unitize();
             int dofsPerNode = GetDofsPerNode();
-            foreach (InPlaceBarElement3D element in ElementsInStructure)
+            foreach (SpatialBar element in ElementsInStructure)
             {
                 foreach (Line loadElement in loadElements)
                 {
@@ -2217,7 +2179,7 @@ namespace MasterthesisGHA
                             GlobalLoadVector[dofsPerNode * element.StartNodeIndex]
                                 += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[0] / 2;
                             GlobalLoadVector[dofsPerNode * element.StartNodeIndex + 1]
-                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[2] / 2;                          
+                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[2] / 2;
                         }
 
                         if (element.EndNodeIndex != -1)
@@ -2279,7 +2241,7 @@ namespace MasterthesisGHA
         {
             List<List<ReuseElement>> reusablesSuggestionTree = new List<List<ReuseElement>>();
             int elementCounter = 0;
-            foreach (InPlaceBarElement2D elementInStructure in ElementsInStructure)
+            foreach (PlanarBar elementInStructure in ElementsInStructure)
             {
                 List<ReuseElement> StockElementSuggestionList = new List<ReuseElement>();
                 for (int i = 0; i < materialBank.ElementsInMaterialBank.Count; i++)
@@ -2304,13 +2266,13 @@ namespace MasterthesisGHA
             }
             else if (materialBank.RemoveReuseElementFromMaterialBank(stockElement, ElementsInStructure[inPlaceElementIndex], keepCutOff))
             {
-                MemberElement temp = new InPlaceBarElement2D(stockElement, ElementsInStructure[inPlaceElementIndex]);
+                MemberElement temp = new PlanarBar(stockElement, ElementsInStructure[inPlaceElementIndex]);
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
                 return true;
             }
             return false;
-        }      
+        }
         protected override void InsertNewElement(int inPlaceElementIndex, List<string> areaSortedNewElements, double minimumArea)
         {
             if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
@@ -2321,7 +2283,7 @@ namespace MasterthesisGHA
             {
                 string newProfile = areaSortedNewElements.First(o => LineElement.CrossSectionAreaDictionary[o] > minimumArea);
                 ReuseElement newElement = new ReuseElement(newProfile, 0);
-                MemberElement temp = new InPlaceBarElement2D(newElement, ElementsInStructure[inPlaceElementIndex]);
+                MemberElement temp = new PlanarBar(newElement, ElementsInStructure[inPlaceElementIndex]);
                 temp.IsFromMaterialBank = false;
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
@@ -2329,6 +2291,174 @@ namespace MasterthesisGHA
         }
 
     }
+
+
+
+
+
+
+    public class SpatialFrame : Structure
+    {
+        // Constructors
+        public SpatialFrame()
+            : base()
+        {
+        }
+        public SpatialFrame(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
+            : base(lines, profileNames, supportPoints)
+        {
+        }
+        public SpatialFrame(Structure copyFromThis)
+            : this()
+        {
+            ElementsInStructure = copyFromThis.ElementsInStructure.ToList();
+            FreeNodes = copyFromThis.FreeNodes.ToList();
+            FreeNodesInitial = copyFromThis.FreeNodesInitial.ToList();
+            SupportNodes = copyFromThis.SupportNodes.ToList();
+            GlobalStiffnessMatrix = Matrix<double>.Build.SameAs(copyFromThis.GlobalStiffnessMatrix);
+            GlobalLoadVector = Vector<double>.Build.SameAs(copyFromThis.GlobalLoadVector);
+            GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
+            ElementAxialForce = copyFromThis.ElementAxialForce.ToList();
+            ElementUtilization = copyFromThis.ElementUtilization.ToList();
+            StructureColors = copyFromThis.StructureColors.ToList();
+            StructureVisuals = copyFromThis.StructureVisuals.ToList();
+        }
+
+        // Spatial Frame Methods
+        protected override int GetDofsPerNode()
+        {
+            return 6;
+        }
+        protected override void RecalculateGlobalMatrix()
+        {
+            GlobalStiffnessMatrix.Clear();
+            foreach (MemberElement element in ElementsInStructure)
+            {
+                Matrix<double> LocalStiffnessMatrix = element.getLocalStiffnessMatrix();
+                for (int row = 0; row < LocalStiffnessMatrix.RowCount / 2; row++)
+                {
+                    for (int col = 0; col < element.getLocalStiffnessMatrix().ColumnCount / 2; col++)
+                    {
+                        int dofsPerNode = GetDofsPerNode();
+                        int StartNodeIndex = element.getStartNodeIndex();
+                        int EndNodeIndex = element.getEndNodeIndex();
+                        if (StartNodeIndex != -1)
+                            GlobalStiffnessMatrix[dofsPerNode * StartNodeIndex + row, dofsPerNode * StartNodeIndex + col]
+                                += LocalStiffnessMatrix[row, col];
+                        if (EndNodeIndex != -1)
+                            GlobalStiffnessMatrix[dofsPerNode * EndNodeIndex + row, dofsPerNode * EndNodeIndex + col]
+                                += LocalStiffnessMatrix[row + dofsPerNode, col + dofsPerNode];
+
+                        if (StartNodeIndex != -1 && EndNodeIndex != -1)
+                        {
+                            GlobalStiffnessMatrix[dofsPerNode * StartNodeIndex + row, dofsPerNode * EndNodeIndex + col]
+                                += LocalStiffnessMatrix[row, col + dofsPerNode];
+                            GlobalStiffnessMatrix[dofsPerNode * EndNodeIndex + row, dofsPerNode * StartNodeIndex + col]
+                                += LocalStiffnessMatrix[row + dofsPerNode, col];
+
+                        }
+
+                    }
+                }
+            }
+        }
+        public override void Solve()
+        {
+            GlobalDisplacementVector = GlobalStiffnessMatrix.Solve(GlobalLoadVector);
+            int dofsPerNode = GetDofsPerNode();
+
+            for (int i = 0; i < FreeNodes.Count; i++)
+                FreeNodes[i] += new Point3d(GlobalDisplacementVector[dofsPerNode * i],
+                    GlobalDisplacementVector[dofsPerNode * i + 1], GlobalDisplacementVector[dofsPerNode * i + 2]);
+
+        }
+        public override void Retracking()
+        {
+            foreach (SpatialBeam element in ElementsInStructure)
+            {
+                double L0 = element.StartPoint.DistanceTo(element.EndPoint);
+                double L1 = 0;
+
+                if (element.StartNodeIndex == -1 && element.EndNodeIndex == -1)
+                    L1 = L0;
+                else if (element.EndNodeIndex == -1)
+                    L1 = FreeNodes[element.StartNodeIndex].DistanceTo(element.EndPoint);
+                else if (element.StartNodeIndex == -1)
+                    L1 = element.StartPoint.DistanceTo(FreeNodes[element.EndNodeIndex]);
+                else
+                    L1 = FreeNodes[element.StartNodeIndex].DistanceTo(FreeNodes[element.EndNodeIndex]);
+
+                ElementAxialForce.Add((element.CrossSectionArea * element.YoungsModulus) * (L1 - L0) / L0);
+                ElementUtilization.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
+            }
+        }
+
+
+
+        public void ApplyNodalLoads(List<double> loadList, List<Vector3d> loadVecs)
+        {
+            int dofsPerNode = GetDofsPerNode();
+            int dofs = dofsPerNode * FreeNodes.Count;
+
+            while (loadList.Count < dofs)
+                loadList.Add(0);
+            while (loadList.Count > dofs)
+                loadList.RemoveAt(loadList.Count - 1);
+
+            if (loadVecs.Count <= FreeNodes.Count)
+                for (int i = 0; i < loadVecs.Count; i++)
+                {
+                    loadList[dofsPerNode * i] += loadVecs[i].X;
+                    loadList[dofsPerNode * i + 1] += loadVecs[i].Y;
+                    loadList[dofsPerNode * i + 2] += loadVecs[i].Z;
+                }
+
+            GlobalLoadVector = Vector<double>.Build.Dense(dofs);
+            for (int i = 0; i < FreeNodes.Count; i++)
+                for (int j = 0; j < dofsPerNode; j++)
+                    GlobalLoadVector[dofsPerNode * i + j] = loadList[dofsPerNode * i + j];
+
+
+        }
+        public override void ApplyLineLoad(double loadValue, Vector3d loadDirection, Vector3d distributionDirection, List<Line> loadElements)
+        {
+            loadDirection.Unitize();
+            int dofsPerNode = GetDofsPerNode();
+            foreach (SpatialBeam element in ElementsInStructure)
+            {
+                foreach (Line loadElement in loadElements)
+                {
+                    if (element.StartPoint == loadElement.PointAt(0) && element.EndPoint == loadElement.PointAt(1))
+                    {
+                        if (element.StartNodeIndex != -1)
+                        {
+                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex]
+                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[0] / 2;
+                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex + 1]
+                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[1] / 2;
+                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex + 2]
+                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[2] / 2;
+                        }
+
+                        if (element.EndNodeIndex != -1)
+                        {
+                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex]
+                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[0] / 2;
+                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex + 1]
+                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[1] / 2;
+                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex + 2]
+                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[2] / 2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+    
 
 
 

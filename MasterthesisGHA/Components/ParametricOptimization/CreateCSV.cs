@@ -229,10 +229,10 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                                 switch (is3D)
                                 {
                                     default:
-                                        trusses.Add(new TrussModel3D(geometryLines, iProfiles, supportPoints));
+                                        trusses.Add(new SpatialTruss(geometryLines, iProfiles, supportPoints));
                                         break;
                                     case false:
-                                        trusses.Add(new TrussModel2D(geometryLines, iProfiles, supportPoints));
+                                        trusses.Add(new PlanarTruss(geometryLines, iProfiles, supportPoints));
                                         break;
                                 }
 

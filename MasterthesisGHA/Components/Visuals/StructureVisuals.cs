@@ -48,7 +48,7 @@ namespace MasterthesisGHA.Components.Visuals
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // INPUTS
-            List<TrussModel3D> structures = new List<TrussModel3D>();
+            List<SpatialTruss> structures = new List<SpatialTruss>();
             bool normalize = false;
             int colorCode = 0;
 
@@ -83,7 +83,7 @@ namespace MasterthesisGHA.Components.Visuals
                 maxLoad = new List<double>(structures.Count);
                 maxDisplacement = new List<double>(structures.Count);
 
-                foreach (TrussModel3D truss in structures)
+                foreach (SpatialTruss truss in structures)
                 {
                     trussSize.Add( truss.GetSize() );
                     maxLoad.Add( truss.GetMaxLoad() );
@@ -97,7 +97,7 @@ namespace MasterthesisGHA.Components.Visuals
 
             for (int i = 0; i < structures.Count; i++)
             {
-                TrussModel3D truss = structures[i];
+                SpatialTruss truss = structures[i];
                 List<Brep> geometry;
                 List<System.Drawing.Color> color;
 

@@ -129,14 +129,14 @@ namespace MasterthesisGHA
 
 
             // CODE
-            TrussModel3D truss;
+            SpatialTruss truss;
             switch (is3d)
             {
                 default:
-                    truss = new TrussModel3D(iLines, iProfiles, iAnchoredPoints);
+                    truss = new SpatialTruss(iLines, iProfiles, iAnchoredPoints);
                     break;
                 case false:
-                    truss = new TrussModel2D(iLines, iProfiles, iAnchoredPoints);
+                    truss = new PlanarTruss(iLines, iProfiles, iAnchoredPoints);
                     break;
             }
 

@@ -37,7 +37,7 @@ namespace MasterthesisGHA
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // Input
-            Structure structure = new TrussModel3D();
+            Structure structure = new SpatialTruss();
             MaterialBank materialBank = new MaterialBank();
             Matrix insertionMatrix = new Matrix(0,0);
 

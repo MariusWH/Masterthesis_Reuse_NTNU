@@ -21,6 +21,7 @@ namespace MasterthesisGHA
         public double PolarMomentOfInertia;
         public double YoungsModulus;
         public double YieldStress;
+        public double PoissonsRatio;
 
         // Static Variables
         public static Dictionary<string, double> CrossSectionAreaDictionary;
@@ -222,57 +223,8 @@ namespace MasterthesisGHA
             return StartPoint.DistanceTo(EndPoint);
         }
 
-
-        // Virtual Methods
-        protected virtual void UpdateNodes(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, Point3d startPoint, Point3d endPoint)
-        {
-            throw new NotImplementedException();
-        }
-        protected virtual void UpdateLocalStiffnessMatrix()
-        {
-            throw new NotImplementedException();
-        }
-        public virtual double ProjectedElementLength(Vector3d distributionDirection)
-        {
-            throw new NotImplementedException();
-        }
-
-
-    }
-
-
-
-
-    public class InPlaceBarElement3D : MemberElement
-    {
-        // Constructor
-        public InPlaceBarElement3D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
-            : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
-        {
-
-        }
-        public InPlaceBarElement3D(ReuseElement stockElement, MemberElement inPlaceElement)
-            : base(stockElement, inPlaceElement)
-        {
-
-        }
-
-
-        // Overriden Methods
-        public override string getElementInfo()
-        {
-            string info = "InPlaceBarElement3D{ ";
-            info += "{start=" + getStartPoint().ToString() + "}, ";
-            info += "{end=" + getEndPoint().ToString() + "}, ";
-            info += "{startIndex=" + getStartNodeIndex().ToString() + "}, ";
-            info += "{endIndex=" + getEndNodeIndex().ToString() + "}, ";
-            info += "{A=" + CrossSectionArea + "}, ";
-            info += "{E=" + YoungsModulus + "}";
-            info += " }";
-
-            return info;
-        }
-        protected override void UpdateNodes(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, Point3d startPoint, Point3d endPoint)
+        // Methods
+        protected void UpdateNodes(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, Point3d startPoint, Point3d endPoint)
         {
             if (!SupportNodes.Contains(startPoint))
             {
@@ -292,6 +244,70 @@ namespace MasterthesisGHA
             else
             { EndNodeIndex = -1; }
         }
+        public double ProjectedElementLength(Vector3d distributionDirection)
+        {
+            double elementLength = StartPoint.DistanceTo(EndPoint);
+            Vector3d elementDirection = new Vector3d(EndPoint - StartPoint);
+            elementDirection.Unitize();
+            distributionDirection.Unitize();
+            Vector<double> elementDirectionMathNet = Vector<double>.Build.Dense(3);
+            Vector<double> projectionDirectionMathNet = Vector<double>.Build.Dense(3);
+
+            for (int i = 0; i < 3; i++)
+            {
+                elementDirectionMathNet[i] = elementDirection[i];
+                projectionDirectionMathNet[i] = distributionDirection[i];
+            }
+
+            return elementLength * elementDirectionMathNet.ConjugateDotProduct(projectionDirectionMathNet);
+        }
+
+        // Virtual Methods
+        protected virtual void UpdateLocalStiffnessMatrix()
+        {
+            throw new NotImplementedException();
+        }
+
+        // Info
+        public virtual string getElementInfoString()
+        {
+            throw new NotImplementedException();
+        }
+        public override string getElementInfo()
+        {
+            string info = getElementInfoString() + " { ";
+            info += "{start=" + getStartPoint().ToString() + "}, ";
+            info += "{end=" + getEndPoint().ToString() + "}, ";
+            info += "{startIndex=" + getStartNodeIndex().ToString() + "}, ";
+            info += "{endIndex=" + getEndNodeIndex().ToString() + "}, ";
+            info += "{A=" + CrossSectionArea + "}, ";
+            info += "{E=" + YoungsModulus + "}";
+            info += " }";
+
+            return info;
+        }
+
+    }
+
+
+
+
+    public class SpatialBar : MemberElement
+    {
+        // Constructor
+        public SpatialBar(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
+            : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
+        {
+
+        }
+        public SpatialBar(ReuseElement stockElement, MemberElement inPlaceElement)
+            : base(stockElement, inPlaceElement)
+        {
+
+        }
+
+
+        // Overriden Methods
         protected override void UpdateLocalStiffnessMatrix()
         {
             double elementLength = StartPoint.DistanceTo(EndPoint);
@@ -323,38 +339,22 @@ namespace MasterthesisGHA
             LocalStiffnessMatrix =  EAL * TranformationOrientation.Transpose()
                 .Multiply(StiffnessMatrixBar.Multiply(TranformationOrientation));
         }                 
-        public override double ProjectedElementLength(Vector3d distributionDirection)
+        public override string getElementInfoString()
         {
-            double elementLength = StartPoint.DistanceTo(EndPoint);
-            Vector3d elementDirection = new Vector3d(EndPoint - StartPoint);
-            elementDirection.Unitize();
-            distributionDirection.Unitize();
-            Vector<double> elementDirectionMathNet = Vector<double>.Build.Dense(3);
-            Vector<double> projectionDirectionMathNet = Vector<double>.Build.Dense(3);
-
-            for (int i = 0; i < 3; i++)
-            {
-                elementDirectionMathNet[i] = elementDirection[i];
-                projectionDirectionMathNet[i] = distributionDirection[i];
-            }
-
-            return elementLength * elementDirectionMathNet.ConjugateDotProduct(projectionDirectionMathNet);
+            return "BarMember3D";
         }
-
     }
 
 
-
-
-    public class InPlaceBarElement2D : InPlaceBarElement3D
+    public class PlanarBar : SpatialBar
     {
         // Constructor
-        public InPlaceBarElement2D(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
+        public PlanarBar(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
             : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
         {
 
         }
-        public InPlaceBarElement2D(ReuseElement reuseElement, MemberElement member)
+        public PlanarBar(ReuseElement reuseElement, MemberElement member)
             : base(reuseElement, member)
         {
 
@@ -362,19 +362,6 @@ namespace MasterthesisGHA
 
 
         // Overriden Methods
-        public override string getElementInfo()
-        {
-            string info = "InPlaceBarElement2D{ ";
-            info += "{start=" + getStartPoint().ToString() + "}, ";
-            info += "{end=" + getEndPoint().ToString() + "}, ";
-            info += "{startIndex=" + getStartNodeIndex().ToString() + "}, ";
-            info += "{endIndex=" + getEndNodeIndex().ToString() + "}, ";
-            info += "{A=" + CrossSectionArea + "}, ";
-            info += "{E=" + YoungsModulus + "}";
-            info += " }";
-
-            return info;
-        }
         protected override void UpdateLocalStiffnessMatrix()
         {
             double dz = getEndPoint().Z - getStartPoint().Z;
@@ -395,10 +382,102 @@ namespace MasterthesisGHA
 
             
         }
-
+        public override string getElementInfoString()
+        {
+            return "BarMember2D";
+        }
     }
 
 
+
+    public class SpatialBeam : MemberElement
+    {
+        // Constructor
+        public SpatialBeam(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
+            : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
+        {
+
+        }
+        public SpatialBeam(ReuseElement stockElement, MemberElement member)
+            : base(stockElement, member)
+        {
+
+        }
+
+
+        // Overriden Methods
+        protected override void UpdateLocalStiffnessMatrix()
+        {
+            double elementLength = StartPoint.DistanceTo(EndPoint);
+            double EL = YoungsModulus / Math.Pow(elementLength,3);
+
+            double c1 = CrossSectionArea * elementLength * elementLength;
+            double c2 = 12 * AreaMomentOfInertiaZZ;
+            double c3 = 12 * AreaMomentOfInertiaYY;
+            double c4 = 6 * AreaMomentOfInertiaZZ * elementLength;
+            double c5 = 6 * AreaMomentOfInertiaYY * elementLength;
+            double c6 = 2 * AreaMomentOfInertiaZZ * elementLength * elementLength;
+            double c7 = 2 * AreaMomentOfInertiaYY * elementLength * elementLength;
+            double c8 = PolarMomentOfInertia * elementLength * elementLength / (2 * (1 + PoissonsRatio));
+
+            Matrix<double> elementStiffnessMatrix = Matrix<double>.Build.SparseOfArray(new double[,]
+            {
+                    {c1,0,0,0,0,0,      -c1,0,0,0,0,0},
+                    {0,c2,0,0,0,c4,     0,-c2,0,0,0,c4},
+                    {0,0,c3,0,-c5,0,    0,0,-c3,0,-c5,0},
+                    {0,0,0,c8,0,0,      0,0,0,-c8,0,0},
+                    {0,0,-c5,0,2*c7,0,  0,0,c5,0,c7,0},
+                    {0,c4,0,0,0,2*c6,   0,-c4,0,0,0,c6},
+
+                    {-c1,0,0,0,0,0,     c1,0,0,0,0,0},
+                    {0,-c2,0,0,0,-c4,   0,c2,0,0,0,-c4},
+                    {0,0,-c3,0,c5,0,    0,0,c3,0,c5,0},
+                    {0,0,0,-c8,0,0,     0,0,0,c8,0,0},
+                    {0,0,-c5,0,c7,0,    0,0,c5,0,2*c7,0},
+                    {0,c4,0,0,0,c6,     0,-c4,0,0,0,2*c6}
+
+            });
+
+            double alpha = 0;
+
+            double cosX = (EndPoint.X - StartPoint.X) / elementLength;
+            double cosY = (EndPoint.Y - StartPoint.Y) / elementLength;
+            double cosZ = (EndPoint.Z - StartPoint.Z) / elementLength;
+            double cosRotation = Math.Cos(alpha);
+            double sinRotation = Math.Sin(alpha);
+            double cosXZ = Math.Sqrt(Math.Pow(cosX, 2) + Math.Pow(cosZ, 2));
+
+            Matrix<double> transformationMatrix;
+
+            if (Math.Round(cosXZ, 6) == 0)
+            {
+                transformationMatrix = Matrix<double>.Build.DenseOfArray(new double[,]
+                {
+                    { 0,                    cosY,   0},
+                    { -cosY * cosRotation,  0,      sinRotation},
+                    { cosY* sinRotation,    0,      cosRotation},
+                });
+            }
+            else
+            {
+                transformationMatrix = Matrix<double>.Build.DenseOfArray(new double[,]
+                {
+                    {cosX, cosY,cosZ},
+                    {(-cosX * cosY * cosRotation - cosZ * sinRotation) / cosXZ, cosXZ* cosRotation,(-cosY * cosZ * cosRotation + cosX * sinRotation)/ cosXZ},
+                    {(cosX * cosY * sinRotation - cosZ * cosRotation) / cosXZ, -cosXZ * sinRotation, (cosY * cosZ * sinRotation + cosX * cosRotation) / cosXZ},
+                });
+            }
+
+            transformationMatrix = transformationMatrix.DiagonalStack(transformationMatrix);
+            transformationMatrix = transformationMatrix.DiagonalStack(transformationMatrix);
+
+            LocalStiffnessMatrix = EL * transformationMatrix.Transpose().Multiply(elementStiffnessMatrix).Multiply(transformationMatrix);
+        }
+        public override string getElementInfoString()
+        {
+            return "BeamMember3D";
+        }
+    }
 
 
     public class ReuseElement : LineElement

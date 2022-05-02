@@ -7,10 +7,10 @@ using Rhino.Geometry;
 
 namespace MasterthesisGHA
 {
-    public class TrussMSA : GH_Component
+    public class FrameMSA : GH_Component
     {
         // Stored Variables
-        public double trussSize;
+        public double structureSize;
         public double maxLoad;
         public double maxDisplacement;
 
@@ -19,12 +19,12 @@ namespace MasterthesisGHA
         public Point3d startNode;
         public int returnCount;
 
-        public TrussMSA()
-          : base("Truss Matrix Structural Analysis", "Truss MSA",
-              "Matrix Structural Analysis Tool for 2D and 3D Truss Systems",
+        public FrameMSA()
+          : base("Frame Matrix Structural Analysis", "Frame MSA",
+              "Matrix Structural Analysis Tool for 2D and 3D Frame Systems",
               "Master", "FEM")
         {
-            trussSize = -1;
+            structureSize = -1;
             maxLoad = -1;
             maxDisplacement = -1;
 
@@ -32,12 +32,12 @@ namespace MasterthesisGHA
             startNode = new Point3d();
             returnCount = 0;
         }
-        public TrussMSA(string name, string nickname, string description, string category, string subCategory)
+        public FrameMSA(string name, string nickname, string description, string category, string subCategory)
             : base(name, nickname, description, category, subCategory)
         {
 
         }
-       
+
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
             pManager.AddBooleanParameter("3D/2D", "3D/2D", "3D/2D", GH_ParamAccess.item, true);
@@ -52,7 +52,7 @@ namespace MasterthesisGHA
             pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list, new Line());
             pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item, false);
 
-            
+
         }
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
@@ -60,7 +60,7 @@ namespace MasterthesisGHA
             pManager.AddMatrixParameter("Stiffness Matrix", "K", "Stiffness matrix as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);           
+            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("Rank", "Rank", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("Nullity", "Nullity", "", GH_ParamAccess.item);
@@ -83,7 +83,7 @@ namespace MasterthesisGHA
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
             bool applySelfWeight = false;
-            
+
             DA.GetData(0, ref is3d);
             DA.GetDataList(1, iLines);
             DA.GetDataList(2, iProfiles);
@@ -97,56 +97,55 @@ namespace MasterthesisGHA
             DA.GetData(10, ref applySelfWeight);
 
             // CODE
-            SpatialTruss truss;
+            SpatialFrame frame;
             switch (is3d)
             {
                 default:
-                    truss = new SpatialTruss(iLines, iProfiles, iSupports);
+                    frame = new SpatialFrame(iLines, iProfiles, iSupports);
                     break;
                 case false:
-                    truss = new PlanarTruss(iLines, iProfiles, iSupports);
-                    break;
-            }
-            
-            truss.ApplyNodalLoads(iLoad, iLoadVecs);
-            truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
-            if (applySelfWeight)
-            {
-                truss.ApplySelfWeight();
+                    throw new NotImplementedException();
             }
 
-            double rank = truss.GetStiffnessMartrixRank();
-            double nullity = truss.GetStiffnessMartrixNullity();
-            double determinant = truss.GetStiffnessMatrixDeterminant();
-            truss.Solve();
-            truss.Retracking();
-            
+            frame.ApplyNodalLoads(iLoad, iLoadVecs);
+            frame.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
+            if (applySelfWeight)
+            {
+                frame.ApplySelfWeight();
+            }
+
+            double rank = frame.GetStiffnessMartrixRank();
+            double nullity = frame.GetStiffnessMartrixNullity();
+            double determinant = frame.GetStiffnessMatrixDeterminant();
+            frame.Solve();
+            frame.Retracking();
+
 
 
             // OUTPUT
-            DA.SetDataList(0, truss.FreeNodes);
-            DA.SetData(1, truss.GetStiffnessMatrix());
-            DA.SetData(2, truss.GetDisplacementVector());
-            DA.SetData(3, truss.GetLoadVector());
-            DA.SetDataList(4, truss.ElementAxialForce);
-            DA.SetData(5, truss);
+            DA.SetDataList(0, frame.FreeNodes);
+            DA.SetData(1, frame.GetStiffnessMatrix());
+            DA.SetData(2, frame.GetDisplacementVector());
+            DA.SetData(3, frame.GetLoadVector());
+            DA.SetDataList(4, frame.ElementAxialForce);
+            DA.SetData(5, frame);
             DA.SetData(6, rank);
             DA.SetData(7, nullity);
             DA.SetData(8, determinant);
 
         }
-
-
         protected override System.Drawing.Bitmap Icon
         {
             get
             {
-                return Properties.Resources._3D_Truss_Icon;
+                //You can add image files to your project resources and access them like this:
+                // return Resources.IconForThisComponent;
+                return null;
             }
         }
         public override Guid ComponentGuid
         {
-            get { return new Guid("DC35EDA8-72CC-45ED-A755-DF28A9EFB877"); }
+            get { return new Guid("78BD548E-A6B1-4C40-B9BE-DC638802CF6B"); }
         }
     }
 }

@@ -94,14 +94,14 @@ namespace MasterthesisGHA.Components.MethodOne
             foreach (Line line in iGeometryLines)
                 initialProfiles.Add("IPE600");
 
-            TrussModel3D truss;
+            SpatialTruss truss;
             MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank;
 
             if (!is3D )
-                truss = new TrussModel2D(iGeometryLines, initialProfiles, iSupports);
+                truss = new PlanarTruss(iGeometryLines, initialProfiles, iSupports);
             else
-                truss = new TrussModel3D(iGeometryLines, initialProfiles, iSupports);
+                truss = new SpatialTruss(iGeometryLines, initialProfiles, iSupports);
 
             truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss.Solve();

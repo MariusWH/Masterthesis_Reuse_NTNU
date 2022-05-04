@@ -13,7 +13,9 @@ namespace MasterthesisGHA.Components.Visuals
         public int prevStructuresCount;
         public List<double> size;
         public List<double> maxLoad;
+        public List<double> maxMoment;
         public List<double> maxDisplacement;
+        public List<double> maxAngle;
         List<Brep> outGeometry;
         List<System.Drawing.Color> outColor;
 
@@ -25,7 +27,9 @@ namespace MasterthesisGHA.Components.Visuals
             firstRun = true;
             size = new List<double>();
             maxLoad = new List<double>();
+            maxMoment = new List<double>();
             maxDisplacement = new List<double>();
+            maxAngle = new List<double>();
             outGeometry = new List<Brep>();
             outColor = new List<System.Drawing.Color>();
         }
@@ -73,13 +77,17 @@ namespace MasterthesisGHA.Components.Visuals
                 firstRun = false;
                 size = new List<double>(elementCollections.Count);
                 maxLoad = new List<double>(elementCollections.Count);
+                maxMoment = new List<double>(elementCollections.Count);
                 maxDisplacement = new List<double>(elementCollections.Count);
+                maxAngle = new List<double>(elementCollections.Count);
 
                 foreach (ElementCollection elementCollection in elementCollections)
                 {
                     size.Add(elementCollection.GetSize());
                     maxLoad.Add(elementCollection.GetMaxLoad());
+                    maxMoment.Add(elementCollection.GetMaxMoment());
                     maxDisplacement.Add(elementCollection.GetMaxDisplacement());
+                    maxAngle.Add(elementCollection.GetMaxAngle());
                 }
             }
 
@@ -94,7 +102,7 @@ namespace MasterthesisGHA.Components.Visuals
 
                 elementCollection.GetVisuals(
                     out List<Brep> geometry, out List<System.Drawing.Color> color, out codeInfo, 
-                    colorCode, size[i], maxDisplacement[i], maxLoad[i]);
+                    colorCode, size[i], maxDisplacement[i], maxAngle[i], maxLoad[i], maxMoment[i]);
 
                 outGeometry.AddRange(geometry);
                 outColor.AddRange(color);

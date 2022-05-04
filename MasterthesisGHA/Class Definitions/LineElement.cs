@@ -392,16 +392,19 @@ namespace MasterthesisGHA
 
     public class SpatialBeam : MemberElement
     {
+        // Variables
+        public double AlphaAngle;
+
         // Constructor
-        public SpatialBeam(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
+        public SpatialBeam(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint, double alphaAngle = 0)
             : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
         {
-
+            AlphaAngle = alphaAngle;
         }
-        public SpatialBeam(ReuseElement stockElement, MemberElement member)
+        public SpatialBeam(ReuseElement stockElement, SpatialBeam member)
             : base(stockElement, member)
         {
-
+            AlphaAngle = member.AlphaAngle;
         }
 
 
@@ -438,13 +441,11 @@ namespace MasterthesisGHA
 
             });
 
-            double alpha = 0;
-
             double cosX = (EndPoint.X - StartPoint.X) / elementLength;
             double cosY = (EndPoint.Y - StartPoint.Y) / elementLength;
             double cosZ = (EndPoint.Z - StartPoint.Z) / elementLength;
-            double cosRotation = Math.Cos(alpha);
-            double sinRotation = Math.Sin(alpha);
+            double cosRotation = Math.Cos(AlphaAngle);
+            double sinRotation = Math.Sin(AlphaAngle);
             double cosXZ = Math.Sqrt(Math.Pow(cosX, 2) + Math.Pow(cosZ, 2));
 
             Matrix<double> transformationMatrix;

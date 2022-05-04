@@ -15,7 +15,8 @@ namespace MasterthesisGHA
         // Attributes
         protected static Color supportNodeColor;
         protected static Color freeNodeColor;
-        protected static Color loadArrowColor;
+        protected static Color pointLoadArrow;
+        protected static Color momentArrow;
         protected static Color unverifiedMemberColor;
         protected static Color verifiedMemberColor;
         protected static Color overUtilizedMemberColor;      
@@ -34,8 +35,8 @@ namespace MasterthesisGHA
 
             supportNodeColor = darkerGrey;
             freeNodeColor = System.Drawing.Color.DarkGray;
-            //loadArrowColor = System.Drawing.Color.White;
-            loadArrowColor = darkerGrey;
+            pointLoadArrow = darkerGrey;
+            momentArrow = System.Drawing.Color.DarkGray;
 
             unverifiedMemberColor = System.Drawing.Color.White;
             verifiedMemberColor = System.Drawing.Color.Green;
@@ -122,7 +123,7 @@ namespace MasterthesisGHA
         }
 
         // Visuals
-        public virtual void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorTheme, double size, double maxDisplacement, double maxLoad)
+        public virtual void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorTheme, double size, double maxDisplacement, double maxAngle, double maxLoad, double maxMoment)
         {
             geometry = new List<Brep>();
             color = new List<Color>();
@@ -130,15 +131,23 @@ namespace MasterthesisGHA
         }
         public virtual double GetSize()
         {
-            return -1;
+            throw new NotImplementedException();
         }
         public virtual double GetMaxLoad()
         {
-            return -1;
+            throw new NotImplementedException();
+        }
+        public virtual double GetMaxMoment()
+        {
+            throw new NotImplementedException();
         }
         public virtual double GetMaxDisplacement()
         {
-            return -1;
+            throw new NotImplementedException();
+        }
+        public virtual double GetMaxAngle()
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -464,7 +473,7 @@ namespace MasterthesisGHA
         */
 
         // -- VISUALS --
-        public override void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxLoad)
+        public override void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxAngle, double maxLoad, double maxMoment)
         {
             geometry = new List<Brep>();
             color = new List<Color>();
@@ -484,19 +493,19 @@ namespace MasterthesisGHA
             };
             codeInfo = codeInfos[colorCode];
 
-            GetLoadVisuals(out outGeometry, out outColor, size, maxLoad, maxDisplacement, true);
+            GetLoadVisuals(out outGeometry, out outColor, size, maxLoad, maxMoment, maxDisplacement, maxAngle, true);
             geometry.AddRange(outGeometry);
             color.AddRange(outColor);
 
-            GetResultVisuals(out outGeometry, out outColor, colorCode, size, maxDisplacement);
+            GetResultVisuals(out outGeometry, out outColor, colorCode, size, maxDisplacement, maxAngle);
             geometry.AddRange(outGeometry);
             color.AddRange(outColor);
         }
-        public virtual void GetLoadVisuals(out List<Brep> geometry, out List<Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1, bool inwardFacingArrows = true)
+        public virtual void GetLoadVisuals(out List<Brep> geometry, out List<Color> color, double size = -1, double maxLoad = -1, double maxMoment = -1, double maxDisplacement = -1, double maxAngle = -1, bool inwardFacingArrows = true)
         {
             throw new NotImplementedException();
         }
-        public virtual void GetResultVisuals(out List<Brep> geometry, out List<Color> color, int colorTheme, double size = -1, double maxDisplacement = -1)
+        public virtual void GetResultVisuals(out List<Brep> geometry, out List<Color> color, int colorTheme, double size = -1, double maxDisplacement = -1, double maxAngle = -1)
         {
             throw new NotImplementedException();
         }
@@ -530,16 +539,42 @@ namespace MasterthesisGHA
             double max = 0;
             double temp;
 
+            int dimensions = 3;
+            if (dofsPerNode <= 3) dimensions = dofsPerNode;
+
             for (int i = 0; i < dofsPerNode * FreeNodes.Count; i += dofsPerNode)
             {
                 temp = 0;
-                for (int j = 0; j < dofsPerNode; j++)
+                for (int j = 0; j < dimensions; j++)
                 {
                     temp += GlobalLoadVector[i + j] * GlobalLoadVector[i + j];
                 }
-                max = Math.Max(max, Math.Sqrt(temp));
+                max = Math.Max(max, temp);
             }
-            return max + 1e-3;
+
+            return Math.Sqrt(max);
+        }
+        public override  double GetMaxMoment()
+        {
+            int dofsPerNode = GetDofsPerNode();
+            double max = 0;
+            double temp;
+
+            int dimensions = 3;
+            if (dofsPerNode <= 3) return 0.0;
+            else if (dofsPerNode == 4) dimensions = 2;
+
+            for (int i = 0; i < dofsPerNode * FreeNodes.Count; i += dofsPerNode)
+            {
+                temp = 0;
+                for (int j = 0; j < dimensions; j++)
+                {
+                    temp += GlobalLoadVector[i + dimensions + j] * GlobalLoadVector[i + dimensions + j];
+                }
+                max = Math.Max(max, temp);
+            }
+
+            return Math.Sqrt(max);
         }
         public override double GetMaxDisplacement()
         {
@@ -547,18 +582,67 @@ namespace MasterthesisGHA
             double max = 0;
             double temp;
 
-            for (int i = 0; i < FreeNodes.Count; i++)
+            int dimensions = 3;
+            if (dofsPerNode <= 3) dimensions = dofsPerNode;
+
+            for (int i = 0; i < dofsPerNode * FreeNodes.Count; i += dofsPerNode)
             {
                 temp = 0;
-                for (int j = 0; j < dofsPerNode; j++)
-                {
-                    temp += GlobalDisplacementVector[i * dofsPerNode + j] * GlobalDisplacementVector[i * dofsPerNode + j];
-                }
+                for (int j = 0; j < dimensions; j++) 
+                    temp += GlobalDisplacementVector[i + j] * GlobalDisplacementVector[i + j];
 
-                if (Math.Sqrt(temp) != double.NaN)
-                    max = Math.Max(max, Math.Sqrt(temp));
+                if (temp != double.NaN) max = Math.Max(max, temp);
             }
-            return max;
+            return Math.Sqrt(max);
+        }
+        public override double GetMaxAngle()
+        {
+            int dofsPerNode = GetDofsPerNode();
+            double max = 0;
+            double temp;
+
+            int dimensions = 3;
+            if (dofsPerNode <= 3) return 0.0;
+            else if (dofsPerNode == 4) dimensions = 2;
+
+            for (int i = 0; i < dofsPerNode * FreeNodes.Count; i += dofsPerNode)
+            {
+                temp = 0;
+                for (int j = 0; j < dimensions; j++)
+                {
+                    temp += GlobalDisplacementVector[i + dimensions + j] * GlobalDisplacementVector[i + dimensions + j];
+                }
+                max = Math.Max(max, temp);
+            }
+
+            return Math.Sqrt(max);
+        }
+
+        protected Color BlendColors(Color color, Color backColor, double amount)
+        {
+            byte r = (byte)(color.R * amount + backColor.R * (1 - amount));
+            byte g = (byte)(color.G * amount + backColor.G * (1 - amount));
+            byte b = (byte)(color.B * amount + backColor.B * (1 - amount));
+            return System.Drawing.Color.FromArgb(r, g, b);
+        }
+        protected double getStructureSizeFactor(double factorOfLength, double structureSize)
+        {
+            return factorOfLength * structureSize;
+        }
+        protected double getDisplacementFactor(double factorOfLength, double structureSize, double maxDisplacement)
+        {
+            if(maxDisplacement < 1) maxDisplacement = 1;
+            return factorOfLength * structureSize / maxDisplacement;
+        }
+        protected double getAngleFactor(double maxDisplayAngle, double maxAngle)
+        {
+            if (maxAngle < Math.PI * 0.001) maxAngle = Math.PI * 0.001;
+            return maxDisplayAngle / maxAngle;
+        }
+        protected double getLoadFactor(double factorOfLength, double structureSize, double maxLoad)
+        {
+            if(maxLoad < 1) maxLoad = 1;
+            return factorOfLength * structureSize / maxLoad;
         }
 
 
@@ -1823,26 +1907,7 @@ namespace MasterthesisGHA
         }
 
         // Visuals
-        protected Color BlendColors(Color color, Color backColor, double amount)
-        {
-            byte r = (byte)(color.R * amount + backColor.R * (1 - amount));
-            byte g = (byte)(color.G * amount + backColor.G * (1 - amount));
-            byte b = (byte)(color.B * amount + backColor.B * (1 - amount));
-            return System.Drawing.Color.FromArgb(r, g, b);
-        }
-        protected double getStructureSizeFactor(double factorOfLength, double structureSize)
-        {
-            return factorOfLength * structureSize;
-        }
-        protected double getDisplacementFactor(double factorOfLength, double structureSize, double maxDisplacement )
-        {
-            return factorOfLength * structureSize / maxDisplacement;
-        }
-        protected double getLoadFactor(double factorOfLength, double structureSize, double maxLoad)
-        {
-            return factorOfLength * structureSize / maxLoad;
-        }
-        public override void GetLoadVisuals(out List<Brep> geometry, out List<Color> color, double size = -1, double maxLoad = -1, double maxDisplacement = -1, bool inwardFacingArrows = true)
+        public override void GetLoadVisuals(out List<Brep> geometry, out List<Color> color, double size = -1, double maxLoad = -1, double maxMoment = -1, double maxDisplacement = -1, double maxAngle = -1, bool inwardFacingArrows = true)
         {
             geometry = new List<Brep>();
             color = new List<Color>();
@@ -1926,17 +1991,17 @@ namespace MasterthesisGHA
                
 
                 StructureVisuals.Add(loadCylinder.ToBrep(true, true));
-                StructureColors.Add(Structure.loadArrowColor);
+                StructureColors.Add(Structure.pointLoadArrow);
                 StructureVisuals.Add(arrow.ToBrep(true));
-                StructureColors.Add(Structure.loadArrowColor);
+                StructureColors.Add(Structure.pointLoadArrow);
 
                 geometry.Add(loadCylinder.ToBrep(true, true));
-                color.Add(Structure.loadArrowColor);
+                color.Add(Structure.pointLoadArrow);
                 geometry.Add(arrow.ToBrep(true));
-                color.Add(Structure.loadArrowColor);
+                color.Add(Structure.pointLoadArrow);
             }
         }
-        public override void GetResultVisuals(out List<Brep> geometry, out List<Color> color, int colorCode = 0, double size = -1, double maxDisplacement = -1)
+        public override void GetResultVisuals(out List<Brep> geometry, out List<Color> color, int colorCode = 0, double size = -1, double maxDisplacement = -1, double maxAngle = -1)
         {
             geometry = new List<Brep>();
             color = new List<Color>();
@@ -2453,12 +2518,355 @@ namespace MasterthesisGHA
                 }
             }
         }
+
+
+        // Visuals
+        public override void GetLoadVisuals(out List<Brep> geometry, out List<Color> color, double size = -1, double maxLoad = -1, double maxMoment = -1, double maxDisplacement = -1, double maxAngle = -1, bool inwardFacingArrows = true)
+        {
+            geometry = new List<Brep>();
+            color = new List<Color>();
+
+            double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
+            double loadLineRadius = getStructureSizeFactor(2e-3, size);
+            double spacingLoadArrowToNode = 1e-2 * size;
+
+            List<Point3d> freeNodeDisplacement = new List<Point3d>();
+            for (int j = 0; j < FreeNodes.Count; j++)
+            {
+                freeNodeDisplacement.Add(displacementFactor * (new Point3d(FreeNodes[j] - FreeNodesInitial[j])));
+            }
+
+            int dofsPerNode = GetDofsPerNode();
+            Vector<double> pointLoadVector = Vector<double>.Build.Dense(3 * FreeNodes.Count);
+            Vector<double> momentLoadVector = Vector<double>.Build.Dense(3 * FreeNodes.Count);
+
+
+            int dimensions = 3;
+            for (int i = 0; i < FreeNodes.Count; i++)
+            {
+                pointLoadVector[dimensions * i] = GlobalLoadVector[dofsPerNode * i];
+                pointLoadVector[dimensions * i + 1] = GlobalLoadVector[dofsPerNode * i + 1];
+                pointLoadVector[dimensions * i + 2] = GlobalLoadVector[dofsPerNode * i + 2];
+                momentLoadVector[dimensions * i] = GlobalLoadVector[dofsPerNode * i + 3];
+                momentLoadVector[dimensions * i + 1] = GlobalLoadVector[dofsPerNode * i + 4];
+                momentLoadVector[dimensions * i + 2] = GlobalLoadVector[dofsPerNode * i + 5];
+            }
+            
+            for (int i = 0; i < FreeNodes.Count; i++)
+            {
+                Vector3d pointLoadDirection = new Vector3d(
+                    pointLoadVector[dimensions * i],
+                    pointLoadVector[dimensions * i + 1],
+                    pointLoadVector[dimensions * i + 2]);
+
+                double pointLoadArrowLength = Math.Sqrt(
+                    pointLoadVector[dimensions * i] * pointLoadVector[dimensions * i] +
+                    pointLoadVector[dimensions * i + 1] * pointLoadVector[dimensions * i + 1] +
+                    pointLoadVector[dimensions * i + 2] * pointLoadVector[dimensions * i + 2])
+                    * getLoadFactor(0.1, size, maxLoad);
+
+                Vector3d momentDirection = new Vector3d(
+                    momentLoadVector[dimensions * i],
+                    momentLoadVector[dimensions * i + 1],
+                    momentLoadVector[dimensions * i + 2]);
+
+                double momentArrowLength = Math.Sqrt(
+                    momentLoadVector[dimensions * i] * momentLoadVector[dimensions * i] +
+                    momentLoadVector[dimensions * i + 1] * momentLoadVector[dimensions * i + 1] +
+                    momentLoadVector[dimensions * i + 2] * momentLoadVector[dimensions * i + 2])
+                    * getLoadFactor(0.1, size, maxMoment);
+
+                pointLoadDirection.Unitize();
+                momentDirection.Unitize();
+                double coneHeight = 6 * loadLineRadius;
+                double coneRadius = 3 * loadLineRadius;
+
+                Point3d pointLoadStartPoint;
+                Point3d pointLoadEndPoint;
+                Cylinder pointLoadCylinder;
+                Cone pointLoadArrow;
+                Point3d momentStartPoint;
+                Point3d momentEndPoint;
+                Cylinder momentCylinder;
+                Cone momentArrowFirst;
+                Cone momentArrowSecond;
+
+                if (inwardFacingArrows)
+                {
+                    pointLoadEndPoint = new Point3d(FreeNodesInitial[i] + freeNodeDisplacement[i] - pointLoadDirection * spacingLoadArrowToNode);
+                    pointLoadStartPoint = pointLoadEndPoint + new Point3d(-pointLoadDirection * (pointLoadArrowLength + spacingLoadArrowToNode));
+                    pointLoadCylinder = new Cylinder(new Circle(new Plane(pointLoadStartPoint, pointLoadDirection), loadLineRadius),
+                        pointLoadStartPoint.DistanceTo(pointLoadEndPoint) - coneHeight);
+                    pointLoadArrow = new Cone(new Plane(pointLoadEndPoint, new Vector3d(
+                        pointLoadVector[dimensions * i],
+                        pointLoadVector[dimensions * i + 1],
+                        pointLoadVector[dimensions * i + 2])),
+                        -coneHeight, coneRadius);
+
+                    momentEndPoint = new Point3d(FreeNodesInitial[i] + freeNodeDisplacement[i] - momentDirection * spacingLoadArrowToNode);
+                    momentStartPoint = momentEndPoint + new Point3d(-momentDirection * (momentArrowLength + spacingLoadArrowToNode));
+                    momentCylinder = new Cylinder(new Circle(new Plane(momentStartPoint, momentDirection), loadLineRadius),
+                        momentStartPoint.DistanceTo(momentEndPoint) - coneHeight);
+                    momentArrowFirst = new Cone(new Plane(momentEndPoint, new Vector3d(
+                        momentLoadVector[dimensions * i],
+                        momentLoadVector[dimensions * i + 1],
+                        momentLoadVector[dimensions * i + 2])),
+                        -coneHeight, coneRadius);
+                    momentArrowSecond = new Cone(new Plane(momentEndPoint - momentDirection * coneHeight, new Vector3d(
+                        momentLoadVector[dimensions * i],
+                        momentLoadVector[dimensions * i + 1],
+                        momentLoadVector[dimensions * i + 2])),
+                        -coneHeight, coneRadius);
+                }
+                else
+                {
+                    pointLoadStartPoint = new Point3d(FreeNodesInitial[i] + freeNodeDisplacement[i]);
+                    pointLoadEndPoint = pointLoadStartPoint + new Point3d(pointLoadDirection * pointLoadArrowLength);
+                    pointLoadCylinder = new Cylinder(new Circle(new Plane(pointLoadStartPoint, pointLoadDirection), loadLineRadius),
+                        pointLoadStartPoint.DistanceTo(pointLoadEndPoint));
+                    pointLoadArrow = new Cone(new Plane(pointLoadEndPoint + pointLoadDirection * coneHeight, new Vector3d(
+                        pointLoadVector[dimensions * i],
+                        pointLoadVector[dimensions * i + 1],
+                        pointLoadVector[dimensions * i + 2])),
+                        -coneHeight, coneRadius);
+
+
+                    momentEndPoint = new Point3d(FreeNodesInitial[i] + freeNodeDisplacement[i] - momentDirection * spacingLoadArrowToNode);
+                    momentStartPoint = momentEndPoint + new Point3d(-momentDirection * (momentArrowLength + spacingLoadArrowToNode));
+                    momentCylinder = new Cylinder(new Circle(new Plane(momentStartPoint, momentDirection), loadLineRadius),
+                        momentStartPoint.DistanceTo(momentEndPoint) - coneHeight);
+                    momentArrowFirst = new Cone(new Plane(momentEndPoint, new Vector3d(
+                        momentLoadVector[dimensions * i],
+                        momentLoadVector[dimensions * i + 1],
+                        momentLoadVector[dimensions * i + 2])),
+                        -coneHeight, coneRadius);
+                    momentArrowSecond = new Cone(new Plane(momentEndPoint - momentDirection * coneHeight, new Vector3d(
+                        momentLoadVector[dimensions * i],
+                        momentLoadVector[dimensions * i + 1],
+                        momentLoadVector[dimensions * i + 2])),
+                        -coneHeight, coneRadius);
+
+                }
+
+
+                StructureVisuals.Add(pointLoadCylinder.ToBrep(true, true));
+                StructureColors.Add(Structure.pointLoadArrow);
+                StructureVisuals.Add(pointLoadArrow.ToBrep(true));
+                StructureColors.Add(Structure.pointLoadArrow);
+
+                StructureVisuals.Add(momentCylinder.ToBrep(true, true));
+                StructureColors.Add(Structure.momentArrow);
+                StructureVisuals.Add(momentArrowFirst.ToBrep(true));
+                StructureColors.Add(Structure.momentArrow);
+                StructureVisuals.Add(momentArrowSecond.ToBrep(true));
+                StructureColors.Add(Structure.momentArrow);
+
+                geometry.Add(pointLoadCylinder.ToBrep(true, true));
+                color.Add(Structure.pointLoadArrow);
+                geometry.Add(pointLoadArrow.ToBrep(true));
+                color.Add(Structure.pointLoadArrow);
+
+                geometry.Add(momentCylinder.ToBrep(true, true));
+                color.Add(Structure.momentArrow);
+                geometry.Add(momentArrowFirst.ToBrep(true));
+                color.Add(Structure.momentArrow);
+                geometry.Add(momentArrowSecond.ToBrep(true));
+                color.Add(Structure.momentArrow);
+            }
+        }
+        public override void GetResultVisuals(out List<Brep> geometry, out List<Color> color, int colorCode = 0, double size = -1, double maxDisplacement = -1, double maxAngle = -1)
+        {
+            geometry = new List<Brep>();
+            color = new List<Color>();
+
+            double displacementFactor = getDisplacementFactor(0.02, size, maxDisplacement);
+            double angleFactor = getAngleFactor(0.2 * Math.PI, maxAngle);
+            double initialNodeRadius = getStructureSizeFactor(8e-3, size);
+            List<Point3d> normalizedNodeDisplacement = new List<Point3d>();            
+            List<Point3d> normalizedNodeAngle = new List<Point3d>();
+
+            
+            for (int j = 0; j < FreeNodes.Count; j++)
+            {
+                normalizedNodeDisplacement.Add(displacementFactor * (new Point3d(FreeNodes[j] - FreeNodesInitial[j])));
+                int dof = GetDofsPerNode() * j;
+                normalizedNodeAngle.Add(angleFactor * (new Point3d(GlobalDisplacementVector[dof + 3], GlobalDisplacementVector[dof + 4], GlobalDisplacementVector[dof + 5])));
+            }
+
+
+            for (int i = 0; i < ElementsInStructure.Count; i++)
+            {
+
+                Point3d startOfElement = ElementsInStructure[i].getStartPoint();
+                int startNodeIndex = ElementsInStructure[i].getStartNodeIndex();
+                if (startNodeIndex != -1)
+                    startOfElement += normalizedNodeDisplacement[startNodeIndex];
+
+                Point3d endOfElement = ElementsInStructure[i].getEndPoint();
+                int endNodeIndex = ElementsInStructure[i].getEndNodeIndex();
+                if (endNodeIndex != -1)
+                    endOfElement += normalizedNodeDisplacement[endNodeIndex];
+
+                Vector3d startTangent = new Vector3d(endOfElement - startOfElement);
+                Vector3d endTangent = new Vector3d(startOfElement - endOfElement);
+                startTangent.Unitize();
+                endTangent.Unitize();
+
+                if (startNodeIndex != -1)
+                {
+                    startTangent.Rotate(normalizedNodeAngle[startNodeIndex].X, new Vector3d(1, 0, 0));
+                    startTangent.Rotate(normalizedNodeAngle[startNodeIndex].Y, new Vector3d(0, 1, 0));
+                    startTangent.Rotate(normalizedNodeAngle[startNodeIndex].Z, new Vector3d(0, 0, 1));
+                }
+
+                if (endNodeIndex != -1)
+                {
+                    endTangent.Rotate(normalizedNodeAngle[endNodeIndex].X, new Vector3d(1, 0, 0));
+                    endTangent.Rotate(normalizedNodeAngle[endNodeIndex].Y, new Vector3d(0, 1, 0));
+                    endTangent.Rotate(normalizedNodeAngle[endNodeIndex].Z, new Vector3d(0, 0, 1));
+                }
+
+                double dL = startOfElement.DistanceTo(endOfElement) * 0.1;
+                Rhino.Geometry.Curve rail = Rhino.Geometry.Curve.CreateControlPointCurve(
+                    new List<Point3d>() { startOfElement, startOfElement+startTangent*dL, endOfElement+endTangent*dL, endOfElement });
+
+                Rhino.Geometry.SweepOneRail sweep = new SweepOneRail();
+                Circle circle = new Circle(new Plane(startOfElement, startTangent), 0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI));
+                //sweep.PerformSweep(curve, circle);
+
+                double radius = 0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI);
+                
+
+                List<Brep> loftCylinder = Rhino.Geometry.Brep.CreatePipe(rail, radius, true, PipeCapMode.None, false, 10.0, 10.0).ToList();
+
+
+                //loftCylinder.AddRange(Brep.CreateFromSweep(rail, new Circle(new Plane(startOfElement, startTangent), 0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)).ToNurbsCurve(10,10),
+                //    true, 0.0).ToList());
+
+                //Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)),
+                //    0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)), startOfElement.DistanceTo(endOfElement));
+
+                List<Brep> cylinders = new List<Brep>();
+                double dP = 0.1;
+                for (double param = 0; param < 1; param += dP)
+                {
+                    Point3d start = rail.PointAt(param);
+                    Point3d end = rail.PointAt(param+dP);
+                    double radii = 0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI);
+
+                    Cylinder cylinder = new Cylinder(new Circle(new Plane(start, new Vector3d(end - start)), radii), start.DistanceTo(end));
+                    cylinders.Add(cylinder.ToBrep(true, true));
+                    geometry.Add(cylinder.ToBrep(true,true));
+                }
+
+                //geometry.AddRange(loftCylinder);
+
+
+
+                // Color codes
+                // 0 - Discrete Member Verifiation (Red/Green/Yellow)
+                // 1 - Continuous Member Stresses (White-Blue)
+                // 2 - Continuous Member Buckling (White-Blue)
+                // 3 - New and Reuse Members (White-Blue)
+                // 4 - Discrete Node Displacements (Red/Green)
+                // 5 - Continuous Node Displacements (White-Blue)
+
+                double utilizationBuckling = ElementsInStructure[i].getAxialBucklingUtilization(ElementAxialForce[i]);
+                double utilizationStress = ElementsInStructure[i].getAxialUtilization(ElementAxialForce[i]);
+
+                foreach ( Brep cylinder in cylinders)
+                {
+                    if (colorCode == 0)
+                    {
+                        if (utilizationBuckling > 1)
+                            color.Add(bucklingMemberColor);
+                        else if (utilizationStress > 1)
+                            color.Add(overUtilizedMemberColor);
+                        else
+                            color.Add(verifiedMemberColor);
+                    }
+                    else if (colorCode == 1)
+                    {
+                        if (utilizationStress <= 1 && utilizationStress >= -1)
+                            color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationStress)));
+                        else
+                            color.Add(markedGeometry);
+                    }
+                    else if (colorCode == 2)
+                    {
+                        if (utilizationBuckling <= 1)
+                            color.Add(BlendColors(markedGeometry, unmarkedGeometry, utilizationBuckling));
+                        else
+                            color.Add(markedGeometry);
+                    }
+                    else if (colorCode == 3)
+                    {
+                        if (ElementsInStructure[i].IsFromMaterialBank)
+                            color.Add(markedGeometry);
+                        else
+                            color.Add(unmarkedGeometry);
+                    }
+                    else
+                    {
+                        color.Add(unmarkedGeometry);
+                    }
+                }
+
+                
+
+            }
+
+
+            foreach (Point3d supportNode in SupportNodes)
+            {
+                Sphere nodeSphere = new Sphere(supportNode, initialNodeRadius);
+                Plane conePlane = new Plane(supportNode + new Point3d(0, 0, -initialNodeRadius), new Vector3d(0, 0, -1));
+                Cone pinnedCone = new Cone(conePlane, 2 * initialNodeRadius, 2 * initialNodeRadius);
+                geometry.Add(nodeSphere.ToBrep());
+                geometry.Add(pinnedCone.ToBrep(true));
+                color.Add(Structure.supportNodeColor);
+                color.Add(Structure.supportNodeColor);
+            }
+
+            double nodeRadius = initialNodeRadius;
+            double liveDisplacement = GetMaxDisplacement();
+            for (int i = 0; i < FreeNodesInitial.Count; i++)
+            {
+                // Color codes
+                // 0 - Discrete Member Verifiation (Red/Green/Yellow)
+                // 1 - Continuous Member Stresses (White-Blue)
+                // 2 - Continuous Member Buckling (White-Blue)
+                // 3 - New and Reuse Members (White-Blue)
+                // 4 - Discrete Node Displacements (Red/Green)
+                // 5 - Continuous Node Displacements (White-Blue)
+
+                if (colorCode == 4)
+                {
+                    nodeRadius = 1.5 * initialNodeRadius;
+                }
+                else if (colorCode == 5)
+                {
+                    nodeRadius = 1.5 * initialNodeRadius;
+                    double displacement = FreeNodes[i].DistanceTo(FreeNodesInitial[i]);
+                    color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(displacement / liveDisplacement)));
+                }
+                else
+                {
+                    color.Add(Structure.freeNodeColor);
+                }
+
+                Sphere nodeSphere = new Sphere(FreeNodesInitial[i] + normalizedNodeDisplacement[i], nodeRadius);
+                geometry.Add(nodeSphere.ToBrep());
+            }
+
+        }
+
     }
 
 
 
 
-    
+
 
 
 
@@ -2690,7 +3098,7 @@ namespace MasterthesisGHA
         }
 
         // Visuals
-        public override void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxLoad)
+        public override void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxAngle, double maxLoad, double maxMoment)
         {
             UpdateVisualsMaterialBank(out geometry, out color, out codeInfo, colorCode);
             //colorCode = colorCode % 6;

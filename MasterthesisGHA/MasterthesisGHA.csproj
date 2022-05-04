@@ -22,6 +22,7 @@
     <PackageReference Include="Grasshopper" Version="7.16.22067.13001" IncludeAssets="compile;build" />
     <PackageReference Include="MathNet.Numerics.MKL.Win-x64" Version="3.0.0" />
     <PackageReference Include="Microsoft.ML" Version="1.7.1" />
+    <PackageReference Include="RhinoCommon" Version="7.17.22102.5001" />
   </ItemGroup>
   
   <ItemGroup>

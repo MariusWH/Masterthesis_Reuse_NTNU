@@ -10,10 +10,14 @@
 	
   <ItemGroup>
     <None Remove="Resources\Profiles.txt" />
+    <None Remove="Resources\ProfilesAdvanced.txt" />
   </ItemGroup>
 	
   <ItemGroup>
     <EmbeddedResource Include="Resources\Profiles.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\ProfilesAdvanced.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>

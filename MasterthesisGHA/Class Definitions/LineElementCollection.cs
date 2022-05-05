@@ -121,6 +121,28 @@ namespace MasterthesisGHA
             }
             return outputMatrix;
         }
+        public static Vector3d MathnetToRhinoVector(Vector<double> mathnetVector)
+        {
+            return new Vector3d(mathnetVector[0], mathnetVector[1], mathnetVector[2]);
+        }
+        public static Vector<double> RhinoToMathnetVector(Vector3d rhinoVector)
+        {
+            Vector<double> outputVector = Vector<double>.Build.Dense(3);
+            outputVector[0] = rhinoVector.X;
+            outputVector[1] = rhinoVector.Y;
+            outputVector[2] = rhinoVector.Z;
+
+            return outputVector;
+        }
+        public static Vector3d Cross(Vector3d left, Vector3d right)
+        {
+            Vector3d result = new Vector3d();
+            result[0] = left[1] * right[2] - left[2] * right[1];
+            result[1] = -left[0] * right[2] + left[2] * right[0];
+            result[2] = left[0] * right[1] - left[1] * right[0];
+
+            return result;
+        }
 
         // Visuals
         public virtual void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorTheme, double size, double maxDisplacement, double maxAngle, double maxLoad, double maxMoment)
@@ -169,8 +191,8 @@ namespace MasterthesisGHA
         public Matrix<double> GlobalStiffnessMatrix;
         public Vector<double> GlobalLoadVector;
         public Vector<double> GlobalDisplacementVector;
-        public List<double> ElementAxialForce;
-        public List<double> ElementUtilization;
+        public List<double> ElementAxialForcesX;
+        public List<double> ElementUtilizations;
         public List<Color> StructureColors;
         public List<Brep> StructureVisuals;
 
@@ -184,8 +206,8 @@ namespace MasterthesisGHA
             GlobalStiffnessMatrix = Matrix<double>.Build.Sparse(0,0);
             GlobalLoadVector = Vector<double>.Build.Sparse(0);
             GlobalDisplacementVector = Vector<double>.Build.Sparse(0);
-            ElementAxialForce = new List<double>();
-            ElementUtilization = new List<double>();
+            ElementAxialForcesX = new List<double>();
+            ElementUtilizations = new List<double>();
             StructureColors = new List<Color>();
             StructureVisuals = new List<Brep>();
     }
@@ -207,8 +229,8 @@ namespace MasterthesisGHA
             GlobalStiffnessMatrix = Matrix<double>.Build.Dense(dofs, dofs);
             GlobalLoadVector = Vector<double>.Build.Dense(dofs);
             GlobalDisplacementVector = Vector<double>.Build.Dense(dofs);
-            ElementAxialForce = new List<double>();
-            ElementUtilization = new List<double>();
+            ElementAxialForcesX = new List<double>();
+            ElementUtilizations = new List<double>();
 
             // Stiffness Matrix
             RecalculateGlobalMatrix();
@@ -224,8 +246,8 @@ namespace MasterthesisGHA
             GlobalStiffnessMatrix = Matrix<double>.Build.SameAs(copyFromThis.GlobalStiffnessMatrix);
             GlobalLoadVector = Vector<double>.Build.SameAs(copyFromThis.GlobalLoadVector);
             GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
-            ElementAxialForce = new List<double>(copyFromThis.ElementAxialForce);
-            ElementUtilization = new List<double>(copyFromThis.ElementUtilization);
+            ElementAxialForcesX = new List<double>(copyFromThis.ElementAxialForcesX);
+            ElementUtilizations = new List<double>(copyFromThis.ElementUtilizations);
             StructureColors = new List<Color>(copyFromThis.StructureColors);
             StructureVisuals = new List<Brep>(copyFromThis.StructureVisuals);
         }
@@ -481,15 +503,19 @@ namespace MasterthesisGHA
             List<Brep> outGeometry = new List<Brep>();
             List<Color> outColor = new List<Color>();
 
-            colorCode = colorCode % 6;
+            colorCode = colorCode % 10;
             List<string> codeInfos = new List<string>()
             {
                 "0 - Discrete Member Verifiation (Red/Green/Yellow)",
-                "1 - Continuous Member Stresses (White-Blue)",
-                "2 - Continuous Member Buckling (White-Blue)",
-                "3 - New and Reuse Members (White-Blue)",
-                "4 - Discrete Node Displacements (Red/Green)",
-                "5 - Continuous Node Displacements (White-Blue)"
+                "1 - New and Reuse Members (White-Blue)",
+                "2 - Continuous Member Stresses (White-Blue)",
+                "3 - Continuous Member Buckling (White-Blue)",
+                "4 - My (White-Blue)",
+                "5 - Mz (White-Blue)",
+                "6 - Vy (White-Blue)",
+                "7 - Vz (White-Blue)",
+                "8 - Discrete Node Displacements (Red/Green)",
+                "9 - Continuous Node Displacements (White-Blue)"
             };
             codeInfo = codeInfos[colorCode];
 
@@ -620,6 +646,8 @@ namespace MasterthesisGHA
 
         protected Color BlendColors(Color color, Color backColor, double amount)
         {
+            if (amount < 0) amount = 0;
+            else if (amount > 1) amount = 1;
             byte r = (byte)(color.R * amount + backColor.R * (1 - amount));
             byte g = (byte)(color.G * amount + backColor.G * (1 - amount));
             byte b = (byte)(color.B * amount + backColor.B * (1 - amount));
@@ -701,7 +729,7 @@ namespace MasterthesisGHA
                     MemberElement member = ElementsInStructure[i];
                     ReuseElement reuseElement = materialBank.ElementsInMaterialBank[j];
 
-                    double axialForce = ElementAxialForce[i];
+                    double axialForce = ElementAxialForcesX[i];
                     double momentX = 0;
                     double momentY = 0;
                     double momentZ = 0;
@@ -742,7 +770,7 @@ namespace MasterthesisGHA
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
                 for (int j = 0; j < materialBank.ElementsInMaterialBank.Count; j++)
-                    localLCA[i, j] = ObjectiveFunctions.LocalLCA(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForce[i]);
+                    localLCA[i, j] = ObjectiveFunctions.LocalLCA(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForcesX[i]);
 
             if (normalized) localLCA /= localLCA.Enumerate().Max();
             return localLCA;
@@ -763,8 +791,8 @@ namespace MasterthesisGHA
                     ReuseElement materialBankElement = materialBank.ElementsInMaterialBank[materialBankIndex];
                     double memberLength = member.StartPoint.DistanceTo(member.EndPoint);
 
-                    if (materialBankElement.getNormalStressUtilization(ElementAxialForce[memberIndex]) < 1 &&
-                        materialBankElement.getAxialBucklingUtilization(ElementAxialForce[memberIndex], memberLength) < 1 &&
+                    if (materialBankElement.getNormalStressUtilization(ElementAxialForcesX[memberIndex]) < 1 &&
+                        materialBankElement.getAxialBucklingUtilization(ElementAxialForcesX[memberIndex], memberLength) < 1 &&
                         materialBankElement.getReusableLength() > memberLength)
                         relativeLengthMatrix[memberIndex, materialBankIndex] = memberLength / materialBankElement.getReusableLength();
                 }
@@ -782,7 +810,7 @@ namespace MasterthesisGHA
                 for (int j = 0; j < materialBank.ElementsInMaterialBank.Count; j++)
                 {
                     localLCA[i, j] =
-                        ObjectiveFunctions.LocalLCAWithIntegrityAndLengthCheck(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForce[i], ObjectiveFunctions.lcaMethod.simplified);
+                        ObjectiveFunctions.LocalLCAWithIntegrityAndLengthCheck(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForcesX[i], ObjectiveFunctions.lcaMethod.simplified);
                 }
             }
             if (normalized) localLCA = localLCA / localLCA.Enumerate().Max();
@@ -1005,15 +1033,13 @@ namespace MasterthesisGHA
 
 
 
-
-
         // Protected Methods
         public void InsertNewElements()
         {
             List<string> areaSortedElements = LineElement.GetCrossSectionAreaSortedProfilesList();
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
-                InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForce[i] / 355));
+                InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForcesX[i] / 355));
         }
         public void InsertMaterialBank(MaterialBank materialBank, IEnumerable<int> insertOrder, out Matrix<double> insertionMatrix, out MaterialBank remainingMaterialBank, int method)
         {
@@ -1057,7 +1083,7 @@ namespace MasterthesisGHA
             {
                 int memberIndex = insertionList[i];
 
-                List<int> sortedIndexing = materialBank.getUtilizationThenLengthSortedMaterialBankIndexing(ElementAxialForce[i]);
+                List<int> sortedIndexing = materialBank.getUtilizationThenLengthSortedMaterialBankIndexing(ElementAxialForcesX[i]);
 
                 int indexingFromLast = sortedIndexing.Count;
                 while (indexingFromLast-- != 0)
@@ -1069,7 +1095,7 @@ namespace MasterthesisGHA
                     double usedLength = insertionMatrix.Column(stockElementIndex).Sum() + MaterialBank.cuttingLength * numberOfCuts;
 
                     if (usedLength + ElementsInStructure[memberIndex].getInPlaceElementLength() > materialBank.ElementsInMaterialBank[stockElementIndex].getReusableLength()
-                        || materialBank.ElementsInMaterialBank[stockElementIndex].getNormalStressUtilization(ElementAxialForce[memberIndex]) > 1.0)
+                        || materialBank.ElementsInMaterialBank[stockElementIndex].getNormalStressUtilization(ElementAxialForcesX[memberIndex]) > 1.0)
                         continue;
 
                     if (stockElementIndex != -1)
@@ -1106,7 +1132,7 @@ namespace MasterthesisGHA
             {
                 int elementIndex = list[i];
                 List<ReuseElement> sortedStockElementList = new MaterialBank(possibleStockElements[elementIndex])
-                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForce[elementIndex]);
+                    .getUtilizationThenLengthSortedMaterialBank(ElementAxialForcesX[elementIndex]);
                 int index = sortedStockElementList.Count;
                 while (index-- != 0)
                 {
@@ -1265,8 +1291,8 @@ namespace MasterthesisGHA
             GlobalStiffnessMatrix = Matrix<double>.Build.SameAs(copyFromThis.GlobalStiffnessMatrix);
             GlobalLoadVector = Vector<double>.Build.SameAs(copyFromThis.GlobalLoadVector);
             GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
-            ElementAxialForce = copyFromThis.ElementAxialForce.ToList();
-            ElementUtilization = copyFromThis.ElementUtilization.ToList();
+            ElementAxialForcesX = copyFromThis.ElementAxialForcesX.ToList();
+            ElementUtilizations = copyFromThis.ElementUtilizations.ToList();
             StructureColors = copyFromThis.StructureColors.ToList();
             StructureVisuals = copyFromThis.StructureVisuals.ToList();
 
@@ -1338,8 +1364,8 @@ namespace MasterthesisGHA
                 else
                     L1 = FreeNodes[element.StartNodeIndex].DistanceTo(FreeNodes[element.EndNodeIndex]);
 
-                ElementAxialForce.Add((element.CrossSectionArea * element.YoungsModulus) * (L1 - L0) / L0);
-                ElementUtilization.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
+                ElementAxialForcesX.Add((element.CrossSectionArea * element.YoungsModulus) * (L1 - L0) / L0);
+                ElementUtilizations.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
             }
         }
 
@@ -2019,14 +2045,12 @@ namespace MasterthesisGHA
             {
                 // Color codes
                 // 0 - Discrete Member Verifiation (Red/Green/Yellow)
-                // 1 - Continuous Member Stresses (White-Blue)
-                // 2 - Continuous Member Buckling (White-Blue)
-                // 3 - New and Reuse Members (White-Blue)
-                // 4 - Discrete Node Displacements (Red/Green)
-                // 5 - Continuous Node Displacements (White-Blue)
+                // 1 - New and Reuse Members (White-Blue)
+                // 2 - Continuous Member Stresses (White-Blue)
+                // 3 - Continuous Member Buckling (White-Blue)
 
-                double utilizationBuckling = ElementsInStructure[i].getAxialBucklingUtilization(ElementAxialForce[i]);
-                double utilizationStress = ElementsInStructure[i].getAxialUtilization(ElementAxialForce[i]);
+                double utilizationBuckling = ElementsInStructure[i].getAxialBucklingUtilization(ElementAxialForcesX[i]);
+                double utilizationStress = ElementsInStructure[i].getAxialForceUtilization(ElementAxialForcesX[i]);
 
                 if (colorCode == 0)
                 {
@@ -2039,25 +2063,25 @@ namespace MasterthesisGHA
                 }
                 else if (colorCode == 1)
                 {
-                    if (utilizationStress <= 1 && utilizationStress >= -1)
-                        color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationStress)));
-                    else
-                        color.Add(markedGeometry);
-                }
-                else if (colorCode == 2)
-                {
-                    if (utilizationBuckling <= 1)
-                        color.Add(BlendColors(markedGeometry, unmarkedGeometry, utilizationBuckling));
-                    else
-                        color.Add(markedGeometry);
-                }
-                else if (colorCode == 3)
-                {
                     if (ElementsInStructure[i].IsFromMaterialBank)
                         color.Add(markedGeometry);
                     else
                         color.Add(unmarkedGeometry);
                 }
+                else if (colorCode == 2)
+                {
+                    if (utilizationStress <= 1 && utilizationStress >= -1)
+                        color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationStress)));
+                    else
+                        color.Add(markedGeometry);
+                }
+                else if (colorCode == 3)
+                {
+                    if (utilizationBuckling <= 1)
+                        color.Add(BlendColors(markedGeometry, unmarkedGeometry, utilizationBuckling));
+                    else
+                        color.Add(markedGeometry);
+                } 
                 else
                 {
                     color.Add(unmarkedGeometry);
@@ -2139,7 +2163,7 @@ namespace MasterthesisGHA
                     ReuseElement stockElement = materialBank.ElementsInMaterialBank[i];
 
                     double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if (stockElement.getNormalStressUtilization(ElementAxialForce[elementCounter]) < 1
+                    if (stockElement.getNormalStressUtilization(ElementAxialForcesX[elementCounter]) < 1
                         && stockElement.getReusableLength() > lengthOfElement)
                         StockElementSuggestionList.Add(stockElement);
                 }
@@ -2314,7 +2338,7 @@ namespace MasterthesisGHA
                     ReuseElement stockElement = materialBank.ElementsInMaterialBank[i];
 
                     double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if (stockElement.getNormalStressUtilization(ElementAxialForce[elementCounter]) < 1
+                    if (stockElement.getNormalStressUtilization(ElementAxialForcesX[elementCounter]) < 1
                         && stockElement.getReusableLength() > lengthOfElement)
                         StockElementSuggestionList.Add(stockElement);
                 }
@@ -2364,6 +2388,13 @@ namespace MasterthesisGHA
 
     public class SpatialFrame : Structure
     {
+        // Variables       
+        public List<double> ElementMomentsY;
+        public List<double> ElementMomentsZ;
+        public List<double> ElementTorsionsX;
+        public List<double> ElementShearForcesY;
+        public List<double> ElementShearForcesZ;
+
         // Constructors
         public SpatialFrame()
             : base()
@@ -2372,8 +2403,13 @@ namespace MasterthesisGHA
         public SpatialFrame(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
             : base(lines, profileNames, supportPoints)
         {
+            ElementMomentsY = new List<double>();
+            ElementMomentsZ = new List<double>();
+            ElementTorsionsX = new List<double>();
+            ElementShearForcesY = new List<double>();
+            ElementShearForcesZ = new List<double>();
         }
-        public SpatialFrame(Structure copyFromThis)
+        public SpatialFrame(SpatialFrame copyFromThis)
             : this()
         {
             ElementsInStructure = copyFromThis.ElementsInStructure.ToList();
@@ -2383,8 +2419,13 @@ namespace MasterthesisGHA
             GlobalStiffnessMatrix = Matrix<double>.Build.SameAs(copyFromThis.GlobalStiffnessMatrix);
             GlobalLoadVector = Vector<double>.Build.SameAs(copyFromThis.GlobalLoadVector);
             GlobalDisplacementVector = Vector<double>.Build.SameAs(copyFromThis.GlobalDisplacementVector);
-            ElementAxialForce = copyFromThis.ElementAxialForce.ToList();
-            ElementUtilization = copyFromThis.ElementUtilization.ToList();
+            ElementAxialForcesX = copyFromThis.ElementAxialForcesX.ToList();
+            ElementMomentsY = copyFromThis.ElementMomentsY.ToList();
+            ElementMomentsZ = copyFromThis.ElementMomentsZ.ToList();
+            ElementTorsionsX = copyFromThis.ElementTorsionsX.ToList();
+            ElementShearForcesY = copyFromThis.ElementShearForcesY.ToList();
+            ElementShearForcesZ = copyFromThis.ElementMomentsZ.ToList();
+            ElementUtilizations = copyFromThis.ElementUtilizations.ToList();
             StructureColors = copyFromThis.StructureColors.ToList();
             StructureVisuals = copyFromThis.StructureVisuals.ToList();
         }
@@ -2439,7 +2480,9 @@ namespace MasterthesisGHA
         }
         public override void Retracking()
         {
-            foreach (SpatialBeam element in ElementsInStructure)
+            List<double> axialOne = new List<double>();
+
+            /*foreach (SpatialBeam element in ElementsInStructure)
             {
                 double L0 = element.StartPoint.DistanceTo(element.EndPoint);
                 double L1 = 0;
@@ -2453,9 +2496,49 @@ namespace MasterthesisGHA
                 else
                     L1 = FreeNodes[element.StartNodeIndex].DistanceTo(FreeNodes[element.EndNodeIndex]);
 
-                ElementAxialForce.Add((element.CrossSectionArea * element.YoungsModulus) * (L1 - L0) / L0);
-                ElementUtilization.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
+                axialOne.Add((element.CrossSectionArea * element.YoungsModulus) * (L1 - L0) / L0);
+                //ElementUtilizations.Add(element.YoungsModulus * (L1 - L0) / L0 / element.YieldStress);
+            }*/
+
+            foreach (SpatialBeam element in ElementsInStructure)
+            {
+                Vector<double> localDisplacementVector = Vector<double>.Build.Dense(new double[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
+                Matrix<double> transformationMatrix = element.getTransformationMatrix();
+                int dofsPerNode = GetDofsPerNode();
+
+                if (element.StartNodeIndex == -1 && element.EndNodeIndex == -1)
+                {
+                    ElementAxialForcesX.Add(0);
+                    ElementShearForcesY.Add(0);
+                    ElementShearForcesZ.Add(0);
+                    ElementTorsionsX.Add(0);
+                    ElementMomentsY.Add(0);
+                    ElementMomentsZ.Add(0);
+                    continue;
+                }
+
+                if (element.StartNodeIndex != -1) 
+                    for(int dof = 0; dof < dofsPerNode; dof++)
+                        localDisplacementVector[dof] = GlobalDisplacementVector[dofsPerNode * element.StartNodeIndex + dof];
+
+                if (element.EndNodeIndex != -1) 
+                    for (int dof = 0; dof < dofsPerNode; dof++)
+                        localDisplacementVector[dofsPerNode + dof] = GlobalDisplacementVector[dofsPerNode * element.EndNodeIndex + dof];
+
+                localDisplacementVector = transformationMatrix.Multiply(localDisplacementVector);
+                Vector<double> localLoadVector = element.getElementStiffnessMatrix().Multiply(localDisplacementVector);
+
+                localLoadVector.PointwiseAbs();
+
+                ElementAxialForcesX.Add(Math.Max(localLoadVector[0], localLoadVector[6]));
+                ElementShearForcesY.Add(Math.Max(localLoadVector[1], localLoadVector[7]));
+                ElementShearForcesZ.Add(Math.Max(localLoadVector[2], localLoadVector[8]));
+                ElementTorsionsX.Add(Math.Max(localLoadVector[3], localLoadVector[9]));
+                ElementMomentsY.Add(Math.Max(localLoadVector[4], localLoadVector[10]));
+                ElementMomentsZ.Add(Math.Max(localLoadVector[5], localLoadVector[11]));
             }
+            
+
         }
 
 
@@ -2489,30 +2572,38 @@ namespace MasterthesisGHA
         {
             loadDirection.Unitize();
             int dofsPerNode = GetDofsPerNode();
+            int dimensions = dofsPerNode / 2;
             foreach (SpatialBeam element in ElementsInStructure)
             {
+                double projectedElementLength = Math.Abs(element.ProjectedElementLength(distributionDirection));
                 foreach (Line loadElement in loadElements)
                 {
                     if (element.StartPoint == loadElement.PointAt(0) && element.EndPoint == loadElement.PointAt(1))
                     {
+                        Vector3d momentDirection = Cross(loadDirection, distributionDirection);
+                        momentDirection.Unitize();
                         if (element.StartNodeIndex != -1)
                         {
-                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex]
-                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[0] / 2;
-                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex + 1]
-                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[1] / 2;
-                            GlobalLoadVector[dofsPerNode * element.StartNodeIndex + 2]
-                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[2] / 2;
+                            for (int dim = 0; dim < dimensions; dim++)
+                            {
+                                GlobalLoadVector[dofsPerNode * element.StartNodeIndex + dim]
+                                    += loadValue * projectedElementLength * loadDirection[dim] / 2;
+                                                                                             
+                                GlobalLoadVector[dofsPerNode * element.StartNodeIndex + dimensions + dim]
+                                    -= loadValue * projectedElementLength * projectedElementLength * momentDirection[dim] / 12;
+                            }
                         }
 
                         if (element.EndNodeIndex != -1)
                         {
-                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex]
-                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[0] / 2;
-                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex + 1]
-                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[1] / 2;
-                            GlobalLoadVector[dofsPerNode * element.EndNodeIndex + 2]
-                                += loadValue * Math.Abs(element.ProjectedElementLength(distributionDirection)) * loadDirection[2] / 2;
+                            for (int dim = 0; dim < dimensions; dim++)
+                            {
+                                GlobalLoadVector[dofsPerNode * element.EndNodeIndex + dim]
+                                    += loadValue * projectedElementLength * loadDirection[dim] / 2;                              
+
+                                GlobalLoadVector[dofsPerNode * element.EndNodeIndex + dimensions + dim]
+                                    += loadValue * projectedElementLength * projectedElementLength * momentDirection[dim] / 12;
+                            }
                         }
                     }
                 }
@@ -2730,21 +2821,16 @@ namespace MasterthesisGHA
                 Rhino.Geometry.Curve rail = Rhino.Geometry.Curve.CreateControlPointCurve(
                     new List<Point3d>() { startOfElement, startOfElement+startTangent*dL, endOfElement+endTangent*dL, endOfElement });
 
-                Rhino.Geometry.SweepOneRail sweep = new SweepOneRail();
-                Circle circle = new Circle(new Plane(startOfElement, startTangent), 0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI));
-                //sweep.PerformSweep(curve, circle);
 
                 double radius = 0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI);
-                
 
-                List<Brep> loftCylinder = Rhino.Geometry.Brep.CreatePipe(rail, radius, true, PipeCapMode.None, false, 10.0, 10.0).ToList();
-
-
+                //List<Brep> loftCylinder = Rhino.Geometry.Brep.CreateDevelopableLoft(rail, rail, false, false, 10).ToList();
+                //List<Brep> loftCylinder = Rhino.Geometry.Brep.CreatePipe(rail, radius, true, PipeCapMode.None, false, 10.0, 10.0).ToList();
                 //loftCylinder.AddRange(Brep.CreateFromSweep(rail, new Circle(new Plane(startOfElement, startTangent), 0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)).ToNurbsCurve(10,10),
                 //    true, 0.0).ToList());
-
-                //Cylinder cylinder = new Cylinder(new Circle(new Plane(startOfElement, new Vector3d(endOfElement - startOfElement)),
-                //    0.5 * Math.Sqrt(ElementsInStructure[i].CrossSectionArea / Math.PI)), startOfElement.DistanceTo(endOfElement));
+                //List<Brep> cylinders = new List<Brep>();
+                //cylinders.AddRange(loftCylinder);
+                //geometry.AddRange(loftCylinder);
 
                 List<Brep> cylinders = new List<Brep>();
                 double dP = 0.1;
@@ -2759,20 +2845,28 @@ namespace MasterthesisGHA
                     geometry.Add(cylinder.ToBrep(true,true));
                 }
 
-                //geometry.AddRange(loftCylinder);
+
 
 
 
                 // Color codes
                 // 0 - Discrete Member Verifiation (Red/Green/Yellow)
-                // 1 - Continuous Member Stresses (White-Blue)
-                // 2 - Continuous Member Buckling (White-Blue)
-                // 3 - New and Reuse Members (White-Blue)
-                // 4 - Discrete Node Displacements (Red/Green)
-                // 5 - Continuous Node Displacements (White-Blue)
+                // 1 - New and Reuse Members (White-Blue)
+                // 2 - Continuous Member Stresses (White-Blue)
+                // 3 - Continuous Member Buckling (White-Blue)
+                // 4 - My (White-Blue)
+                // 5 - Mz (White-Blue)
+                // 6 - Vy (White-Blue)
+                // 7 - Vz (White-Blue)
+                // 8 - Discrete Node Displacements (Red/Green)
+                // 9 - Continuous Node Displacements (White-Blue)
 
-                double utilizationBuckling = ElementsInStructure[i].getAxialBucklingUtilization(ElementAxialForce[i]);
-                double utilizationStress = ElementsInStructure[i].getAxialUtilization(ElementAxialForce[i]);
+                double utilizationBuckling = ElementsInStructure[i].getAxialBucklingUtilization(ElementAxialForcesX[i]);
+                double utilizationTotal = ElementsInStructure[i].getTotalUtilization(ElementAxialForcesX[i], ElementMomentsY[i], ElementMomentsZ[i], ElementShearForcesY[i], 0, 0);
+                double utilizationMomentY = ElementsInStructure[i].getBendingMomentUtilizationY(ElementMomentsY[i]);
+                double utilizationMomentZ = ElementsInStructure[i].getBendingMomentUtilizationZ(ElementMomentsZ[i]);
+                double utilizationShearY = ElementsInStructure[i].getShearForceUtilizationY(ElementShearForcesY[i]);
+                double utilizationShearZ = ElementsInStructure[i].getShearForceUtilizationZ(ElementShearForcesZ[i]);
 
                 foreach ( Brep cylinder in cylinders)
                 {
@@ -2780,32 +2874,26 @@ namespace MasterthesisGHA
                     {
                         if (utilizationBuckling > 1)
                             color.Add(bucklingMemberColor);
-                        else if (utilizationStress > 1)
+                        else if (utilizationTotal > 1)
                             color.Add(overUtilizedMemberColor);
                         else
                             color.Add(verifiedMemberColor);
                     }
                     else if (colorCode == 1)
                     {
-                        if (utilizationStress <= 1 && utilizationStress >= -1)
-                            color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationStress)));
-                        else
-                            color.Add(markedGeometry);
-                    }
-                    else if (colorCode == 2)
-                    {
-                        if (utilizationBuckling <= 1)
-                            color.Add(BlendColors(markedGeometry, unmarkedGeometry, utilizationBuckling));
-                        else
-                            color.Add(markedGeometry);
-                    }
-                    else if (colorCode == 3)
-                    {
                         if (ElementsInStructure[i].IsFromMaterialBank)
                             color.Add(markedGeometry);
                         else
                             color.Add(unmarkedGeometry);
                     }
+
+                    else if (colorCode == 2) color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationTotal)));
+                    else if (colorCode == 3) color.Add(BlendColors(markedGeometry, unmarkedGeometry, utilizationBuckling));
+                    else if (colorCode == 4) color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationMomentY)));
+                    else if (colorCode == 5) color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationMomentZ)));
+                    else if (colorCode == 6) color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationShearY)));
+                    else if (colorCode == 7) color.Add(BlendColors(markedGeometry, unmarkedGeometry, Math.Abs(utilizationShearZ)));
+
                     else
                     {
                         color.Add(unmarkedGeometry);
@@ -2840,11 +2928,11 @@ namespace MasterthesisGHA
                 // 4 - Discrete Node Displacements (Red/Green)
                 // 5 - Continuous Node Displacements (White-Blue)
 
-                if (colorCode == 4)
+                if (colorCode == 8)
                 {
                     nodeRadius = 1.5 * initialNodeRadius;
                 }
-                else if (colorCode == 5)
+                else if (colorCode == 9)
                 {
                     nodeRadius = 1.5 * initialNodeRadius;
                     double displacement = FreeNodes[i].DistanceTo(FreeNodesInitial[i]);
@@ -2860,6 +2948,7 @@ namespace MasterthesisGHA
             }
 
         }
+
 
     }
 

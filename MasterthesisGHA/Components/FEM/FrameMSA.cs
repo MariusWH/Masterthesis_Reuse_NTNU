@@ -60,7 +60,12 @@ namespace MasterthesisGHA
             pManager.AddMatrixParameter("Stiffness Matrix", "K", "Stiffness matrix as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Axial Forces X", "Nx", "Member axial forces as list of values", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Shear Forces Y", "Vy", "", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Shear Forces Z", "Vz", "", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Torsions X", "Tx", "", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Moments Y", "My", "", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Moments Z", "Mz", "", GH_ParamAccess.list);
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("Rank", "Rank", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("Nullity", "Nullity", "", GH_ParamAccess.item);
@@ -109,10 +114,7 @@ namespace MasterthesisGHA
 
             frame.ApplyNodalLoads(iLoad, iLoadVecs);
             frame.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
-            if (applySelfWeight)
-            {
-                frame.ApplySelfWeight();
-            }
+            if (applySelfWeight) frame.ApplySelfWeight();
 
             double rank = frame.GetStiffnessMartrixRank();
             double nullity = frame.GetStiffnessMartrixNullity();
@@ -121,17 +123,21 @@ namespace MasterthesisGHA
             frame.Retracking();
 
 
-
             // OUTPUT
             DA.SetDataList(0, frame.FreeNodes);
             DA.SetData(1, frame.GetStiffnessMatrix());
             DA.SetData(2, frame.GetDisplacementVector());
             DA.SetData(3, frame.GetLoadVector());
-            DA.SetDataList(4, frame.ElementAxialForce);
-            DA.SetData(5, frame);
-            DA.SetData(6, rank);
-            DA.SetData(7, nullity);
-            DA.SetData(8, determinant);
+            DA.SetDataList(4, frame.ElementAxialForcesX);
+            DA.SetDataList(5, frame.ElementShearForcesY);
+            DA.SetDataList(6, frame.ElementShearForcesZ);
+            DA.SetDataList(7, frame.ElementTorsionsX);
+            DA.SetDataList(8, frame.ElementMomentsY);
+            DA.SetDataList(9, frame.ElementMomentsZ);
+            DA.SetData(10, frame);
+            DA.SetData(11, rank);
+            DA.SetData(12, nullity);
+            DA.SetData(13, determinant);
 
         }
         protected override System.Drawing.Bitmap Icon

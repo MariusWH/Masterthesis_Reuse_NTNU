@@ -128,7 +128,7 @@ namespace MasterthesisGHA
             DA.SetData(1, truss.GetStiffnessMatrix());
             DA.SetData(2, truss.GetDisplacementVector());
             DA.SetData(3, truss.GetLoadVector());
-            DA.SetDataList(4, truss.ElementAxialForce);
+            DA.SetDataList(4, truss.ElementAxialForcesX);
             DA.SetData(5, truss);
             DA.SetData(6, rank);
             DA.SetData(7, nullity);

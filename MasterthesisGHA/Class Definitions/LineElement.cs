@@ -16,33 +16,54 @@ namespace MasterthesisGHA
         // Variables
         public string ProfileName;
         public double CrossSectionArea { get; set; }
-        public double AreaMomentOfInertiaYY;
-        public double AreaMomentOfInertiaZZ;
-        public double PolarMomentOfInertia;
+        public double ShearAreaY;
+        public double ShearAreaZ;
+        public double PolarMomentOfInertiaX;
+        public double AreaMomentOfInertiaY;
+        public double AreaMomentOfInertiaZ;      
+        public double SectionModulusX;
+        public double SectionModulusY;
+        public double SectionModulusZ;      
         public double YoungsModulus;
         public double YieldStress;
         public double PoissonsRatio;
 
+
+
         // Static Variables
         public static Dictionary<string, double> CrossSectionAreaDictionary;
-        public static Dictionary<string, double> AreaMomentOfInertiaYYDictionary;
-        public static Dictionary<string, double> AreaMomentOfInertiaZZDictionary;
-        public static Dictionary<string, double> PolarMomentOfInertiaDictionary;
+        public static Dictionary<string, double> AreaMomentOfInertiaYDictionary;
+        public static Dictionary<string, double> AreaMomentOfInertiaZDictionary;
+        public static Dictionary<string, double> PolarMomentOfInertiaXDictionary;
+        public static Dictionary<string, double> SectionModulusXDictionary;
+        public static Dictionary<string, double> SectionModulusYDictionary;
+        public static Dictionary<string, double> SectionModulusZDictionary;
+        public static Dictionary<string, double> ShearAreaYDictionary;
+        public static Dictionary<string, double> ShearAreaZDictionary;
 
         // Constructor        
-        protected LineElement(string profileName, double crossSectionArea, double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus)
+        protected LineElement(string profileName, double crossSectionArea, double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ,
+            double sectionModulusX, double sectionModulusY, double sectionModulusZ, double shearAreaY,
+            double shearAreaZ, double polarMomentOfInertia, double youngsModulus)
         {
             ProfileName = profileName;
             CrossSectionArea = crossSectionArea;
-            AreaMomentOfInertiaYY = areaMomentOfInertiaYY;
-            AreaMomentOfInertiaZZ = areaMomentOfInertiaZZ;
-            PolarMomentOfInertia = polarMomentOfInertia;
+            AreaMomentOfInertiaY = areaMomentOfInertiaYY;
+            AreaMomentOfInertiaZ = areaMomentOfInertiaZZ;
+            PolarMomentOfInertiaX = polarMomentOfInertia;
+            SectionModulusX = sectionModulusX;
+            SectionModulusY = sectionModulusY;
+            SectionModulusZ = sectionModulusZ;
+            ShearAreaY = shearAreaY;
+            ShearAreaZ = shearAreaZ;
             YoungsModulus = youngsModulus;
             YieldStress = 355;
         }
         protected LineElement(string profileName)
-            : this(profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYYDictionary[profileName], 
-                  AreaMomentOfInertiaZZDictionary[profileName], PolarMomentOfInertiaDictionary[profileName], 210e3)
+            : this(profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYDictionary[profileName], 
+                  AreaMomentOfInertiaZDictionary[profileName], SectionModulusXDictionary[profileName], SectionModulusYDictionary[profileName],
+                  SectionModulusZDictionary[profileName], ShearAreaYDictionary[profileName], ShearAreaZDictionary[profileName], 
+                  PolarMomentOfInertiaXDictionary[profileName], 210e3)
         {
 
         }
@@ -57,39 +78,119 @@ namespace MasterthesisGHA
         static LineElement()
         {
             CrossSectionAreaDictionary = new Dictionary<string, double>();
-            AreaMomentOfInertiaYYDictionary = new Dictionary<string, double>();
-            AreaMomentOfInertiaZZDictionary = new Dictionary<string, double>();
-            PolarMomentOfInertiaDictionary = new Dictionary<string, double>();
+            AreaMomentOfInertiaYDictionary = new Dictionary<string, double>();
+            AreaMomentOfInertiaZDictionary = new Dictionary<string, double>();
+            PolarMomentOfInertiaXDictionary = new Dictionary<string, double>();
+            SectionModulusXDictionary = new Dictionary<string, double>();
+            SectionModulusYDictionary = new Dictionary<string, double>();
+            SectionModulusZDictionary = new Dictionary<string, double>();
+            ShearAreaYDictionary = new Dictionary<string, double>();
+            ShearAreaZDictionary = new Dictionary<string, double>();
 
             ReadDictionaries();
         }
-        protected static void ReadDictionaries()
+        protected static void ReadDictionariesSimple()
         {
             string profilesFromFile = "";
             var assembly = Assembly.GetExecutingAssembly();
             string resourceName = "MasterthesisGHA.Resources.Profiles.txt";
             using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-            using (StreamReader reader = new StreamReader(stream))
-            {
-                profilesFromFile = reader.ReadToEnd();
-            }
+            using (StreamReader reader = new StreamReader(stream)) profilesFromFile = reader.ReadToEnd();
             var profilesArray = profilesFromFile.Split('\n');
-            List<string> profiles = new List<string>();
 
             foreach (string line in profilesArray)
             {
-                string[] lineArray = line.Split(','); // name,a,iyy,izz,it
+                string[] lineArray = line.Split(','); // name,a,iyy,izz,it,wx,wy,wz
 
                 string name = lineArray[0];
                 double a = Convert.ToDouble(lineArray[1]);
                 double iyy = Convert.ToDouble(lineArray[2]);
                 double izz = Convert.ToDouble(lineArray[3]);
-                double it = Convert.ToDouble(lineArray[4]);
-
+                double it = Convert.ToDouble(lineArray[4]);                
+                /*double wx = Convert.ToDouble(lineArray[5]);
+                double wy = Convert.ToDouble(lineArray[6]);
+                double wz = Convert.ToDouble(lineArray[7]);*/
+                
                 CrossSectionAreaDictionary.Add(name, a);
-                AreaMomentOfInertiaYYDictionary.Add(name, iyy);
-                AreaMomentOfInertiaZZDictionary.Add(name, izz);
-                PolarMomentOfInertiaDictionary.Add(name, it);
+                AreaMomentOfInertiaYDictionary.Add(name, iyy);
+                AreaMomentOfInertiaZDictionary.Add(name, izz);
+                PolarMomentOfInertiaXDictionary.Add(name, it);
+                /*SectionModulusXDictionary.Add(name, wx);
+                SectionModulusYDictionary.Add(name, wy);
+                SectionModulusZDictionary.Add(name, wz);*/
+
+            }
+        }
+        protected static void ReadDictionaries()
+        {
+            string profilesFromFile = "";
+            var assembly = Assembly.GetExecutingAssembly();
+            string resourceName = "MasterthesisGHA.Resources.ProfilesAdvanced.txt";
+            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+            using (StreamReader reader = new StreamReader(stream)) profilesFromFile = reader.ReadToEnd();
+            var profilesArray = profilesFromFile.Split('\n');
+
+            foreach (string line in profilesArray)
+            {
+                string[] lineArray = line.Split(',');
+                // IPE80,80,46,3.8,5.2,5,6,0.328,764,358,478,0.8014,32.4,20.03,23.22,0.08489,10.5,3.691,5.818,6.727,1.77,115.1,135.2
+                // Profile,
+                // Depth h [mm],
+                // Width b [mm],
+                // Web thickness t_w [mm],
+                // Flange thickness t_f [mm],
+                // Root radius r [mm],
+                // Weight m [kg/m],
+                // Perimeter P [m],
+                // Area A [mm^2],
+                // Shear area z-z A_v_z for n=1.2 [mm^2],
+                // Shear area y-y A_v_y [mm^2],
+                // Second moment of area I_y [*10^6 mm^4],
+                // Radius of gyration i_y [mm],
+                // Elastic Section modulus W_el_y [*10^3 mm^3],
+                // Plastic section modulus Wpl_y [*10^3 mm^3],
+                // Second moment of area I_z [*10^6 mm^4],
+                // radius of gyration i_z [mm],
+                // Elastic section modulus W_el_z [*10^3 mm^3],
+                // Plastic section modulus Wpl_z [*10^3 mm^3],
+                // Torsion constant I_T [*10^3 mm^4],
+                // Torsion modulus W_T [10^3 mm^3],
+                // Warping constant I_w [*10^6 mm^6],
+                // Warping modulus W_w [*10^3 mm^4]
+
+                string profile = lineArray[0];
+                double h = Convert.ToDouble(lineArray[1]);
+                double b = Convert.ToDouble(lineArray[2]);
+                double tw = Convert.ToDouble(lineArray[3]);
+                double tf = Convert.ToDouble(lineArray[4]);
+                double r = Convert.ToDouble(lineArray[5]);
+                double w = Convert.ToDouble(lineArray[6]);
+                double p = Convert.ToDouble(lineArray[7]);
+                double a = Convert.ToDouble(lineArray[8]); // mm^2
+                double avz = Convert.ToDouble(lineArray[9]); // mm^2
+                double avy = Convert.ToDouble(lineArray[10]); // mm^2
+                double iy = Convert.ToDouble(lineArray[11]); // 10^6 mm^4
+                double iyg = Convert.ToDouble(lineArray[12]);
+                double wely = Convert.ToDouble(lineArray[13]); // 10^3 mm^3
+                double wply = Convert.ToDouble(lineArray[14]);
+                double iz = Convert.ToDouble(lineArray[15]); // 10^6 mm^4
+                double izg = Convert.ToDouble(lineArray[16]);
+                double welz = Convert.ToDouble(lineArray[17]); // 10^3 mm^3
+                double wplz = Convert.ToDouble(lineArray[18]);
+                double it = Convert.ToDouble(lineArray[19]); // 10^3 mm^4
+                double wt = Convert.ToDouble(lineArray[20]); // 10^3 mm^3
+                double iw = Convert.ToDouble(lineArray[21]);
+                double ww = Convert.ToDouble(lineArray[22]);
+
+                CrossSectionAreaDictionary.Add(profile, a);
+                AreaMomentOfInertiaYDictionary.Add(profile, 1e6 * iy);
+                AreaMomentOfInertiaZDictionary.Add(profile, 1e6 * iz);
+                PolarMomentOfInertiaXDictionary.Add(profile, 1e3 * it);
+                SectionModulusXDictionary.Add(profile, 1e3 * wt);
+                SectionModulusYDictionary.Add(profile, 1e3 * wely);
+                SectionModulusZDictionary.Add(profile, 1e3 * welz);
+                ShearAreaYDictionary.Add(profile, avy);
+                ShearAreaZDictionary.Add(profile, avz);
 
             }
         }
@@ -114,8 +215,13 @@ namespace MasterthesisGHA
         public bool IsFromMaterialBank;
 
         // Constructor
-        public MemberElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, double crossSectionArea, double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ, double polarMomentOfInertia, double youngsModulus, Point3d startPoint, Point3d endPoint)
-            : base(profileName, crossSectionArea, areaMomentOfInertiaYY, areaMomentOfInertiaZZ, polarMomentOfInertia, youngsModulus)
+        public MemberElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint,
+            double crossSectionArea, double areaMomentOfInertiaYY, double areaMomentOfInertiaZZ,
+            double sectionModulusX, double sectionModulusY, double sectionModulusZ, double shearAreaY,
+            double shearAreaZ, double polarMomentOfInertia, double youngsModulus)
+            : base(profileName, crossSectionArea, areaMomentOfInertiaYY, areaMomentOfInertiaZZ,
+            sectionModulusX, sectionModulusY, sectionModulusZ, shearAreaY,
+            shearAreaZ, polarMomentOfInertia, youngsModulus)
         {
             StartPoint = startPoint;
             EndPoint = endPoint;
@@ -125,8 +231,10 @@ namespace MasterthesisGHA
             UpdateLocalStiffnessMatrix();
         }
         public MemberElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint)
-            : this(ref FreeNodes, ref SupportNodes, profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYYDictionary[profileName],
-                  AreaMomentOfInertiaZZDictionary[profileName], PolarMomentOfInertiaDictionary[profileName], 210e3, startPoint, endPoint)
+            : this(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYDictionary[profileName],
+                  AreaMomentOfInertiaZDictionary[profileName], SectionModulusXDictionary[profileName], SectionModulusYDictionary[profileName],
+                  SectionModulusZDictionary[profileName], ShearAreaYDictionary[profileName], ShearAreaZDictionary[profileName],
+                  PolarMomentOfInertiaXDictionary[profileName], 210e3)
         {
 
         }
@@ -185,33 +293,57 @@ namespace MasterthesisGHA
         {
             return LocalStiffnessMatrix;
         }
-        public virtual double getAxialUtilization(double axialLoad)
+        public virtual double getTotalUtilization(double axialLoad, double momentY, double momentZ, double shearY, double shearZ, double momentX)
         {
+            return getAxialForceUtilization(axialLoad)
+                + getBendingMomentUtilizationY(momentY)
+                + getBendingMomentUtilizationZ(momentZ)
+                + getShearForceUtilizationY(shearY)
+                + getShearForceUtilizationZ(shearZ)
+                + getTorsionalMomentUtilization(momentX);
+        }
+        public virtual double getAxialForceUtilization(double axialLoad)
+        {
+            if(axialLoad == double.NaN ) axialLoad = 0;
             return Math.Abs( axialLoad / (CrossSectionArea * YieldStress) );
         }
         public virtual double getAxialBucklingUtilization(double axialLoad)
         {
-            double minAreaMomentOfInertia = Math.Min(AreaMomentOfInertiaYY, AreaMomentOfInertiaZZ);
+            double minAreaMomentOfInertia = Math.Min(AreaMomentOfInertiaY, AreaMomentOfInertiaZ);
             double effectiveLoadFactor = 1.0;
             double eulerCriticalLoad = (Math.PI * Math.PI * YoungsModulus * minAreaMomentOfInertia)
                 / (effectiveLoadFactor * StartPoint.DistanceTo(EndPoint) * StartPoint.DistanceTo(EndPoint));
-            
+
+            if (axialLoad == double.NaN) axialLoad = 0;
             if (axialLoad > 0)
                 return 0;
             else
                 return -axialLoad / eulerCriticalLoad;
         }
-        public virtual double getBendingMomentUtilization(double momentY, double momemntZ)
+        public virtual double getBendingMomentUtilizationY(double momentY)
         {
-            throw new NotImplementedException();
+            if (momentY == double.NaN) momentY = 0;
+            return momentY/(SectionModulusY*YieldStress);
         }
-        public virtual double getShearForceUtilization(double shearForceY, double shearForceZ)
+        public virtual double getBendingMomentUtilizationZ(double momentZ)
         {
-            throw new NotImplementedException();
+            if (momentZ == double.NaN) momentZ = 0;
+            return momentZ / (SectionModulusZ * YieldStress);
+        }
+        public virtual double getShearForceUtilizationY(double shearForceY)
+        {
+            if (shearForceY == double.NaN) shearForceY = 0;
+            return shearForceY / (ShearAreaY * YieldStress);
+        }
+        public virtual double getShearForceUtilizationZ(double shearForceZ)
+        {
+            if (shearForceZ == double.NaN) shearForceZ = 0;
+            return shearForceZ / (ShearAreaZ * YieldStress);
         }
         public virtual double getTorsionalMomentUtilization(double momentX)
         {
-            throw new NotImplementedException();
+            if (momentX == double.NaN) momentX = 0;
+            return momentX / (SectionModulusX * YieldStress);
         }
         public virtual double getMass()
         {
@@ -411,17 +543,23 @@ namespace MasterthesisGHA
         // Overriden Methods
         protected override void UpdateLocalStiffnessMatrix()
         {
+            Matrix<double> elementStiffnessMatrix = getElementStiffnessMatrix();
+            Matrix<double> transformationMatrix = getTransformationMatrix();
+            LocalStiffnessMatrix = transformationMatrix.Transpose().Multiply(elementStiffnessMatrix).Multiply(transformationMatrix);
+        }
+        public Matrix<double> getElementStiffnessMatrix() 
+        {
             double elementLength = StartPoint.DistanceTo(EndPoint);
-            double EL = YoungsModulus / Math.Pow(elementLength,3);
+            double EL = YoungsModulus / Math.Pow(elementLength, 3);
 
             double c1 = CrossSectionArea * elementLength * elementLength;
-            double c2 = 12 * AreaMomentOfInertiaZZ;
-            double c3 = 12 * AreaMomentOfInertiaYY;
-            double c4 = 6 * AreaMomentOfInertiaZZ * elementLength;
-            double c5 = 6 * AreaMomentOfInertiaYY * elementLength;
-            double c6 = 2 * AreaMomentOfInertiaZZ * elementLength * elementLength;
-            double c7 = 2 * AreaMomentOfInertiaYY * elementLength * elementLength;
-            double c8 = PolarMomentOfInertia * elementLength * elementLength / (2 * (1 + PoissonsRatio));
+            double c2 = 12 * AreaMomentOfInertiaZ;
+            double c3 = 12 * AreaMomentOfInertiaY;
+            double c4 = 6 * AreaMomentOfInertiaZ * elementLength;
+            double c5 = 6 * AreaMomentOfInertiaY * elementLength;
+            double c6 = 2 * AreaMomentOfInertiaZ * elementLength * elementLength;
+            double c7 = 2 * AreaMomentOfInertiaY * elementLength * elementLength;
+            double c8 = PolarMomentOfInertiaX * elementLength * elementLength / (2 * (1 + PoissonsRatio));
 
             Matrix<double> elementStiffnessMatrix = Matrix<double>.Build.SparseOfArray(new double[,]
             {
@@ -441,6 +579,11 @@ namespace MasterthesisGHA
 
             });
 
+            return EL * elementStiffnessMatrix;
+        }
+        public Matrix<double> getTransformationMatrix()
+        {
+            double elementLength = StartPoint.DistanceTo(EndPoint);
             double cosX = (EndPoint.X - StartPoint.X) / elementLength;
             double cosY = (EndPoint.Y - StartPoint.Y) / elementLength;
             double cosZ = (EndPoint.Z - StartPoint.Z) / elementLength;
@@ -472,7 +615,7 @@ namespace MasterthesisGHA
             transformationMatrix = transformationMatrix.DiagonalStack(transformationMatrix);
             transformationMatrix = transformationMatrix.DiagonalStack(transformationMatrix);
 
-            LocalStiffnessMatrix = EL * transformationMatrix.Transpose().Multiply(elementStiffnessMatrix).Multiply(transformationMatrix);
+            return transformationMatrix;
         }
         public override string getElementInfoString()
         {
@@ -513,9 +656,9 @@ namespace MasterthesisGHA
             string info = "StockElement{ ";
             info += "{L=" + getReusableLength() + "}, ";
             info += "{A=" + CrossSectionArea + "}, ";
-            info += "{Iyy=" + AreaMomentOfInertiaYY + "}, ";
-            info += "{Izz=" + AreaMomentOfInertiaZZ + "}, ";
-            info += "{Ip=" + PolarMomentOfInertia + "}, ";
+            info += "{Iyy=" + AreaMomentOfInertiaY + "}, ";
+            info += "{Izz=" + AreaMomentOfInertiaZ + "}, ";
+            info += "{Ip=" + PolarMomentOfInertiaX + "}, ";
             info += "{E=" + YoungsModulus + "}";
             info += " }";
 
@@ -531,7 +674,7 @@ namespace MasterthesisGHA
         }
         public double getAxialBucklingUtilization(double axialLoad, double inPlaceLength)
         {
-            double weakI = Math.Min(AreaMomentOfInertiaYY, AreaMomentOfInertiaZZ);
+            double weakI = Math.Min(AreaMomentOfInertiaY, AreaMomentOfInertiaZ);
             double effectiveLoadFactor = 1.0;
             double eulerCriticalLoad = (Math.PI * Math.PI * YoungsModulus * weakI)
                 / (effectiveLoadFactor * inPlaceLength);

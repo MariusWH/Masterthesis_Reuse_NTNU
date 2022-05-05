@@ -112,5 +112,18 @@ namespace MasterthesisGHA.Properties {
                 return ResourceManager.GetString("Profiles", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPE80,80,46,3.8,5.2,5,6,0.328,764,358,478,0.8014,32.4,20.03,23.22,0.08489,10.5,3.691,5.818,6.727,1.77,115.1,135.2
+        ///IPE100,100,55,4.1,5.7,7,8.1,0.4,1032,508,627,1.71,40.7,34.2,39.41,0.1592,12.4,5.789,9.146,11.53,2.812,342.1,266.8
+        ///IPE120,120,64,4.4,6.3,7,10.4,0.475,1321,631,806,3.178,49,52.96,60.73,0.2767,14.5,8.646,13.58,16.89,3.839,872,483.4
+        ///IPE140,140,73,4.7,6.9,7,12.9,0.551,1643,764,1007,5.412,57.4,77.32,88.34,0.4492,16.5,12.31,19.25,24.01,5.109,1951,808.2
+        ///IPE160,160,82,5,7.4,9,15.8,0.623,2009,966,1214 [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string ProfilesAdvanced {
+            get {
+                return ResourceManager.GetString("ProfilesAdvanced", resourceCulture);
+            }
+        }
     }
 }

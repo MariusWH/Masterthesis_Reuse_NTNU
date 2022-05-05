@@ -295,7 +295,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             DA.SetData(1, trusses[0].GetStiffnessMatrix());
             DA.SetData(2, trusses[0].GetDisplacementVector());
             DA.SetData(3, trusses[0].GetLoadVector());
-            DA.SetDataList(4, trusses[0].ElementAxialForce);
+            DA.SetDataList(4, trusses[0].ElementAxialForcesX);
             DA.SetDataList(5, trusses);
             DA.SetDataList(6, trussHeights);
             DA.SetDataList(7, trussWidths);

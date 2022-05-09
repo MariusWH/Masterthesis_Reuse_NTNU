@@ -49,6 +49,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddGenericParameter("Structure Data", "Structure", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("MaterialBank Data", "MaterialBank", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Insertion Matrix", "IM", "", GH_ParamAccess.item);
+            pManager.AddTextParameter("ResultCSV", "csv", "", GH_ParamAccess.item);
         }
 
 
@@ -101,8 +102,9 @@ namespace MasterthesisGHA.Components.MethodOne
             Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
             MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank = iMaterialBank.GetDeepCopy();
-            optimizationMethod = optimizationMethod % 6;
-            string outputInfo = string.Empty;
+            optimizationMethod = optimizationMethod % 7;
+            string outputInfo = "";
+            string resultCSV = "";
 
             if (insertNewElements)
             {
@@ -149,7 +151,14 @@ namespace MasterthesisGHA.Components.MethodOne
                         } 
                         break;
 
-                    case 5: // Direct Cutting with Branch and Bound Optimization
+                    case 5: // Insertion Matrix with Brute Force Optimization
+                        truss.InsertMaterialBankByRandomPermutations(out insertionMatrix, (int)1e3, inputMaterialBank, out _, out resultCSV);
+                        truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
+                        outputInfo += "insertion matrix method with 1000 pseudo random permutations optimization.\n";
+
+                        break;
+
+                    case 6: // Direct Cutting with Branch and Bound Optimization
                         truss.InsertMaterialBankByBNB(inputMaterialBank, out outMaterialBank, out _);
                         outputInfo += "direct method with branch and bound optimization.\n";
                         break;
@@ -170,6 +179,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(4, truss);
             DA.SetData(5, outMaterialBank);
             DA.SetData(6, ElementCollection.MathnetToRhinoMatrix(insertionMatrix));
+            DA.SetData(7, resultCSV);
 
 
         }

@@ -192,6 +192,11 @@ namespace MasterthesisGHA
         public Vector<double> GlobalLoadVector;
         public Vector<double> GlobalDisplacementVector;
         public List<double> ElementAxialForcesX;
+        public List<double> ElementShearForcesY;
+        public List<double> ElementShearForcesZ;
+        public List<double> ElementTorsionsX;
+        public List<double> ElementMomentsY;
+        public List<double> ElementMomentsZ;
         public List<double> ElementUtilizations;
         public List<Color> StructureColors;
         public List<Brep> StructureVisuals;
@@ -207,6 +212,11 @@ namespace MasterthesisGHA
             GlobalLoadVector = Vector<double>.Build.Sparse(0);
             GlobalDisplacementVector = Vector<double>.Build.Sparse(0);
             ElementAxialForcesX = new List<double>();
+            ElementShearForcesY = new List<double>();
+            ElementShearForcesZ = new List<double>();
+            ElementTorsionsX = new List<double>();
+            ElementMomentsY = new List<double>();
+            ElementMomentsZ = new List<double>();                      
             ElementUtilizations = new List<double>();
             StructureColors = new List<Color>();
             StructureVisuals = new List<Brep>();
@@ -230,6 +240,11 @@ namespace MasterthesisGHA
             GlobalLoadVector = Vector<double>.Build.Dense(dofs);
             GlobalDisplacementVector = Vector<double>.Build.Dense(dofs);
             ElementAxialForcesX = new List<double>();
+            ElementShearForcesY = new List<double>();
+            ElementShearForcesZ = new List<double>();
+            ElementTorsionsX = new List<double>();
+            ElementMomentsY = new List<double>();
+            ElementMomentsZ = new List<double>();
             ElementUtilizations = new List<double>();
 
             // Stiffness Matrix
@@ -730,12 +745,23 @@ namespace MasterthesisGHA
                     ReuseElement reuseElement = materialBank.ElementsInMaterialBank[j];
 
                     double axialForce = ElementAxialForcesX[i];
+                    double shearY = 0;
+                    double shearZ = 0;
                     double momentX = 0;
                     double momentY = 0;
                     double momentZ = 0;
+                    if (GetDofsPerNode() > 3)
+                    {
+                        shearY = ElementShearForcesY[i];
+                        shearZ = ElementShearForcesZ[i];
+                        momentX = ElementTorsionsX[i];
+                        momentY = ElementMomentsY[i];
+                        momentZ = ElementMomentsZ[i];
+                    }
+                    
 
                     structuralIntegrityMatrix[i, j] =
-                        ObjectiveFunctions.StructuralIntegrity(member, reuseElement, axialForce, momentY, momentZ, momentX);
+                        ObjectiveFunctions.StructuralIntegrity(member, reuseElement, axialForce, momentY, momentZ, shearY, shearZ, momentX);
                 }
             }
             return structuralIntegrityMatrix;
@@ -786,15 +812,30 @@ namespace MasterthesisGHA
             for (int memberIndex = 0; memberIndex < ElementsInStructure.Count; memberIndex++)
             {
                 MemberElement member = ElementsInStructure[memberIndex];
-                for (int materialBankIndex = 0; materialBankIndex < materialBank.ElementsInMaterialBank.Count; materialBankIndex++)
+                double axialForce = ElementAxialForcesX[memberIndex];
+                double shearY = 0;
+                double shearZ = 0;
+                double momentX = 0;
+                double momentY = 0;
+                double momentZ = 0;
+                if (GetDofsPerNode() > 3)
                 {
-                    ReuseElement materialBankElement = materialBank.ElementsInMaterialBank[materialBankIndex];
+                    shearY = ElementShearForcesY[memberIndex];
+                    shearZ = ElementShearForcesZ[memberIndex];
+                    momentX = ElementTorsionsX[memberIndex];
+                    momentY = ElementMomentsY[memberIndex];
+                    momentZ = ElementMomentsZ[memberIndex];
+                }
+
+                for (int reuseIndex = 0; reuseIndex < materialBank.ElementsInMaterialBank.Count; reuseIndex++)
+                {
+                    ReuseElement reuseElement = materialBank.ElementsInMaterialBank[reuseIndex];
                     double memberLength = member.StartPoint.DistanceTo(member.EndPoint);
 
-                    if (materialBankElement.getNormalStressUtilization(ElementAxialForcesX[memberIndex]) < 1 &&
-                        materialBankElement.getAxialBucklingUtilization(ElementAxialForcesX[memberIndex], memberLength) < 1 &&
-                        materialBankElement.getReusableLength() > memberLength)
-                        relativeLengthMatrix[memberIndex, materialBankIndex] = memberLength / materialBankElement.getReusableLength();
+                    if (reuseElement.getTotalUtilization(axialForce, momentY, momentZ, shearY, shearZ, momentX) < 1 &&
+                        reuseElement.getAxialBucklingUtilization(ElementAxialForcesX[memberIndex], memberLength) < 1 &&
+                        reuseElement.getReusableLength() > memberLength)
+                        relativeLengthMatrix[memberIndex, reuseIndex] = memberLength / reuseElement.getReusableLength();
                 }
             }
 
@@ -810,7 +851,7 @@ namespace MasterthesisGHA
                 for (int j = 0; j < materialBank.ElementsInMaterialBank.Count; j++)
                 {
                     localLCA[i, j] =
-                        ObjectiveFunctions.LocalLCAWithIntegrityAndLengthCheck(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForcesX[i], ObjectiveFunctions.lcaMethod.simplified);
+                        ObjectiveFunctions.LocalLCAWithIntegrityAndLengthCheck(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForcesX[i]);
                 }
             }
             if (normalized) localLCA = localLCA / localLCA.Enumerate().Max();
@@ -897,6 +938,7 @@ namespace MasterthesisGHA
             double objectiveTreshold = 100000;
             double objectiveFunction = 0;
             objectiveFunctionOutputs = new List<double>();
+            
 
             List<int> initalList = Enumerable.Range(0, ElementsInStructure.Count).ToList();
             InsertNewElements();
@@ -924,7 +966,6 @@ namespace MasterthesisGHA
 
                 objectiveFunction = ObjectiveFunctions.SimpleTestFunction(structureCopy, tempRemainingMaterialBank);
 
-
                 objectiveFunctionOutputs.Add(objectiveFunction);
 
                 if ((objectiveFunction < optimum) || firstRun)
@@ -940,23 +981,28 @@ namespace MasterthesisGHA
             InsertMaterialBank(materialBank, optimumOrder, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
         }
-        public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out List<double> objectiveFunctionOutputs)
+        public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out List<double> objectiveFunctionOutputs, out string objectiveFunctionLog)
         {
             bool randomOrder = true;
             double objectiveMax = 0;
             objectiveFunctionOutputs = new List<double>();
-            insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
-            Matrix<double> tempInsertionMatrix = Matrix<double>.Build.Sparse(0, 0);
+            objectiveFunctionLog = "";
+            insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, materialBank.ElementsInMaterialBank.Count);
+            Matrix<double> tempInsertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, materialBank.ElementsInMaterialBank.Count);
 
             for (int i = 0; i < iterations; i++)
             {
                 InsertMaterialBank(materialBank, out tempInsertionMatrix, randomOrder);
-                objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, insertionMatrix));
+                objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, tempInsertionMatrix));
 
                 if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1] > objectiveMax)
                 {
                     objectiveMax = objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1];
                     tempInsertionMatrix.CopyTo(insertionMatrix);
+                    objectiveFunctionLog += 
+                        i.ToString() + "," +
+                        ObjectiveFunctions.GlobalLCA(this, materialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified).ToString() + "," +
+                        ObjectiveFunctions.GlobalFCA(this, materialBank, insertionMatrix, ObjectiveFunctions.fcaMethod.conservative).ToString() + '\n';
                 }
             }
         }
@@ -1094,8 +1140,24 @@ namespace MasterthesisGHA
 
                     double usedLength = insertionMatrix.Column(stockElementIndex).Sum() + MaterialBank.cuttingLength * numberOfCuts;
 
+                    double axialForce = ElementAxialForcesX[memberIndex];
+                    double shearY = 0;
+                    double shearZ = 0;
+                    double momentX = 0;
+                    double momentY = 0;
+                    double momentZ = 0;
+                    if (GetDofsPerNode() > 3)
+                    {
+                        shearY = ElementShearForcesY[memberIndex];
+                        shearZ = ElementShearForcesZ[memberIndex];
+                        momentX = ElementTorsionsX[memberIndex];
+                        momentY = ElementMomentsY[memberIndex];
+                        momentZ = ElementMomentsZ[memberIndex];
+                    }
+
                     if (usedLength + ElementsInStructure[memberIndex].getInPlaceElementLength() > materialBank.ElementsInMaterialBank[stockElementIndex].getReusableLength()
-                        || materialBank.ElementsInMaterialBank[stockElementIndex].getNormalStressUtilization(ElementAxialForcesX[memberIndex]) > 1.0)
+                        || materialBank.ElementsInMaterialBank[stockElementIndex]
+                        .getTotalUtilization(ElementAxialForcesX[memberIndex], momentY, momentZ, shearY, shearZ, momentX) > 1.0)
                         continue;
 
                     if (stockElementIndex != -1)
@@ -2153,24 +2215,38 @@ namespace MasterthesisGHA
         // -- MEMBER REPLACEMENT METHODS --
         public override List<List<ReuseElement>> GetReusabilityTree(MaterialBank materialBank)
         {
-            List<List<ReuseElement>> reusablesSuggestionTree = new List<List<ReuseElement>>();
-            int elementCounter = 0;
-            foreach (SpatialBar elementInStructure in ElementsInStructure)
+            List<List<ReuseElement>> reuseSuggestionTree = new List<List<ReuseElement>>();
+            int memberIndex = 0;
+            foreach (SpatialBar member in ElementsInStructure)
             {
-                List<ReuseElement> StockElementSuggestionList = new List<ReuseElement>();
+                List<ReuseElement> reuseSuggestionList = new List<ReuseElement>();
                 for (int i = 0; i < materialBank.ElementsInMaterialBank.Count; i++)
                 {
-                    ReuseElement stockElement = materialBank.ElementsInMaterialBank[i];
+                    ReuseElement reuseElement = materialBank.ElementsInMaterialBank[i];
+                    double axialForce = ElementAxialForcesX[memberIndex];
+                    double shearY = 0;
+                    double shearZ = 0;
+                    double momentX = 0;
+                    double momentY = 0;
+                    double momentZ = 0;
+                    if (GetDofsPerNode() > 3)
+                    {
+                        shearY = ElementShearForcesY[memberIndex];
+                        shearZ = ElementShearForcesZ[memberIndex];
+                        momentX = ElementTorsionsX[memberIndex];
+                        momentY = ElementMomentsY[memberIndex];
+                        momentZ = ElementMomentsZ[memberIndex];
+                    }
 
-                    double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if (stockElement.getNormalStressUtilization(ElementAxialForcesX[elementCounter]) < 1
-                        && stockElement.getReusableLength() > lengthOfElement)
-                        StockElementSuggestionList.Add(stockElement);
+                    double lengthOfElement = member.StartPoint.DistanceTo(member.EndPoint);
+                    if (reuseElement.getTotalUtilization(axialForce, momentY, momentZ, shearY, shearZ, momentX) < 1
+                        && reuseElement.getReusableLength() > lengthOfElement)
+                        reuseSuggestionList.Add(reuseElement);
                 }
-                reusablesSuggestionTree.Add(StockElementSuggestionList);
-                elementCounter++;
+                reuseSuggestionTree.Add(reuseSuggestionList);
+                memberIndex++;
             }
-            return reusablesSuggestionTree;
+            return reuseSuggestionTree;
         }
         protected override bool InsertReuseElementAndCutMaterialBank(int positionIndex, ref MaterialBank materialBank, ReuseElement reuseElement, bool keepCutOff = true)
         {
@@ -2210,7 +2286,7 @@ namespace MasterthesisGHA
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
                 ElementsInStructure.Insert(inPlaceElementIndex, temp);
             }
-        }        
+        }
         protected override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int reuseElementIndex, int positionIndex, ref MaterialBank materialBank, bool keepCutOff = true)
         {
             if (positionIndex < 0 || positionIndex > ElementsInStructure.Count)
@@ -2329,7 +2405,7 @@ namespace MasterthesisGHA
         public override List<List<ReuseElement>> GetReusabilityTree(MaterialBank materialBank)
         {
             List<List<ReuseElement>> reusablesSuggestionTree = new List<List<ReuseElement>>();
-            int elementCounter = 0;
+            int memberIndex = 0;
             foreach (PlanarBar elementInStructure in ElementsInStructure)
             {
                 List<ReuseElement> StockElementSuggestionList = new List<ReuseElement>();
@@ -2337,13 +2413,28 @@ namespace MasterthesisGHA
                 {
                     ReuseElement stockElement = materialBank.ElementsInMaterialBank[i];
 
+                    double axialForce = ElementAxialForcesX[memberIndex];
+                    double shearY = 0;
+                    double shearZ = 0;
+                    double momentX = 0;
+                    double momentY = 0;
+                    double momentZ = 0;
+                    if (GetDofsPerNode() > 3)
+                    {
+                        shearY = ElementShearForcesY[memberIndex];
+                        shearZ = ElementShearForcesZ[memberIndex];
+                        momentX = ElementTorsionsX[memberIndex];
+                        momentY = ElementMomentsY[memberIndex];
+                        momentZ = ElementMomentsZ[memberIndex];
+                    }
+
                     double lengthOfElement = elementInStructure.StartPoint.DistanceTo(elementInStructure.EndPoint);
-                    if (stockElement.getNormalStressUtilization(ElementAxialForcesX[elementCounter]) < 1
+                    if (stockElement.getTotalUtilization(axialForce, momentY, momentZ, shearY, shearZ, momentX) < 1
                         && stockElement.getReusableLength() > lengthOfElement)
                         StockElementSuggestionList.Add(stockElement);
                 }
                 reusablesSuggestionTree.Add(StockElementSuggestionList);
-                elementCounter++;
+                memberIndex++;
             }
             return reusablesSuggestionTree;
         }
@@ -2388,12 +2479,7 @@ namespace MasterthesisGHA
 
     public class SpatialFrame : Structure
     {
-        // Variables       
-        public List<double> ElementMomentsY;
-        public List<double> ElementMomentsZ;
-        public List<double> ElementTorsionsX;
-        public List<double> ElementShearForcesY;
-        public List<double> ElementShearForcesZ;
+        
 
         // Constructors
         public SpatialFrame()
@@ -2403,11 +2489,7 @@ namespace MasterthesisGHA
         public SpatialFrame(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
             : base(lines, profileNames, supportPoints)
         {
-            ElementMomentsY = new List<double>();
-            ElementMomentsZ = new List<double>();
-            ElementTorsionsX = new List<double>();
-            ElementShearForcesY = new List<double>();
-            ElementShearForcesZ = new List<double>();
+            
         }
         public SpatialFrame(SpatialFrame copyFromThis)
             : this()
@@ -3087,6 +3169,7 @@ namespace MasterthesisGHA
             }
             return mass;
         }
+        
 
         // Sorting Methods
         public void sortMaterialBankByLength()
@@ -3105,25 +3188,27 @@ namespace MasterthesisGHA
         {
             return ElementsInMaterialBank.OrderBy(o => o.CrossSectionArea).ToList();
         }
-        public List<ReuseElement> getUtilizationThenLengthSortedMaterialBank(double axialForce)
+        public List<ReuseElement> getUtilizationThenLengthSortedMaterialBank(double axialForce, double momentY = 0, double momentZ = 0, double shearY = 0, double shearZ = 0, double momentX = 0)
         {
-            if (axialForce == 0)
+            if (axialForce == 0 && momentY == 0 && momentZ == 0)
                 return ElementsInMaterialBank.OrderBy(o => -o.CrossSectionArea).
                     ThenBy(o => -o.getReusableLength()).ToList();
             else
-                return ElementsInMaterialBank.OrderBy(o => Math.Abs( o.getNormalStressUtilization(axialForce) )).
+                return ElementsInMaterialBank.OrderBy(o => Math.Abs( o.getTotalUtilization(axialForce,momentY,momentZ,shearY,shearZ,momentX) )).
                     ThenBy(o => -o.getReusableLength()).ToList();
-        }      
-        public List<int> getUtilizationThenLengthSortedMaterialBankIndexing(double axialForce)
+        }
+        public List<int> getUtilizationThenLengthSortedMaterialBankIndexing(double axialForce, double momentY = 0, double momentZ = 0, double shearY = 0, double shearZ = 0, double momentX = 0)
         {
-            List<Tuple<int, double, double>> indexAreaLengthTuples = new List<Tuple<int, double, double>>();
+            List<Tuple<int, double, double>> indexUtilizationLengthTuples = new List<Tuple<int, double, double>>();
             for (int i = 0; i < ElementsInMaterialBank.Count; i++)
-                indexAreaLengthTuples.Add(new Tuple<int, double, double>(i, ElementsInMaterialBank[i].CrossSectionArea, ElementsInMaterialBank[i].getReusableLength()));
+                indexUtilizationLengthTuples.Add(new Tuple<int, double, double>(i, 
+                    ElementsInMaterialBank[i].getTotalUtilization(axialForce, momentY, momentZ, shearY, shearZ, momentX), 
+                    ElementsInMaterialBank[i].getReusableLength()));
 
-            indexAreaLengthTuples.OrderByDescending(o => o.Item2).ThenBy(o => o.Item3);
+            indexUtilizationLengthTuples.OrderBy(o => o.Item2).ThenBy(o => o.Item3);
 
             List<int> result = new List<int>();
-            foreach (Tuple<int, double, double> tuple in indexAreaLengthTuples)
+            foreach (Tuple<int, double, double> tuple in indexUtilizationLengthTuples)
                 result.Add(tuple.Item1);
 
             return result;
@@ -3406,7 +3491,26 @@ namespace MasterthesisGHA
             MaterialBankVisuals = geometry;
             MaterialBankColors = color;
         }
-        
+        public override double GetSize()
+        {
+            return -1;
+        }
+        public override double GetMaxLoad()
+        {
+            return -1;
+        }
+        public override double GetMaxMoment()
+        {
+            return -1;
+        }
+        public override double GetMaxDisplacement()
+        {
+            return -1;
+        }
+        public override double GetMaxAngle()
+        {
+            return -1;
+        }
 
     }
 

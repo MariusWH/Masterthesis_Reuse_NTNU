@@ -11,6 +11,8 @@ using System.Reflection;
 
 namespace MasterthesisGHA
 {
+    public enum BucklingShape { pinnedpinned, pinnedfixed, fixedfixed };
+
     public abstract class LineElement
     {
         // Variables
@@ -27,7 +29,7 @@ namespace MasterthesisGHA
         public double YoungsModulus;
         public double YieldStress;
         public double PoissonsRatio;
-
+        
 
 
         // Static Variables
@@ -57,7 +59,7 @@ namespace MasterthesisGHA
             ShearAreaY = shearAreaY;
             ShearAreaZ = shearAreaZ;
             YoungsModulus = youngsModulus;
-            YieldStress = 355;
+            YieldStress = 355;            
         }
         protected LineElement(string profileName)
             : this(profileName, CrossSectionAreaDictionary[profileName], AreaMomentOfInertiaYDictionary[profileName], 
@@ -200,6 +202,53 @@ namespace MasterthesisGHA
             profiles.OrderBy(o => CrossSectionAreaDictionary[o]);
             return profiles;
         }
+
+
+        // Structural Analysis
+        public virtual double getTotalUtilization(double axialLoad, double momentY, double momentZ, double shearY, double shearZ, double momentX)
+        {
+            return getAxialForceUtilization(axialLoad)
+                + getBendingMomentUtilizationY(momentY)
+                + getBendingMomentUtilizationZ(momentZ)
+                + getShearForceUtilizationY(shearY)
+                + getShearForceUtilizationZ(shearZ)
+                + getTorsionalMomentUtilization(momentX);
+        }
+        public virtual double getAxialForceUtilization(double axialLoad)
+        {
+            if (axialLoad == double.NaN) axialLoad = 0;
+            return Math.Abs(axialLoad / (CrossSectionArea * YieldStress));
+        }
+        public virtual double getBendingMomentUtilizationY(double momentY)
+        {
+            if (momentY == double.NaN) momentY = 0;
+            return momentY / (SectionModulusY * YieldStress);
+        }
+        public virtual double getBendingMomentUtilizationZ(double momentZ)
+        {
+            if (momentZ == double.NaN) momentZ = 0;
+            return momentZ / (SectionModulusZ * YieldStress);
+        }
+        public virtual double getShearForceUtilizationY(double shearForceY)
+        {
+            if (shearForceY == double.NaN) shearForceY = 0;
+            return shearForceY / (ShearAreaY * YieldStress);
+        }
+        public virtual double getShearForceUtilizationZ(double shearForceZ)
+        {
+            if (shearForceZ == double.NaN) shearForceZ = 0;
+            return shearForceZ / (ShearAreaZ * YieldStress);
+        }
+        public virtual double getTorsionalMomentUtilization(double momentX)
+        {
+            if (momentX == double.NaN) momentX = 0;
+            return momentX / (SectionModulusX * YieldStress);
+        }
+        public virtual double getAxialBucklingUtilization(double axialLoad)
+        {
+            throw new NotImplementedException();
+        }
+
     }
 
 
@@ -213,6 +262,7 @@ namespace MasterthesisGHA
         public int EndNodeIndex;
         public Matrix<double> LocalStiffnessMatrix;
         public bool IsFromMaterialBank;
+        public BucklingShape bucklingShape;
 
         // Constructor
         public MemberElement(ref List<Point3d> FreeNodes, ref List<Point3d> SupportNodes, string profileName, Point3d startPoint, Point3d endPoint,
@@ -226,6 +276,7 @@ namespace MasterthesisGHA
             StartPoint = startPoint;
             EndPoint = endPoint;
             IsFromMaterialBank = false;
+            bucklingShape = BucklingShape.pinnedpinned;
 
             UpdateNodes(ref FreeNodes, ref SupportNodes, startPoint, endPoint);
             UpdateLocalStiffnessMatrix();
@@ -248,6 +299,7 @@ namespace MasterthesisGHA
             StartNodeIndex = member.StartNodeIndex;
             EndNodeIndex = member.EndNodeIndex;
             IsFromMaterialBank = true;
+            bucklingShape = BucklingShape.pinnedpinned;
 
             UpdateLocalStiffnessMatrix();
         }
@@ -293,21 +345,16 @@ namespace MasterthesisGHA
         {
             return LocalStiffnessMatrix;
         }
-        public virtual double getTotalUtilization(double axialLoad, double momentY, double momentZ, double shearY, double shearZ, double momentX)
+        public virtual double getMass()
         {
-            return getAxialForceUtilization(axialLoad)
-                + getBendingMomentUtilizationY(momentY)
-                + getBendingMomentUtilizationZ(momentZ)
-                + getShearForceUtilizationY(shearY)
-                + getShearForceUtilizationZ(shearZ)
-                + getTorsionalMomentUtilization(momentX);
+            double density = 7800 / 1e9;
+            return CrossSectionArea * StartPoint.DistanceTo(EndPoint) * density;
         }
-        public virtual double getAxialForceUtilization(double axialLoad)
+        public virtual double getInPlaceElementLength()
         {
-            if(axialLoad == double.NaN ) axialLoad = 0;
-            return Math.Abs( axialLoad / (CrossSectionArea * YieldStress) );
+            return StartPoint.DistanceTo(EndPoint);
         }
-        public virtual double getAxialBucklingUtilization(double axialLoad)
+        public override double getAxialBucklingUtilization(double axialLoad)
         {
             double minAreaMomentOfInertia = Math.Min(AreaMomentOfInertiaY, AreaMomentOfInertiaZ);
             double effectiveLoadFactor = 1.0;
@@ -319,40 +366,6 @@ namespace MasterthesisGHA
                 return 0;
             else
                 return -axialLoad / eulerCriticalLoad;
-        }
-        public virtual double getBendingMomentUtilizationY(double momentY)
-        {
-            if (momentY == double.NaN) momentY = 0;
-            return momentY/(SectionModulusY*YieldStress);
-        }
-        public virtual double getBendingMomentUtilizationZ(double momentZ)
-        {
-            if (momentZ == double.NaN) momentZ = 0;
-            return momentZ / (SectionModulusZ * YieldStress);
-        }
-        public virtual double getShearForceUtilizationY(double shearForceY)
-        {
-            if (shearForceY == double.NaN) shearForceY = 0;
-            return shearForceY / (ShearAreaY * YieldStress);
-        }
-        public virtual double getShearForceUtilizationZ(double shearForceZ)
-        {
-            if (shearForceZ == double.NaN) shearForceZ = 0;
-            return shearForceZ / (ShearAreaZ * YieldStress);
-        }
-        public virtual double getTorsionalMomentUtilization(double momentX)
-        {
-            if (momentX == double.NaN) momentX = 0;
-            return momentX / (SectionModulusX * YieldStress);
-        }
-        public virtual double getMass()
-        {
-            double density = 7800 / 1e9;
-            return CrossSectionArea * StartPoint.DistanceTo(EndPoint) * density;
-        }
-        public virtual double getInPlaceElementLength()
-        {
-            return StartPoint.DistanceTo(EndPoint);
         }
 
         // Methods
@@ -532,11 +545,13 @@ namespace MasterthesisGHA
             : base(ref FreeNodes, ref SupportNodes, profileName, startPoint, endPoint)
         {
             AlphaAngle = alphaAngle;
+            bucklingShape = BucklingShape.fixedfixed;
         }
         public SpatialBeam(ReuseElement stockElement, SpatialBeam member)
             : base(stockElement, member)
         {
             AlphaAngle = member.AlphaAngle;
+            bucklingShape = BucklingShape.fixedfixed;
         }
 
 
@@ -621,6 +636,19 @@ namespace MasterthesisGHA
         {
             return "BeamMember3D";
         }
+        public override double getAxialBucklingUtilization(double axialLoad)
+        {
+            double minAreaMomentOfInertia = Math.Min(AreaMomentOfInertiaY, AreaMomentOfInertiaZ);
+            double effectiveLoadFactor = 0.25;
+            double eulerCriticalLoad = (Math.PI * Math.PI * YoungsModulus * minAreaMomentOfInertia)
+                / (effectiveLoadFactor * StartPoint.DistanceTo(EndPoint) * StartPoint.DistanceTo(EndPoint));
+
+            if (axialLoad == double.NaN) axialLoad = 0;
+            if (axialLoad > 0)
+                return 0;
+            else
+                return -axialLoad / eulerCriticalLoad;
+        }
     }
 
 
@@ -668,16 +696,19 @@ namespace MasterthesisGHA
         {
             return ReusableElementLength;
         }
-        public double getNormalStressUtilization(double axialLoad)
-        {
-            return axialLoad/(CrossSectionArea*YieldStress);
-        }
-        public double getAxialBucklingUtilization(double axialLoad, double inPlaceLength)
+        public double getAxialBucklingUtilization(double axialLoad, double inPlaceLength, BucklingShape shape = BucklingShape.pinnedpinned)
         {
             double weakI = Math.Min(AreaMomentOfInertiaY, AreaMomentOfInertiaZ);
             double effectiveLoadFactor = 1.0;
+            switch (shape)
+            {
+                case BucklingShape.pinnedpinned: effectiveLoadFactor = 1.0; break;
+                case BucklingShape.pinnedfixed: effectiveLoadFactor = 0.7; break;
+                case BucklingShape.fixedfixed: effectiveLoadFactor = 0.5; break;
+            }
+            
             double eulerCriticalLoad = (Math.PI * Math.PI * YoungsModulus * weakI)
-                / (effectiveLoadFactor * inPlaceLength);
+                / Math.Pow(effectiveLoadFactor * inPlaceLength, 2);
 
             if (axialLoad > 0)
                 return 0;

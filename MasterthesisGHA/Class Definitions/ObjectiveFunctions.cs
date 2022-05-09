@@ -26,7 +26,7 @@ namespace MasterthesisGHA
 
         public enum reuseRateMethod { byCount, byMass };
         public enum lcaMethod { simplified, advanced };
-
+        public enum fcaMethod { conservative, lean };
 
 
         // Global Objectives (Structure)
@@ -116,44 +116,59 @@ namespace MasterthesisGHA
 
             return carbonEmissionTotal;
         }
-        public static double GlobalFCA(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix)
+        public static double GlobalFCA(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix, fcaMethod method = fcaMethod.conservative , double newCost = 67, double reuseCost = 100)
         {
             double totalCost = 0;
 
-            for (int stockElementIndex = 0; stockElementIndex < materialBank.ElementsInMaterialBank.Count; stockElementIndex++)
+            switch (method)
             {
-                ReuseElement stockElement = materialBank.ElementsInMaterialBank[stockElementIndex];
-                double reuseLength = 0;
-                double wasteLength = 0;
-                bool cut = false;
-
-                foreach (double insertionLength in insertionMatrix.Row(stockElementIndex))
-                {
-                    reuseLength += insertionLength;
-                    if (insertionLength != 0)
+                case fcaMethod.conservative:
+                    for (int reuseIndex = 0; reuseIndex < materialBank.ElementsInMaterialBank.Count; reuseIndex++)
                     {
-                        if (!cut) cut = true;
-                        else wasteLength += MaterialBank.cuttingLength;
+                        if (insertionMatrix.Column(reuseIndex).AbsoluteMaximum() == 0) continue;
+
+                        ReuseElement reuseElement = materialBank.ElementsInMaterialBank[reuseIndex];
+                        double reuseLength = reuseElement.getReusableLength();
+                        totalCost += reuseCost * reuseElement.getMass(reuseLength);
                     }
-                }
+                    break;
 
-                double remainingLength = materialBank.ElementsInMaterialBank[stockElementIndex].getReusableLength() - reuseLength;
-                if (remainingLength < MaterialBank.minimumReusableLength)
-                    wasteLength += remainingLength;
+                case fcaMethod.lean:
+                    double cuttingCost = 100; // NOK
+                    for (int reuseIndex = 0; reuseIndex < materialBank.ElementsInMaterialBank.Count; reuseIndex++)
+                    {
+                        ReuseElement reuseElement = materialBank.ElementsInMaterialBank[reuseIndex];
+                        double reuseLength = 0;
+                        double wasteLength = 0;
+                        bool cut = false;
 
-                totalCost +=
-                    ObjectiveFunctions.constantsFinancialCostAnalysis[0] * stockElement.getMass(reuseLength + wasteLength);
+                        foreach (double insertionLength in insertionMatrix.Row(reuseIndex))
+                        {
+                            reuseLength += insertionLength;
+                            if (insertionLength != 0)
+                            {
+                                if (!cut) cut = true;
+                                else
+                                {
+                                    wasteLength += MaterialBank.cuttingLength;
+                                    totalCost += cuttingCost;
+                                } 
+                            }
+                        }
+
+                        double remainingLength = reuseElement.getReusableLength() - reuseLength - wasteLength;
+                        if (remainingLength < MaterialBank.minimumReusableLength) wasteLength += remainingLength;
+                        totalCost += reuseCost * reuseElement.getMass(reuseLength + wasteLength);
+                    }
+                    break;
             }
 
             for (int memberIndex = 0; memberIndex < structure.ElementsInStructure.Count; memberIndex++)
             {
-                if (insertionMatrix.Column(memberIndex).AbsoluteMaximum() != 0) continue;
+                if (insertionMatrix.Row(memberIndex).AbsoluteMaximum() != 0) continue;
 
                 MemberElement member = structure.ElementsInStructure[memberIndex];
-                totalCost +=
-                    ObjectiveFunctions.constantsFinancialCostAnalysis[1] * member.getMass() +
-                    ObjectiveFunctions.constantsFinancialCostAnalysis[1] * member.getMass() * 1 + // * distanceBuilding
-                    ObjectiveFunctions.constantsFinancialCostAnalysis[1] * member.getMass();
+                totalCost += newCost * member.getMass();
             }
 
             return totalCost;
@@ -170,13 +185,10 @@ namespace MasterthesisGHA
             if (member.getInPlaceElementLength() < stockElement.getReusableLength()) return 1;
             else return 0;
         }
-        public static double StructuralIntegrity(MemberElement member, ReuseElement stockElement, double axialForce, double momentY, double momentZ, double momentX)
+        public static double StructuralIntegrity(MemberElement member, ReuseElement stockElement, double axialForce, double momentY, double momentZ, double shearY, double shearZ, double momentX)
         {
-            double axialUtilization = stockElement.getNormalStressUtilization(axialForce); // + getBendingMomentUtilization(double momentY, double momemntZ)
-            // -> shearUtilizatiuon
-            // -> combinedUtilization
-
-            double bucklingUtilization = member.getAxialBucklingUtilization(axialForce);
+            double axialUtilization = stockElement.getTotalUtilization(axialForce, momentY, momentZ, shearY, shearZ, momentX);
+            double bucklingUtilization = stockElement.getAxialBucklingUtilization(axialForce, member.getInPlaceElementLength(), member.bucklingShape);
 
             if (axialUtilization > 1) return 0;
             else if (bucklingUtilization > 1) return 0;
@@ -232,7 +244,7 @@ namespace MasterthesisGHA
 
 
         // Combined Objective Function (Old Method)
-        public static double LocalLCAWithIntegrityAndLengthCheck(MemberElement member, ReuseElement stockElement, double axialForce, lcaMethod method = lcaMethod.simplified)
+        public static double LocalLCAWithIntegrityAndLengthCheck(MemberElement member, ReuseElement stockElement, double axialForce, double momentY = 0, double momentZ = 0, double shearY = 0, double shearZ = 0, double momentX = 0, lcaMethod method = lcaMethod.simplified)
         {
             List<double> constants = new List<double>();
             switch (method)
@@ -248,7 +260,9 @@ namespace MasterthesisGHA
             double reuseLength = member.getInPlaceElementLength();
             double wasteLength = stockElement.getReusableLength() - member.getInPlaceElementLength();
 
-            if (wasteLength < 0 || stockElement.getNormalStressUtilization(axialForce) > 1 || stockElement.getAxialBucklingUtilization(axialForce, reuseLength) > 1)
+
+
+            if (wasteLength < 0 || stockElement.getTotalUtilization(axialForce, momentY, momentZ, shearY, shearZ, momentX) > 1 || stockElement.getAxialBucklingUtilization(axialForce, reuseLength) > 1)
             {
                 return -1;
             }

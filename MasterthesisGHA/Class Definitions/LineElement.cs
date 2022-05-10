@@ -199,8 +199,7 @@ namespace MasterthesisGHA
         public static List<string> GetCrossSectionAreaSortedProfilesList()
         {
             List<string> profiles = CrossSectionAreaDictionary.Keys.ToList();
-            profiles.OrderBy(o => CrossSectionAreaDictionary[o]);
-            return profiles;
+            return profiles.OrderBy(o => CrossSectionAreaDictionary[o]).ToList();
         }
 
 
@@ -421,6 +420,7 @@ namespace MasterthesisGHA
         public override string getElementInfo()
         {
             string info = getElementInfoString() + " { ";
+            info += "{profile=" + ProfileName + "}, ";
             info += "{start=" + getStartPoint().ToString() + "}, ";
             info += "{end=" + getEndPoint().ToString() + "}, ";
             info += "{startIndex=" + getStartNodeIndex().ToString() + "}, ";
@@ -682,6 +682,7 @@ namespace MasterthesisGHA
         public override string getElementInfo()
         {
             string info = "StockElement{ ";
+            info += "{profile=" + ProfileName + "}, ";
             info += "{L=" + getReusableLength() + "}, ";
             info += "{A=" + CrossSectionArea + "}, ";
             info += "{Iyy=" + AreaMomentOfInertiaY + "}, ";

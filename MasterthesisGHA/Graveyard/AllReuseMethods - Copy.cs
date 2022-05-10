@@ -1,4 +1,4 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 using System.Linq;
 using Grasshopper.Kernel;
@@ -10,20 +10,13 @@ namespace MasterthesisGHA.Components.MethodOne
     public class AllReuseMethods : GH_Component
     {
         // Stored Variables
-        public bool firstRun;
-        public double trussSize;
-        public double maxLoad;
-        public double maxDisplacement;
+
 
         public AllReuseMethods()
           : base("All Reuse Methods", "Reuse",
               "",
               "Master", "Reuse Combi")
         {
-            firstRun = true;
-            trussSize = -1;
-            maxLoad = -1;
-            maxDisplacement = -1;
         }
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {
@@ -39,6 +32,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("Run", "Run", "", GH_ParamAccess.item, false);
         }
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
@@ -72,6 +66,7 @@ namespace MasterthesisGHA.Components.MethodOne
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
 
+
             DA.GetData(0, ref is3D);
             DA.GetData(1, ref insertMaterialBank);
             DA.GetData(2, ref insertNewElements);
@@ -84,6 +79,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(9, ref iLineLoadValue);
             DA.GetData(10, ref iLineLoadDirection);
             DA.GetData(11, ref iLineLoadDistribution);
+
 
 
             // CODE
@@ -219,4 +215,4 @@ namespace MasterthesisGHA.Components.MethodOne
             get { return new Guid("7B751CA9-B009-44DE-B20F-50D5D7E5A138"); }
         }
     }
-}
+}*/

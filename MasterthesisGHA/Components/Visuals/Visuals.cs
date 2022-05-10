@@ -83,7 +83,8 @@ namespace MasterthesisGHA.Components.Visuals
 
                 foreach (ElementCollection elementCollection in elementCollections)
                 {
-                    size.Add(elementCollection.GetSize());
+                    //size.Add(elementCollection.GetSize());
+                    size.Add(1e4);
                     maxLoad.Add(elementCollection.GetMaxLoad());
                     maxMoment.Add(elementCollection.GetMaxMoment());
                     maxDisplacement.Add(elementCollection.GetMaxDisplacement());

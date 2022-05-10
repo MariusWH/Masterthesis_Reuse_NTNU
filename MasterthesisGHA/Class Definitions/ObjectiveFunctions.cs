@@ -23,13 +23,12 @@ namespace MasterthesisGHA
             List<double> constantsFinancialCostAnalysis = new List<double>() { 0, 0, 0 };
         }
 
-
         public enum reuseRateMethod { byCount, byMass };
         public enum lcaMethod { simplified, advanced };
-        public enum fcaMethod { conservative, lean };
+        public enum bound { upperBound, lowerBound }; // upperBound = pay for all waste, lowerBound = pay for waste below minimum reusable length
 
 
-        // Global Objectives (Structure)
+        // Global Objectives (Structure Level)
         public static double ReuseRate(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix, reuseRateMethod method = reuseRateMethod.byCount)
         {
             switch (method)
@@ -90,6 +89,8 @@ namespace MasterthesisGHA
                     }
                 }
 
+                if (reuseLength == 0) continue;
+
                 double remainingLength = materialBank.ElementsInMaterialBank[stockElementIndex].getReusableLength() - reuseLength;
                 if (remainingLength < MaterialBank.minimumReusableLength)
                     wasteLength += remainingLength;
@@ -116,13 +117,38 @@ namespace MasterthesisGHA
 
             return carbonEmissionTotal;
         }
-        public static double GlobalFCA(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix, fcaMethod method = fcaMethod.conservative , double newCost = 67, double reuseCost = 100)
+        public static double GlobalLCA(Structure structure, lcaMethod method = lcaMethod.simplified)
+        {
+            List<double> constants = new List<double>();
+            switch (method)
+            {
+                case lcaMethod.simplified:
+                    constants = new List<double>() { 0.21, 0.00081, 0, 0, 0, 0, 1.75, 0, 0 };
+                    break;
+                case lcaMethod.advanced:
+                    constants = new List<double>() { 0.287, 0.00081, 0.110, 0.0011, 0.0011, 0.00011, 0.957, 0.00011, 0.110 };
+                    break;
+            }
+
+            double carbonEmissionTotal = 0;
+            for (int memberIndex = 0; memberIndex < structure.ElementsInStructure.Count; memberIndex++)
+            {
+                MemberElement member = structure.ElementsInStructure[memberIndex];
+                carbonEmissionTotal +=
+                    constants[6] * member.getMass() +
+                    constants[7] * member.getMass() * 1 + // * distanceBuilding
+                    constants[8] * member.getMass();
+            }
+
+            return carbonEmissionTotal;
+        }
+        public static double GlobalFCA(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix, bound method = bound.upperBound , double newCost = 67, double reuseCost = 100)
         {
             double totalCost = 0;
 
             switch (method)
             {
-                case fcaMethod.conservative:
+                case bound.upperBound:
                     for (int reuseIndex = 0; reuseIndex < materialBank.ElementsInMaterialBank.Count; reuseIndex++)
                     {
                         if (insertionMatrix.Column(reuseIndex).AbsoluteMaximum() == 0) continue;
@@ -133,7 +159,7 @@ namespace MasterthesisGHA
                     }
                     break;
 
-                case fcaMethod.lean:
+                case bound.lowerBound:
                     double cuttingCost = 100; // NOK
                     for (int reuseIndex = 0; reuseIndex < materialBank.ElementsInMaterialBank.Count; reuseIndex++)
                     {
@@ -179,7 +205,7 @@ namespace MasterthesisGHA
         }
 
 
-        // Local Objectives (Member)
+        // Local Objectives (Member Level)
         public static double LengthCheck(MemberElement member, ReuseElement stockElement)
         {
             if (member.getInPlaceElementLength() < stockElement.getReusableLength()) return 1;
@@ -194,13 +220,13 @@ namespace MasterthesisGHA
             else if (bucklingUtilization > 1) return 0;
             else return 1;
         }
-        public static double LocalCarbonReduction(MemberElement member, ReuseElement stockElement, lcaMethod method = lcaMethod.simplified)
+        public static double LocalCarbonReduction(MemberElement member, ReuseElement stockElement, lcaMethod method = lcaMethod.simplified, bound bound = bound.upperBound)
         {
             List<double> constants = new List<double>();
             switch (method)
             {
                 case lcaMethod.simplified:
-                    constants = new List<double>() { 0.21, 0.00081, 0, 0, 0, 0, 1.75, 0, 0 }; ;
+                    constants = new List<double>() { 0.21, 0.00081, 0, 0, 0, 0, 1.75, 0, 0 };
                     break;
                 case lcaMethod.advanced:
                     constants = new List<double>() { 0.287, 0.00081, 0.110, 0.0011, 0.0011, 0.00011, 0.957, 0.00011, 0.110 };
@@ -211,7 +237,8 @@ namespace MasterthesisGHA
 
             double reuseLength = member.getInPlaceElementLength();
             double wasteLength = stockElement.getReusableLength() - member.getInPlaceElementLength();
-            if (wasteLength < 0) return 0;
+            if (wasteLength < 0) return -1;
+            else if (bound == bound.lowerBound && wasteLength < MaterialBank.minimumReusableLength) wasteLength = 0;
 
             double reuseElementLCA =
                 constants[0] * stockElement.getMass() +
@@ -227,11 +254,11 @@ namespace MasterthesisGHA
                 constants[8] * member.getMass();
 
             double carbonEmissionReduction = newElementLCA - reuseElementLCA;
-            if (carbonEmissionReduction < 0) return -1;
+            if (carbonEmissionReduction < 0) return 0;
             else return carbonEmissionReduction;
 
         }
-        public static double LocalFinancialCost(MemberElement member, ReuseElement stockElement, fcaMethod method = fcaMethod.conservative, double newCost = 100, double reuseCost = 67)
+        public static double LocalFinancialCost(MemberElement member, ReuseElement stockElement, bound method = bound.upperBound, double newCost = 100, double reuseCost = 67)
         {
             double reuseLength = member.getInPlaceElementLength() + MaterialBank.cuttingLength;
             double wasteLength = stockElement.getReusableLength() - member.getInPlaceElementLength();
@@ -239,17 +266,79 @@ namespace MasterthesisGHA
 
             switch (method)
             {
-                case fcaMethod.conservative:
+                case bound.upperBound:
                     return stockElement.getMass(stockElement.getReusableLength()) * reuseCost - member.getMass() * newCost;
 
-                case fcaMethod.lean:
+                case bound.lowerBound:
                     return stockElement.getMass(reuseLength) * reuseCost - member.getMass() * newCost;
-                
+
                 default:
                     throw new Exception("Method not found!");
             }
         }
 
+
+        // Backward Looking Objectives (Structure/Member Lever)
+        public static double LocalCarbonReduction(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix, int memberIndex, int reuseIndex, lcaMethod method = lcaMethod.simplified, bound bound = bound.lowerBound)
+        {
+            structure.UpdateInsertionMatrix(ref insertionMatrix, reuseIndex, memberIndex, materialBank);
+
+            List<double> constants = new List<double>();
+            switch (method)
+            {
+                case lcaMethod.simplified:
+                    constants = new List<double>() { 0.21, 0.00081, 0, 0, 0, 0, 1.75, 0, 0 };
+                    break;
+                case lcaMethod.advanced:
+                    constants = new List<double>() { 0.287, 0.00081, 0.110, 0.0011, 0.0011, 0.00011, 0.957, 0.00011, 0.110 };
+                    break;
+            }
+
+            double carbonEmissionTotal = 0;
+
+            for (int column = 0; column < materialBank.ElementsInMaterialBank.Count; column++)
+            {
+                ReuseElement stockElement = materialBank.ElementsInMaterialBank[column];
+                double reuseLength = 0;
+                double wasteLength = 0;
+                bool cut = false;
+
+                foreach (double insertionLength in insertionMatrix.Column(column))
+                {
+                    reuseLength += insertionLength;
+                    if (insertionLength != 0)
+                    {
+                        if (!cut) cut = true;
+                        else wasteLength += MaterialBank.cuttingLength;
+                    }
+                }
+
+                double remainingLength = materialBank.ElementsInMaterialBank[column].getReusableLength() - reuseLength;
+                if (remainingLength < MaterialBank.minimumReusableLength)
+                    wasteLength += remainingLength;
+
+                carbonEmissionTotal +=
+                    constants[0] * stockElement.getMass() +
+                    constants[1] * stockElement.getMass(wasteLength) +
+                    constants[2] * stockElement.getMass(reuseLength) +
+                    constants[3] * stockElement.getMass() * stockElement.DistanceFabrication +
+                    constants[4] * stockElement.getMass(reuseLength) * stockElement.DistanceBuilding +
+                    constants[5] * stockElement.getMass(wasteLength) * stockElement.DistanceRecycling;
+            }
+
+            for (int row = 0; row < structure.ElementsInStructure.Count; row++)
+            {
+                if (insertionMatrix.Row(row).AbsoluteMaximum() != 0) continue;
+
+                MemberElement member = structure.ElementsInStructure[row];
+                carbonEmissionTotal +=
+                    constants[6] * member.getMass() +
+                    constants[7] * member.getMass() * 1 + // * distanceBuilding
+                    constants[8] * member.getMass();
+            }
+
+            return carbonEmissionTotal;
+        }
 
 
         // Combinatorial Problem
@@ -258,6 +347,28 @@ namespace MasterthesisGHA
             return member.getInPlaceElementLength() / stockElement.getReusableLength();
         }
 
+        // LCA
+        public static double wasteCostReduction(ReuseElement stockElement, double wasteLengthReduction, lcaMethod method = lcaMethod.simplified)
+        {
+            List<double> constants = new List<double>();
+            switch (method)
+            {
+                case lcaMethod.simplified:
+                    constants = new List<double>() { 0.21, 0.00081, 0, 0, 0, 0, 1.75, 0, 0 };
+                    break;
+                case lcaMethod.advanced:
+                    constants = new List<double>() { 0.287, 0.00081, 0.110, 0.0011, 0.0011, 0.00011, 0.957, 0.00011, 0.110 };
+                    break;
+                default:
+                    throw new Exception("Method not found!");
+            }
+
+            double costReduction = 
+                constants[1] * stockElement.getMass(wasteLengthReduction) + 
+                constants[5] * stockElement.getMass(wasteLengthReduction) * stockElement.DistanceRecycling;
+
+            return costReduction;
+        }
 
 
         // Combined Objective Function (Old Method)

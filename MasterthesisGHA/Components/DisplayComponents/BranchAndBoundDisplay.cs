@@ -90,7 +90,7 @@ namespace MasterthesisGHA.Components
             Matrix<double> priorityMatrix = truss.getPriorityMatrix(iMaterialBank);
             Node node = new Node();
             Matrix<double> costMatrix = node.getCostMatrix(priorityMatrix);
-            Node solutionNode = node.Solve(costMatrix);
+            Node solutionNode = node.Solve(costMatrix, out _, truss, iMaterialBank);
 
             List<Tuple<int,int>> solutionPath = solutionNode.path;
             double solutionCost = solutionNode.lowerBoundCost;

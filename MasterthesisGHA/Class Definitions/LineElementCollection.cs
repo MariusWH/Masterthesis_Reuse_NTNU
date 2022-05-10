@@ -710,7 +710,7 @@ namespace MasterthesisGHA
         }
 
         // Matrix
-        protected virtual bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int stockElementIndex, int inPlaceElementIndex, ref MaterialBank materialBank, bool keepCutOff = true)
+        public virtual bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int stockElementIndex, int inPlaceElementIndex, MaterialBank materialBank, bool keepCutOff = true)
         {
             throw new NotImplementedException();
         }
@@ -885,7 +885,6 @@ namespace MasterthesisGHA
         // Combined Reuse Rate and Objective Optimization
 
 
-
         // Brute Force Permutations
         public void InsertMaterialBankByAllPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
         {
@@ -1000,7 +999,7 @@ namespace MasterthesisGHA
                     objectiveFunctionLog += 
                         i.ToString() + "," +
                         ObjectiveFunctions.GlobalLCA(this, materialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified).ToString() + "," +
-                        ObjectiveFunctions.GlobalFCA(this, materialBank, insertionMatrix, ObjectiveFunctions.fcaMethod.conservative).ToString() + '\n';
+                        ObjectiveFunctions.GlobalFCA(this, materialBank, insertionMatrix, ObjectiveFunctions.bound.upperBound).ToString() + '\n';
                 }
             }
         }
@@ -1011,7 +1010,7 @@ namespace MasterthesisGHA
             Matrix<double> priorityMatrix = getPriorityMatrix(inputMaterialBank);
             Node node = new Node();
             Matrix<double> costMatrix = node.getCostMatrix(priorityMatrix);
-            Node solutionNode = node.Solve(costMatrix);
+            Node solutionNode = node.Solve(costMatrix, out _, this, inputMaterialBank);
 
             List<Tuple<int, int>> solutionPath = solutionNode.path;
             outputMaterialBank = inputMaterialBank.GetDeepCopy();
@@ -1024,12 +1023,14 @@ namespace MasterthesisGHA
             //string solutionPathString = "";
             //foreach (Tuple<int, int> coordinate in solutionPath) solutionPathString += "[" + coordinate.Item1.ToString() + "," + coordinate.Item2.ToString() + "]\n";
         }
-        public void InsertMaterialBankByBNB(MaterialBank inputMaterialBank, out Matrix<double> insertionMatrix)
+        public void InsertMaterialBankByBNB(MaterialBank inputMaterialBank, out Matrix<double> insertionMatrix, out string resultLog)
         {
             Matrix<double> priorityMatrix = getPriorityMatrix(inputMaterialBank);
             Node node = new Node();
+            node.materialBank = inputMaterialBank;
+            node.structure = this;
             Matrix<double> costMatrix = node.getCostMatrix(priorityMatrix);
-            Node solutionNode = node.Solve(costMatrix);
+            Node solutionNode = node.Solve(costMatrix, out resultLog, this, inputMaterialBank);
 
             List<Tuple<int, int>> solutionPath = solutionNode.path;
             insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, inputMaterialBank.ElementsInMaterialBank.Count);
@@ -1037,7 +1038,6 @@ namespace MasterthesisGHA
                 insertionMatrix[insertion.Item1, insertion.Item2] = ElementsInStructure[insertion.Item1].getInPlaceElementLength();
 
             
-
             //double solutionCost = solutionNode.lowerBoundCost;
             //string solutionPathString = "";
             //foreach (Tuple<int, int> coordinate in solutionPath) solutionPathString += "[" + coordinate.Item1.ToString() + "," + coordinate.Item2.ToString() + "]\n";
@@ -1097,7 +1097,7 @@ namespace MasterthesisGHA
             List<string> areaSortedElements = LineElement.GetCrossSectionAreaSortedProfilesList();
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
-                InsertNewElement(i, areaSortedElements, Math.Abs(ElementAxialForcesX[i] / 355));
+                InsertNewElement(i, areaSortedElements.ToList(), Math.Abs(ElementAxialForcesX[i] / 355));
         }
         public void InsertMaterialBank(MaterialBank materialBank, IEnumerable<int> insertOrder, out Matrix<double> insertionMatrix, out MaterialBank remainingMaterialBank, int method)
         {
@@ -1176,7 +1176,7 @@ namespace MasterthesisGHA
 
                     if (stockElementIndex != -1)
                     {
-                        UpdateInsertionMatrix(ref insertionMatrix, stockElementIndex, memberIndex, ref materialBank, true);
+                        UpdateInsertionMatrix(ref insertionMatrix, stockElementIndex, memberIndex, materialBank, true);
                         break;
                     }
                 }
@@ -2285,23 +2285,43 @@ namespace MasterthesisGHA
             ElementsInStructure.RemoveAt(positionIndex);
             ElementsInStructure.Insert(positionIndex, temp);
         }
-        protected override void InsertNewElement(int inPlaceElementIndex, List<string> sortedNewElements, double minimumArea)
+        protected override void InsertNewElement(int memberIndex, List<string> sortedNewElements, double minimumArea)
         {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            if (memberIndex < 0 || memberIndex > ElementsInStructure.Count)
             {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+                throw new Exception("The In-Place-Element index " + memberIndex.ToString() + " is not valid!");
             }
             else
             {
+                while(true)
+                {
+                    if (sortedNewElements.Count == 0) return;
+                    string newProfile = sortedNewElements[0];
+                    sortedNewElements.RemoveAt(0);
+                    ReuseElement newElement = new ReuseElement(newProfile, ElementsInStructure[memberIndex].getInPlaceElementLength());
+                    MemberElement temp = new SpatialBar(newElement, ElementsInStructure[memberIndex]);
+                    temp.IsFromMaterialBank = false;
+
+                    if (temp.getTotalUtilization(ElementAxialForcesX[memberIndex], 0, 0, 0, 0, 0) > 1
+                        || temp.getAxialBucklingUtilization(ElementAxialForcesX[memberIndex]) > 1) continue;
+                    else
+                    {
+                        ElementsInStructure.RemoveAt(memberIndex);
+                        ElementsInStructure.Insert(memberIndex, temp);
+                        return;
+                    }
+                }
+                
+                /*
                 string newProfile = sortedNewElements.First(o => LineElement.CrossSectionAreaDictionary[o] > minimumArea);
                 ReuseElement newElement = new ReuseElement(newProfile, 0);
                 MemberElement temp = new SpatialBar(newElement, ElementsInStructure[inPlaceElementIndex]);
                 temp.IsFromMaterialBank = false;
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
-                ElementsInStructure.Insert(inPlaceElementIndex, temp);
+                ElementsInStructure.Insert(inPlaceElementIndex, temp);*/
             }
         }
-        protected override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int reuseElementIndex, int positionIndex, ref MaterialBank materialBank, bool keepCutOff = true)
+        public override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int reuseElementIndex, int positionIndex, MaterialBank materialBank, bool keepCutOff = true)
         {
             if (positionIndex < 0 || positionIndex > ElementsInStructure.Count)
             {
@@ -2467,20 +2487,39 @@ namespace MasterthesisGHA
             }
             return false;
         }
-        protected override void InsertNewElement(int inPlaceElementIndex, List<string> areaSortedNewElements, double minimumArea)
+        protected override void InsertNewElement(int memberIndex, List<string> sortedNewElements, double minimumArea)
         {
-            if (inPlaceElementIndex < 0 || inPlaceElementIndex > ElementsInStructure.Count)
+            if (memberIndex < 0 || memberIndex > ElementsInStructure.Count)
             {
-                throw new Exception("The In-Place-Element index " + inPlaceElementIndex.ToString() + " is not valid!");
+                throw new Exception("The In-Place-Element index " + memberIndex.ToString() + " is not valid!");
             }
             else
             {
-                string newProfile = areaSortedNewElements.First(o => LineElement.CrossSectionAreaDictionary[o] > minimumArea);
+                while (true)
+                {
+                    if (sortedNewElements.Count == 0) return;
+                    string newProfile = sortedNewElements[0];
+                    sortedNewElements.RemoveAt(0);
+                    ReuseElement newElement = new ReuseElement(newProfile, ElementsInStructure[memberIndex].getInPlaceElementLength());
+                    MemberElement temp = new PlanarBar(newElement, ElementsInStructure[memberIndex]);
+                    temp.IsFromMaterialBank = false;
+
+                    if (temp.getTotalUtilization(ElementAxialForcesX[memberIndex], 0, 0, 0, 0, 0) > 1
+                        || temp.getAxialBucklingUtilization(ElementAxialForcesX[memberIndex]) > 1) continue;
+                    else
+                    {
+                        ElementsInStructure.RemoveAt(memberIndex);
+                        ElementsInStructure.Insert(memberIndex, temp);
+                        return;
+                    }
+                }
+
+                /*string newProfile = areaSortedNewElements.First(o => LineElement.CrossSectionAreaDictionary[o] > minimumArea);
                 ReuseElement newElement = new ReuseElement(newProfile, 0);
                 MemberElement temp = new PlanarBar(newElement, ElementsInStructure[inPlaceElementIndex]);
                 temp.IsFromMaterialBank = false;
                 ElementsInStructure.RemoveAt(inPlaceElementIndex);
-                ElementsInStructure.Insert(inPlaceElementIndex, temp);
+                ElementsInStructure.Insert(inPlaceElementIndex, temp);*/
             }
         }
 
@@ -2705,6 +2744,8 @@ namespace MasterthesisGHA
                 }
             }
         }
+
+
 
 
         // Visuals

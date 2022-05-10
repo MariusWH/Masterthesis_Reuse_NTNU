@@ -257,13 +257,13 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                                 double trussWidth = width;
                                 double trussLength = startPoint.DistanceTo(endPoint);
                                 double maxDisplacement = trusses[trusses.Count - 1].GetMaxDisplacement();
-                                double totalMass = trusses[trusses.Count - 1].GetTotalMass();
+                                double LCA = ObjectiveFunctions.GlobalLCA(trusses[trusses.Count - 1]);
 
                                 csv += trussHeight.ToString() + "," +
                                     trussWidth.ToString() + "," +
                                     trussLength.ToString() + "," +
                                     maxDisplacement.ToString() + "," +
-                                    totalMass.ToString() + "\n";
+                                    LCA.ToString() + "\n";
 
                                 // DO SHIT HERE
 
@@ -275,12 +275,13 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                                  * 
                                  */
 
+                                /*
                                 trussHeights.Add(trussHeight);
                                 trussWidths.Add(trussWidth);
                                 trussLengths.Add(trussLength);
                                 maxDisplacements.Add(maxDisplacement);
                                 totalMasses.Add(totalMass);
-                                
+                                */
 
 
                             }

@@ -194,7 +194,7 @@ namespace MasterthesisGHA
             else if (bucklingUtilization > 1) return 0;
             else return 1;
         }
-        public static double LocalLCA(MemberElement member, ReuseElement stockElement, double axialForce, lcaMethod method = lcaMethod.simplified)
+        public static double LocalCarbonReduction(MemberElement member, ReuseElement stockElement, lcaMethod method = lcaMethod.simplified)
         {
             List<double> constants = new List<double>();
             switch (method)
@@ -231,8 +231,25 @@ namespace MasterthesisGHA
             else return carbonEmissionReduction;
 
         }
+        public static double LocalFinancialCost(MemberElement member, ReuseElement stockElement, fcaMethod method = fcaMethod.conservative, double newCost = 100, double reuseCost = 67)
+        {
+            double reuseLength = member.getInPlaceElementLength() + MaterialBank.cuttingLength;
+            double wasteLength = stockElement.getReusableLength() - member.getInPlaceElementLength();
+            if (wasteLength > MaterialBank.minimumReusableLength) wasteLength = 0;
 
-        
+            switch (method)
+            {
+                case fcaMethod.conservative:
+                    return stockElement.getMass(stockElement.getReusableLength()) * reuseCost - member.getMass() * newCost;
+
+                case fcaMethod.lean:
+                    return stockElement.getMass(reuseLength) * reuseCost - member.getMass() * newCost;
+                
+                default:
+                    throw new Exception("Method not found!");
+            }
+        }
+
 
 
         // Combinatorial Problem

@@ -50,6 +50,8 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddGenericParameter("MaterialBank Data", "MaterialBank", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Insertion Matrix", "IM", "", GH_ParamAccess.item);
             pManager.AddTextParameter("ResultCSV", "csv", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("LCA", "LCA", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("FCA", "FCA", "", GH_ParamAccess.item);
         }
 
 
@@ -102,7 +104,7 @@ namespace MasterthesisGHA.Components.MethodOne
             Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
             MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank = iMaterialBank.GetDeepCopy();
-            optimizationMethod = optimizationMethod % 7;
+            optimizationMethod = optimizationMethod % 8;
             string outputInfo = "";
             string resultCSV = "";
 
@@ -155,16 +157,30 @@ namespace MasterthesisGHA.Components.MethodOne
                         truss.InsertMaterialBankByRandomPermutations(out insertionMatrix, (int)1e3, inputMaterialBank, out _, out resultCSV);
                         truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
                         outputInfo += "insertion matrix method with 1000 pseudo random permutations optimization.\n";
-
                         break;
 
                     case 6: // Direct Cutting with Branch and Bound Optimization
-                        truss.InsertMaterialBankByBNB(inputMaterialBank, out outMaterialBank, out _);
+                        truss.InsertMaterialBankByBNB(inputMaterialBank, out outMaterialBank);
                         outputInfo += "direct method with branch and bound optimization.\n";
+                        break;
+
+                    case 7: // Insertion Matrix with Branch and Bound Optimization
+                        truss.InsertMaterialBankByBNB(inputMaterialBank, out insertionMatrix);
+                        truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
+                        outputInfo += "insertion matrix method with branch and bound optimization.\n";
                         break;
                 }
             }
-            
+
+
+            double resultLCA = 0;
+            double resultFCA = 0;
+            if (insertionMatrix.RowCount != 0)
+            {
+                resultLCA = ObjectiveFunctions.GlobalLCA(truss, inputMaterialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified);
+                resultFCA = ObjectiveFunctions.GlobalFCA(truss, inputMaterialBank, insertionMatrix, ObjectiveFunctions.fcaMethod.conservative);
+            }
+
             outMaterialBank.UpdateVisualsMaterialBank();
             truss.Solve();
             truss.Retracking();
@@ -180,6 +196,8 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(5, outMaterialBank);
             DA.SetData(6, ElementCollection.MathnetToRhinoMatrix(insertionMatrix));
             DA.SetData(7, resultCSV);
+            DA.SetData(8, resultLCA);
+            DA.SetData(9, resultFCA);
 
 
         }

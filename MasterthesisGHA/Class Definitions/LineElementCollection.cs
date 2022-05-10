@@ -730,8 +730,6 @@ namespace MasterthesisGHA
                 }
             }
         }
-
-
         public Matrix<double> getStructuralIntegrityMatrix(MaterialBank materialBank)
         {
             Matrix<double> structuralIntegrityMatrix = Matrix<double>.Build.Dense(ElementsInStructure.Count,
@@ -796,7 +794,7 @@ namespace MasterthesisGHA
 
             for (int i = 0; i < ElementsInStructure.Count; i++)
                 for (int j = 0; j < materialBank.ElementsInMaterialBank.Count; j++)
-                    localLCA[i, j] = ObjectiveFunctions.LocalLCA(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j], ElementAxialForcesX[i]);
+                    localLCA[i, j] = ObjectiveFunctions.LocalCarbonReduction(ElementsInStructure[i], materialBank.ElementsInMaterialBank[j]);
 
             if (normalized) localLCA /= localLCA.Enumerate().Max();
             return localLCA;
@@ -984,7 +982,7 @@ namespace MasterthesisGHA
         public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out List<double> objectiveFunctionOutputs, out string objectiveFunctionLog)
         {
             bool randomOrder = true;
-            double objectiveMax = 0;
+            double minimumCO2 = 0;
             objectiveFunctionOutputs = new List<double>();
             objectiveFunctionLog = "";
             insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, materialBank.ElementsInMaterialBank.Count);
@@ -995,9 +993,9 @@ namespace MasterthesisGHA
                 InsertMaterialBank(materialBank, out tempInsertionMatrix, randomOrder);
                 objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, tempInsertionMatrix));
 
-                if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1] > objectiveMax)
+                if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1] < minimumCO2 || minimumCO2 == 0)
                 {
-                    objectiveMax = objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1];
+                    minimumCO2 = objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1];
                     tempInsertionMatrix.CopyTo(insertionMatrix);
                     objectiveFunctionLog += 
                         i.ToString() + "," +
@@ -1008,7 +1006,7 @@ namespace MasterthesisGHA
         }
 
         // Branch & Bound
-        public void InsertMaterialBankByBNB(MaterialBank inputMaterialBank, out MaterialBank outputMaterialBank, out double objective)
+        public void InsertMaterialBankByBNB(MaterialBank inputMaterialBank, out MaterialBank outputMaterialBank)
         {
             Matrix<double> priorityMatrix = getPriorityMatrix(inputMaterialBank);
             Node node = new Node();
@@ -1016,15 +1014,29 @@ namespace MasterthesisGHA
             Node solutionNode = node.Solve(costMatrix);
 
             List<Tuple<int, int>> solutionPath = solutionNode.path;
-            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, inputMaterialBank.ElementsInMaterialBank.Count);
             outputMaterialBank = inputMaterialBank.GetDeepCopy();
             foreach (Tuple<int, int> insertion in solutionPath)
             {
-                insertionMatrix[insertion.Item1, insertion.Item2] = ElementsInStructure[insertion.Item1].getInPlaceElementLength();
                 InsertReuseElementAndCutMaterialBank(insertion.Item1, insertion.Item2, ref outputMaterialBank);
             }
 
-            objective = ObjectiveFunctions.GlobalLCA(this, inputMaterialBank, insertionMatrix);
+            //double solutionCost = solutionNode.lowerBoundCost;
+            //string solutionPathString = "";
+            //foreach (Tuple<int, int> coordinate in solutionPath) solutionPathString += "[" + coordinate.Item1.ToString() + "," + coordinate.Item2.ToString() + "]\n";
+        }
+        public void InsertMaterialBankByBNB(MaterialBank inputMaterialBank, out Matrix<double> insertionMatrix)
+        {
+            Matrix<double> priorityMatrix = getPriorityMatrix(inputMaterialBank);
+            Node node = new Node();
+            Matrix<double> costMatrix = node.getCostMatrix(priorityMatrix);
+            Node solutionNode = node.Solve(costMatrix);
+
+            List<Tuple<int, int>> solutionPath = solutionNode.path;
+            insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, inputMaterialBank.ElementsInMaterialBank.Count);
+            foreach (Tuple<int, int> insertion in solutionPath)
+                insertionMatrix[insertion.Item1, insertion.Item2] = ElementsInStructure[insertion.Item1].getInPlaceElementLength();
+
+            
 
             //double solutionCost = solutionNode.lowerBoundCost;
             //string solutionPathString = "";
@@ -1129,7 +1141,23 @@ namespace MasterthesisGHA
             {
                 int memberIndex = insertionList[i];
 
-                List<int> sortedIndexing = materialBank.getUtilizationThenLengthSortedMaterialBankIndexing(ElementAxialForcesX[i]);
+                double axialForce = ElementAxialForcesX[memberIndex];
+                double shearY = 0;
+                double shearZ = 0;
+                double momentX = 0;
+                double momentY = 0;
+                double momentZ = 0;
+                if (GetDofsPerNode() > 3)
+                {
+                    shearY = ElementShearForcesY[memberIndex];
+                    shearZ = ElementShearForcesZ[memberIndex];
+                    momentX = ElementTorsionsX[memberIndex];
+                    momentY = ElementMomentsY[memberIndex];
+                    momentZ = ElementMomentsZ[memberIndex];
+                }
+
+                List<int> sortedIndexing = materialBank.getUtilizationThenLengthSortedMaterialBankIndexing(
+                    axialForce, momentY, momentZ, shearY, shearZ, momentX);
 
                 int indexingFromLast = sortedIndexing.Count;
                 while (indexingFromLast-- != 0)
@@ -1140,24 +1168,10 @@ namespace MasterthesisGHA
 
                     double usedLength = insertionMatrix.Column(stockElementIndex).Sum() + MaterialBank.cuttingLength * numberOfCuts;
 
-                    double axialForce = ElementAxialForcesX[memberIndex];
-                    double shearY = 0;
-                    double shearZ = 0;
-                    double momentX = 0;
-                    double momentY = 0;
-                    double momentZ = 0;
-                    if (GetDofsPerNode() > 3)
-                    {
-                        shearY = ElementShearForcesY[memberIndex];
-                        shearZ = ElementShearForcesZ[memberIndex];
-                        momentX = ElementTorsionsX[memberIndex];
-                        momentY = ElementMomentsY[memberIndex];
-                        momentZ = ElementMomentsZ[memberIndex];
-                    }
+                    
 
                     if (usedLength + ElementsInStructure[memberIndex].getInPlaceElementLength() > materialBank.ElementsInMaterialBank[stockElementIndex].getReusableLength()
-                        || materialBank.ElementsInMaterialBank[stockElementIndex]
-                        .getTotalUtilization(ElementAxialForcesX[memberIndex], momentY, momentZ, shearY, shearZ, momentX) > 1.0)
+                        || materialBank.ElementsInMaterialBank[stockElementIndex].getTotalUtilization(axialForce, momentY, momentZ, shearY, shearZ, momentX) > 1.0)
                         continue;
 
                     if (stockElementIndex != -1)

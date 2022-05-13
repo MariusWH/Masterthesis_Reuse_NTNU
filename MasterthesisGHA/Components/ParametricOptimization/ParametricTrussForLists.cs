@@ -61,7 +61,7 @@ namespace MasterthesisGHA.Components
                 heightList.Count * 
                 widthList.Count;
 
-            if (iterations > 1e3)
+            if (iterations > 1e6)
             {
                 throw new Exception("Max iterations of 1000 is exceeded!");
             }

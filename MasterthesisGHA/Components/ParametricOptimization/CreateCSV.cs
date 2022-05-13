@@ -34,6 +34,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
+            /*
             pManager.AddPointParameter("Free Nodes", "Nodes", "Free nodes as list of points", GH_ParamAccess.list);
             pManager.AddMatrixParameter("Stiffness Matrix", "K", "Stiffness matrix as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
@@ -48,6 +49,10 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             pManager.AddNumberParameter("Masses", "", "", GH_ParamAccess.list);
 
             pManager.AddTextParameter("csv", "", "", GH_ParamAccess.item);
+            */
+
+            pManager.AddIntegerParameter("# of structures", "#", "", GH_ParamAccess.item);
+            pManager.AddTextParameter("csv", "csv", "", GH_ParamAccess.item);
         }
 
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -92,7 +97,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                 heightList.Count *
                 widthList.Count;
 
-            if (numberOfStructures > 1e3)
+            if (numberOfStructures > 1e6)
             {
                 throw new Exception("Max iterations of 1000 is exceeded!");
             }
@@ -225,7 +230,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                                 loadLines.ForEach(line => loadLinesTree[iteration].Add(line));
                                 */
 
-
+                                /*
                                 switch (is3D)
                                 {
                                     default:
@@ -264,6 +269,36 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                                     trussLength.ToString() + "," +
                                     maxDisplacement.ToString() + "," +
                                     LCA.ToString() + "\n";
+                                */
+
+                                Structure truss;
+                                switch (is3D)
+                                {
+                                    default:
+                                        truss = new SpatialTruss(geometryLines, iProfiles, supportPoints);
+                                        break;
+                                    case false:
+                                        truss = new PlanarTruss(geometryLines, iProfiles, supportPoints);
+                                        break;
+                                }
+
+                                truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, loadLines);
+                                if (iApplySelfWeight) truss.ApplySelfWeight();
+                                truss.Solve();
+                                truss.Retracking();
+
+                                // Write Results to CSV
+                                double trussHeight = height;
+                                double trussWidth = width;
+                                double trussLength = startPoint.DistanceTo(endPoint);
+                                double maxDisplacement = truss.GetMaxDisplacement();
+                                double LCA = ObjectiveFunctions.GlobalLCA(truss);
+
+                                csv += trussHeight.ToString() + "," +
+                                    trussWidth.ToString() + "," +
+                                    trussLength.ToString() + "," +
+                                    maxDisplacement.ToString() + "," +
+                                    LCA.ToString() + "\n";
 
                                 // DO SHIT HERE
 
@@ -292,6 +327,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
 
 
             // OUTPUT
+            /*
             DA.SetDataList(0, trusses[0].FreeNodes);
             DA.SetData(1, trusses[0].GetStiffnessMatrix());
             DA.SetData(2, trusses[0].GetDisplacementVector());
@@ -304,9 +340,10 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             DA.SetDataList(9, maxDisplacements);
             DA.SetDataList(10, totalMasses);
             DA.SetData(11, csv);
+            */
 
-
-
+            DA.SetData(0, numberOfStructures);
+            DA.SetData(1, csv);
 
 
 

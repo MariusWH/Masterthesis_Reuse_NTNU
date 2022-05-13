@@ -19,10 +19,11 @@ namespace MasterthesisGHA
         public int vertex; // reuse element
         public int level; // position insertions
 
-
-        public Node RootNode(Matrix<double> costMatrix, int position, int reuseElement)
+        public Node RootNode(Matrix<double> costMatrix, int position, int reuseElement, Structure structure, MaterialBank materialBank)
         {
             Node newNode = new Node();
+            newNode.structure = structure;
+            newNode.materialBank = materialBank;
             newNode.costOfPath = costMatrix[position, reuseElement]; // Root node cost;
             newNode.lowerBoundCost = 0;
             newNode.vertex = reuseElement;
@@ -45,6 +46,9 @@ namespace MasterthesisGHA
         {
             Node newNode = new Node();
 
+            newNode.structure = parentNode.structure;
+            newNode.materialBank = parentNode.materialBank;
+
             newNode.path = parentNode.path.ToList();
             newNode.path.Add(new Tuple<int, int>(position, reuseElement));
 
@@ -57,25 +61,22 @@ namespace MasterthesisGHA
                     for (int i = 0; i < newNode.reducedCostMatrix.ColumnCount; i++)
                         newNode.reducedCostMatrix[position, i] = double.PositiveInfinity; // Remove position
                     double usedLength = 0;
-                    for (int i = 0; i < path.Count; i++)
-                        if (path[i].Item2 == reuseElement) usedLength += structure.ElementsInStructure[path[i].Item1].getInPlaceElementLength();
+                    for (int i = 0; i < parentNode.path.Count; i++)
+                        if (parentNode.path[i].Item2 == reuseElement) usedLength += newNode.structure.ElementsInStructure[parentNode.path[i].Item1].getInPlaceElementLength();
                     for (int i = 0; i < newNode.reducedCostMatrix.RowCount; i++)
-                        if (newNode.reducedCostMatrix[i, reuseElement] > 0) // Not used
+                    {
+                        if (newNode.structure.ElementsInStructure[i].getInPlaceElementLength() > newNode.materialBank.ElementsInMaterialBank[reuseElement].getReusableLength() - usedLength
+                            && newNode.reducedCostMatrix[i, reuseElement] != double.PositiveInfinity)
                         {
-                            if (structure.ElementsInStructure[i].getInPlaceElementLength() > materialBank.ElementsInMaterialBank[reuseElement].getReusableLength() - usedLength)
-                            {
-                                newNode.reducedCostMatrix[i, reuseElement] = 
-                                    ObjectiveFunctions.wasteCostReduction(materialBank.ElementsInMaterialBank[reuseElement], 
-                                    structure.ElementsInStructure[i].getInPlaceElementLength()); // Update reuse element
-                            }
-                            
-
+                            newNode.reducedCostMatrix[i, reuseElement] =
+                                ObjectiveFunctions.wasteCostReduction(newNode.materialBank.ElementsInMaterialBank[reuseElement],
+                                newNode.structure.ElementsInStructure[i].getInPlaceElementLength()); // Update reuse element
                         }
-                        else // Used
+                        else
                         {
-
+                            newNode.reducedCostMatrix[i, reuseElement] = double.PositiveInfinity;
                         }
-
+                    }
                     break;
 
                 case false:
@@ -142,13 +143,13 @@ namespace MasterthesisGHA
 
             switch (method)
             {
-                case bnbMethod.linearSearch: return SolveLinearSearch(costMatrix);
+                case bnbMethod.linearSearch: return SolveLinearSearch(costMatrix, structure, materialBank);
                 case bnbMethod.fullSearch: return SolveFullSearch(costMatrix, structure, materialBank, out resultLog);
             }
             throw new Exception("BnB search method not found");
                 
         }
-        public Node SolveLinearSearch(Matrix<double> costMatrix)
+        public Node SolveLinearSearch(Matrix<double> costMatrix, Structure structure, MaterialBank materialBank)
         {
             List<Node> liveNodes = new List<Node>();
             
@@ -159,9 +160,9 @@ namespace MasterthesisGHA
                 for (int reuseElement = 0; reuseElement < costMatrix.ColumnCount; reuseElement++)
                 {
                     if (costMatrix[position, reuseElement] == double.PositiveInfinity) continue;
-                    liveNodes.Add(RootNode(costMatrix, position, reuseElement));
+                    liveNodes.Add(RootNode(costMatrix, position, reuseElement, structure, materialBank));
                 }
-                if(++position == costMatrix.RowCount) return RootNode(costMatrix, 0, 0);
+                if(++position == costMatrix.RowCount) return RootNode(costMatrix, 0, 0, structure, materialBank);
             }
             
             // Branch From Initial Live Nodes
@@ -212,9 +213,9 @@ namespace MasterthesisGHA
                 for (int reuseElement = 0; reuseElement < costMatrix.ColumnCount; reuseElement++)
                 {
                     if (costMatrix[position, reuseElement] == double.PositiveInfinity) continue;
-                    liveNodes.Add(RootNode(costMatrix, position, reuseElement));
+                    liveNodes.Add(RootNode(costMatrix, position, reuseElement, structure, materialBank));
                 }
-                if (++position == costMatrix.RowCount) return RootNode(costMatrix, 0, 0);
+                if (++position == costMatrix.RowCount) return RootNode(costMatrix, 0, 0, structure, materialBank);
             }
 
             // Branch From Initial Live Nodes
@@ -300,9 +301,9 @@ namespace MasterthesisGHA
                 for (int reuseElement = 0; reuseElement < costMatrix.ColumnCount; reuseElement++)
                 {
                     if (costMatrix[position, reuseElement] == double.PositiveInfinity) continue;
-                    liveNodes.Add(RootNode(costMatrix, position, reuseElement));
+                    liveNodes.Add(RootNode(costMatrix, position, reuseElement, structure, materialBank));
                 }
-                if (++position == costMatrix.RowCount) return RootNode(costMatrix, 0, 0);
+                if (++position == costMatrix.RowCount) return RootNode(costMatrix, 0, 0, structure, materialBank);
             }
 
             // Branch From Initial Live Nodes

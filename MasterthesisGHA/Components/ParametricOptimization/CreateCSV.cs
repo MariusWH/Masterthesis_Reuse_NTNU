@@ -97,7 +97,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                 heightList.Count *
                 widthList.Count;
 
-            if (numberOfStructures > 1e6)
+            if (numberOfStructures > 1e7)
             {
                 throw new Exception("Max iterations of 1000 is exceeded!");
             }

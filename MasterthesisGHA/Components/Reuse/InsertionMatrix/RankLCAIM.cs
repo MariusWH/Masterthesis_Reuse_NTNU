@@ -140,7 +140,8 @@ namespace MasterthesisGHA.Components.MethodOne
                 outMaterialBank = iMaterialBankOriginal.GetDeepCopy();
             }
 
-            iMaterialBankCopy.UpdateVisualsInsertionMatrix(insertionMatrix, out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
+            iMaterialBankCopy.InsertionMatrix = insertionMatrix;
+            iMaterialBankCopy.UpdateVisualsInsertionMatrix(out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
             truss.Solve();
             truss.Retracking();
 

@@ -128,9 +128,9 @@ namespace MasterthesisGHA.Components.MethodOne
             {
             }
 
-            
 
-            inputMaterialBank.UpdateVisualsInsertionMatrix(insertionMatrix, out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
+            inputMaterialBank.InsertionMatrix = insertionMatrix;
+            inputMaterialBank.UpdateVisualsInsertionMatrix(out List<Brep> geometry, out List<System.Drawing.Color> colors, out _);
             truss.Solve();
             truss.Retracking();
 

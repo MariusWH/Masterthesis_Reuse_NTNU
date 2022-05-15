@@ -220,7 +220,7 @@ namespace MasterthesisGHA
             ElementUtilizations = new List<double>();
             StructureColors = new List<Color>();
             StructureVisuals = new List<Brep>();
-    }
+        }
         public Structure(List<Line> lines, List<string> profileNames, List<Point3d> supportPoints)
         {           
             StructureVisuals = new List<Brep>();
@@ -409,105 +409,7 @@ namespace MasterthesisGHA
                     GlobalLoadVector[dofsPerNode * member.EndNodeIndex + (dofsPerNode - 1)] += -member.getMass() * gravitationalAcceleration / 2;
             }
         }
-        /*
-        public virtual void ApplyLumpedSurfaceLoad()
-        {
-            throw new NotImplementedException();
-        }
-        public virtual void getExposedMembers(Vector3d loadDirection, out Point3d topPoint, out List<Line> exposedLines)
-        {
-            // Find top-point
-            Plane zeroPlane = new Plane(new Point3d(0,0,0), loadDirection);
-            Point3d max = FreeNodes[0];
-            foreach ( Point3d node in FreeNodes)
-            {
-                if (zeroPlane.DistanceTo(max) > zeroPlane.DistanceTo(node))
-                    max = node;
-            }
-            topPoint = max;
-
-            // Exposed Lines
-            exposedLines = new List<Line>();
-            FindExposedNodes(new Point3d(), max, loadDirection, ref exposedLines);
-
-        }
-        public virtual void FindExposedNodes(Point3d prevNode,Point3d startNode, Vector3d loadDirection, ref List<Line> exposedLines, 
-            bool firstRun = true)
-        {
-            // Initialize
-            IEnumerable<InPlaceElement> allElements = ElementsInStructure.ToList();
-            List<Line> exposedLinesCopy = exposedLines.ToList();
-
-            // Find neighboors
-            IEnumerable<InPlaceElement> neighbors = allElements
-                .Where(o => o.StartPoint == startNode || o.EndPoint == startNode)
-                .ToList();
-
-            List<Line> newNeighborLines = neighbors.Select(o => new Line(o.StartPoint, o.EndPoint))
-                .Where(o => !exposedLinesCopy.Contains(new Line(o.PointAt(0), o.PointAt(1))))
-                .Where(o => !exposedLinesCopy.Contains(new Line(o.PointAt(1), o.PointAt(0))))
-                .ToList();
-
-            // Delete hidden from previous line
-            Point3d nextNode;
-            for(int i = 0; i < newNeighborLines.Count; i++)
-            {
-                Line line = newNeighborLines[i];
-
-                if (line.PointAt(0) == startNode && !SupportNodes.Contains(line.PointAt(0)))
-                    nextNode = line.PointAt(1);
-                else if (line.PointAt(1) == startNode && !SupportNodes.Contains(line.PointAt(1)))
-                    nextNode = line.PointAt(0);
-                else
-                    throw new Exception("Line " + line.ToString() + " is not connected to node " + startNode.ToString());
-
-                Line prevLine = new Line(prevNode, startNode);
-                Line thisLine = new Line(startNode, nextNode);
-
-                if (!firstRun)
-                {
-                    Plane projectionPlane = new Plane(startNode, loadDirection, new Vector3d(startNode - prevNode));
-                    Point3d projectedNextNode = projectionPlane.ClosestPoint(nextNode);
-
-                    double anglePreviousMember = Vector3d.VectorAngle(loadDirection, new Vector3d(startNode - prevNode));
-                    double angleThisMember = Vector3d.VectorAngle(loadDirection, new Vector3d(projectedNextNode - startNode));
-
-                    if( anglePreviousMember <= Math.PI && angleThisMember >= Math.PI ||
-                        anglePreviousMember >= Math.PI && angleThisMember <= Math.PI)
-                    {
-                        newNeighborLines.RemoveAt(i);
-                    }
-                }
-            }
-          
-            exposedLines.AddRange(newNeighborLines);
-            
-            
-
-            // Exposed nodes
-            prevNode = startNode;
-            if (newNeighborLines.Count > 0)
-            {
-                foreach (Line line in newNeighborLines)
-                {
-                    if (line.PointAt(0) != startNode && !SupportNodes.Contains(line.PointAt(0)))
-                    {
-                        FindExposedNodes(prevNode, line.PointAt(0), loadDirection, ref exposedLines, false);
-                    }
-                    else if (line.PointAt(1) != startNode && !SupportNodes.Contains(line.PointAt(1)))
-                    {
-                        FindExposedNodes(prevNode, line.PointAt(1), loadDirection, ref exposedLines, false);
-                    }
-                }                    
-            }
-            else
-            {
-                return;
-            }           
-
-        }
-
-        */
+        
 
         // -- VISUALS --
         public override void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxAngle, double maxLoad, double maxMoment)
@@ -859,15 +761,13 @@ namespace MasterthesisGHA
 
         // -- REUSE METHODS --
 
-        // Maximum Reuse Rate
+        // Heuristics
         public void InsertWithMaxReuseRate(MaterialBank materialBank, out Matrix<double> insertionMatrix)
         {
             Matrix<double> verificationMatrix = getStructuralIntegrityMatrix(materialBank);
             IEnumerable<int> insertionOrder = OptimumInsertOrderFromReuseRate(verificationMatrix);
             InsertMaterialBank(materialBank, insertionOrder, out insertionMatrix);
         }
-
-        // Objective Matrix
         public void InsertMaterialBankByPriorityMatrix(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out IEnumerable<int> optimumOrder)
         {
             Matrix<double> priorityMatrix = getObjectiveMatrix(materialBank);
@@ -881,8 +781,6 @@ namespace MasterthesisGHA
             optimumOrder = OptimumInsertOrderFromLocalLCA(priorityMatrix).ToList();
             InsertMaterialBank(materialBank, optimumOrder, out insertionMatrix);
         }
-
-        // Combined Reuse Rate and Objective Optimization
 
 
         // Brute Force Permutations
@@ -978,28 +876,32 @@ namespace MasterthesisGHA
             InsertMaterialBank(materialBank, optimumOrder, out remainingMaterialBank);
             remainingMaterialBank.UpdateVisualsMaterialBank();
         }
-        public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out List<double> objectiveFunctionOutputs, out string objectiveFunctionLog)
+        public void InsertMaterialBankByRandomPermutations(out Matrix<double> insertionMatrix, int iterations, MaterialBank materialBank, out string bestResultLog, out string fullSearchLog)
         {
             bool randomOrder = true;
-            double minimumCO2 = 0;
-            objectiveFunctionOutputs = new List<double>();
-            objectiveFunctionLog = "";
+            double bestResult = 0;
+            fullSearchLog = "";
+            bestResultLog = "";
             insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, materialBank.ElementsInMaterialBank.Count);
             Matrix<double> tempInsertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, materialBank.ElementsInMaterialBank.Count);
 
             for (int i = 0; i < iterations; i++)
             {
                 InsertMaterialBank(materialBank, out tempInsertionMatrix, randomOrder);
-                objectiveFunctionOutputs.Add(ObjectiveFunctions.GlobalLCA(this, materialBank, tempInsertionMatrix));
+                double objectiveFunctionOutput = ObjectiveFunctions.GlobalLCA(this, materialBank, tempInsertionMatrix, ObjectiveFunctions.lcaMethod.simplified);
 
-                if (objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1] < minimumCO2 || minimumCO2 == 0)
+                string search = 
+                    i.ToString() + "," +
+                    ObjectiveFunctions.GlobalLCA(this, materialBank, tempInsertionMatrix, ObjectiveFunctions.lcaMethod.simplified).ToString() + "," +
+                    ObjectiveFunctions.GlobalFCA(this, materialBank, tempInsertionMatrix, ObjectiveFunctions.bound.upperBound).ToString() + '\n';
+
+                fullSearchLog += search;
+
+                if (objectiveFunctionOutput < bestResult || bestResult == 0)
                 {
-                    minimumCO2 = objectiveFunctionOutputs[objectiveFunctionOutputs.Count - 1];
+                    bestResult = objectiveFunctionOutput;
                     tempInsertionMatrix.CopyTo(insertionMatrix);
-                    objectiveFunctionLog += 
-                        i.ToString() + "," +
-                        ObjectiveFunctions.GlobalLCA(this, materialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified).ToString() + "," +
-                        ObjectiveFunctions.GlobalFCA(this, materialBank, insertionMatrix, ObjectiveFunctions.bound.upperBound).ToString() + '\n';
+                    bestResultLog += search;
                 }
             }
         }
@@ -1023,14 +925,14 @@ namespace MasterthesisGHA
             //string solutionPathString = "";
             //foreach (Tuple<int, int> coordinate in solutionPath) solutionPathString += "[" + coordinate.Item1.ToString() + "," + coordinate.Item2.ToString() + "]\n";
         }
-        public void InsertMaterialBankByBNB(MaterialBank inputMaterialBank, out Matrix<double> insertionMatrix, out string resultLog)
+        public void InsertMaterialBankByBNB(MaterialBank inputMaterialBank, out Matrix<double> insertionMatrix, int maxIterations, out string resultLog)
         {
             Matrix<double> priorityMatrix = getPriorityMatrix(inputMaterialBank);
             Node node = new Node();
             node.materialBank = inputMaterialBank;
             node.structure = this;
             Matrix<double> costMatrix = node.getCostMatrix(priorityMatrix);
-            Node solutionNode = node.Solve(costMatrix, out resultLog, this, inputMaterialBank);
+            Node solutionNode = node.Solve(costMatrix, out resultLog, this, inputMaterialBank, maxIterations);
 
             List<Tuple<int, int>> solutionPath = solutionNode.path;
             insertionMatrix = Matrix<double>.Build.Sparse(ElementsInStructure.Count, inputMaterialBank.ElementsInMaterialBank.Count);
@@ -1041,52 +943,6 @@ namespace MasterthesisGHA
             //double solutionCost = solutionNode.lowerBoundCost;
             //string solutionPathString = "";
             //foreach (Tuple<int, int> coordinate in solutionPath) solutionPathString += "[" + coordinate.Item1.ToString() + "," + coordinate.Item2.ToString() + "]\n";
-        }
-        public void GurobiExample()
-        {
-            try
-            {
-
-                // Create an empty environment, set options and start
-                GRBEnv env = new GRBEnv(true);
-                env.Set("LogFile", "mip1.log");
-                env.Start();
-
-                // Create empty model
-                GRBModel model = new GRBModel(env);
-
-                // Create variables
-                GRBVar x = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "x");
-                GRBVar y = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "y");
-                GRBVar z = model.AddVar(0.0, 1.0, 0.0, GRB.BINARY, "z");
-
-                // Set objective: maximize x + y + 2 z
-                model.SetObjective(x + y + 2 * z, GRB.MAXIMIZE);
-
-                // Add constraint: x + 2 y + 3 z <= 4
-                model.AddConstr(x + 2 * y + 3 * z <= 4.0, "c0");
-
-                // Add constraint: x + y >= 1
-                model.AddConstr(x + y >= 1.0, "c1");
-
-                // Optimize model
-                model.Optimize();
-
-                Console.WriteLine(x.VarName + " " + x.X);
-                Console.WriteLine(y.VarName + " " + y.X);
-                Console.WriteLine(z.VarName + " " + z.X);
-
-                Console.WriteLine("Obj: " + model.ObjVal);
-
-                // Dispose of model and env
-                model.Dispose();
-                env.Dispose();
-
-            }
-            catch (GRBException e)
-            {
-                Console.WriteLine("Error code: " + e.ErrorCode + ". " + e.Message);
-            }
         }
 
 
@@ -2124,6 +1980,12 @@ namespace MasterthesisGHA
                 // 1 - New and Reuse Members (White-Blue)
                 // 2 - Continuous Member Stresses (White-Blue)
                 // 3 - Continuous Member Buckling (White-Blue)
+                // 4 - My (White-Blue)
+                // 5 - Mz (White-Blue)
+                // 6 - Vy (White-Blue)
+                // 7 - Vz (White-Blue)
+                // 8 - Discrete Node Displacements (Red/Green)
+                // 9 - Continuous Node Displacements (White-Blue)
 
                 double utilizationBuckling = ElementsInStructure[i].getAxialBucklingUtilization(ElementAxialForcesX[i]);
                 double utilizationStress = ElementsInStructure[i].getAxialForceUtilization(ElementAxialForcesX[i]);
@@ -2199,17 +2061,21 @@ namespace MasterthesisGHA
             {
                 // Color codes
                 // 0 - Discrete Member Verifiation (Red/Green/Yellow)
-                // 1 - Continuous Member Stresses (White-Blue)
-                // 2 - Continuous Member Buckling (White-Blue)
-                // 3 - New and Reuse Members (White-Blue)
-                // 4 - Discrete Node Displacements (Red/Green)
-                // 5 - Continuous Node Displacements (White-Blue)
-                
-                if (colorCode == 4)
+                // 1 - New and Reuse Members (White-Blue)
+                // 2 - Continuous Member Stresses (White-Blue)
+                // 3 - Continuous Member Buckling (White-Blue)
+                // 4 - My (White-Blue)
+                // 5 - Mz (White-Blue)
+                // 6 - Vy (White-Blue)
+                // 7 - Vz (White-Blue)
+                // 8 - Discrete Node Displacements (Red/Green)
+                // 9 - Continuous Node Displacements (White-Blue)
+
+                if (colorCode == 8)
                 {
                     nodeRadius = 1.5 * initialNodeRadius;
                 }
-                else if (colorCode == 5)
+                else if (colorCode == 9)
                 {
                     nodeRadius = 1.5 * initialNodeRadius;
                     double displacement = FreeNodes[i].DistanceTo(FreeNodesInitial[i]);                   
@@ -2532,8 +2398,6 @@ namespace MasterthesisGHA
 
     public class SpatialFrame : Structure
     {
-        
-
         // Constructors
         public SpatialFrame()
             : base()
@@ -3104,6 +2968,7 @@ namespace MasterthesisGHA
     {
         // Attributes
         public List<ReuseElement> ElementsInMaterialBank;
+        public Matrix<double> InsertionMatrix;
         public List<Color> MaterialBankColors;
         public List<Brep> MaterialBankVisuals;
         public static double minimumReusableLength;
@@ -3114,6 +2979,7 @@ namespace MasterthesisGHA
             : base()
         {
             ElementsInMaterialBank = new List<ReuseElement>();
+            InsertionMatrix = Matrix<double>.Build.Dense(1,ElementsInMaterialBank.Count);
             MaterialBankColors = new List<Color>();
             MaterialBankVisuals = new List<Brep>();
         }
@@ -3121,6 +2987,7 @@ namespace MasterthesisGHA
             :this()
         {
             ElementsInMaterialBank.AddRange(stockElements);
+            InsertionMatrix = Matrix<double>.Build.Dense(1, ElementsInMaterialBank.Count);
         }
         public MaterialBank(List<string> profiles, List<int> quantities, List<double> lengths)
             :this()
@@ -3133,6 +3000,7 @@ namespace MasterthesisGHA
                 for (int j = 0; j < quantities[i]; j++)
                     this.InsertReuseElementIntoMaterialBank(new ReuseElement(profiles[i], lengths[i]));
             }
+            InsertionMatrix = Matrix<double>.Build.Dense(1, ElementsInMaterialBank.Count);
         }
         public MaterialBank(List<string> profiles, List<int> quantities, List<double> lengths, List<double> distancesFabrication, List<double> distancesBuilding, List<double> distancesRecycling)
             : this()
@@ -3160,6 +3028,7 @@ namespace MasterthesisGHA
                     this.InsertReuseElementIntoMaterialBank(
                         new ReuseElement(profiles[i], lengths[i], distancesFabrication[i], distancesBuilding[i], distancesRecycling[i]));
             }
+            InsertionMatrix = Matrix<double>.Build.Dense(1, ElementsInMaterialBank.Count);
 
         }
         public MaterialBank(List<string> commands)
@@ -3175,6 +3044,7 @@ namespace MasterthesisGHA
                 for (int i = 0; i < commandQuantities; i++)
                     this.InsertReuseElementIntoMaterialBank(new ReuseElement(commandProfiles, commandLengths));
             }
+            InsertionMatrix = Matrix<double>.Build.Dense(1, ElementsInMaterialBank.Count);
         }
         static MaterialBank()
         {
@@ -3193,6 +3063,8 @@ namespace MasterthesisGHA
             returnMateralBank.MaterialBankVisuals.AddRange(materialBankA.MaterialBankVisuals);
             returnMateralBank.MaterialBankVisuals.AddRange(materialBankB.MaterialBankVisuals);
 
+            returnMateralBank.InsertionMatrix = Matrix<double>.Build.Dense(1, returnMateralBank.ElementsInMaterialBank.Count);
+
             return returnMateralBank;
         }
         
@@ -3201,9 +3073,10 @@ namespace MasterthesisGHA
         {
             MaterialBank returnMateralBank = new MaterialBank();
 
-            ElementsInMaterialBank.ForEach(o => returnMateralBank.ElementsInMaterialBank.Add(o.DeepCopy()));
-            materialBankColors.ForEach(o => returnMateralBank.MaterialBankColors.Add(System.Drawing.Color.FromArgb(o.ToArgb())));
-            MaterialBankVisuals.ForEach(o => returnMateralBank.MaterialBankVisuals.Add(o.DuplicateBrep()));
+            returnMateralBank.ElementsInMaterialBank = ElementsInMaterialBank.ToList();
+            returnMateralBank.MaterialBankColors = MaterialBankColors.ToList();
+            returnMateralBank.MaterialBankVisuals = MaterialBankVisuals.ToList();
+            returnMateralBank.InsertionMatrix = InsertionMatrix.Clone();
 
             return returnMateralBank;
         }
@@ -3329,10 +3202,9 @@ namespace MasterthesisGHA
         // Visuals
         public override void GetVisuals(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode, double size, double maxDisplacement, double maxAngle, double maxLoad, double maxMoment)
         {
-            UpdateVisualsMaterialBank(out geometry, out color, out codeInfo, colorCode);
-            //colorCode = colorCode % 6;
-            //if (colorCode <= 3) UpdateVisualsMaterialBank(out geometry, out color, out codeInfo, colorCode);
-            //else UpdateVisualsInsertionMatrix(insertionMatrix, out geometry, out color, out codeInfo, colorCode);
+            colorCode = colorCode % 6;
+            if(colorCode < 4) UpdateVisualsMaterialBank(out geometry, out color, out codeInfo, colorCode);
+            else UpdateVisualsInsertionMatrix(out geometry, out color, out codeInfo, colorCode);
         }
         public void UpdateVisualsMaterialBank(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode = 0)
         {
@@ -3455,7 +3327,7 @@ namespace MasterthesisGHA
         {
             this.UpdateVisualsMaterialBank(out _, out _, out _, groupingMethod);
         }
-        public void UpdateVisualsInsertionMatrix(Matrix<double> insertionMatrix, out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode = 0)
+        public void UpdateVisualsInsertionMatrix(out List<Brep> geometry, out List<Color> color, out string codeInfo, int colorCode = 0)
         {
             geometry = new List<Brep>();
             color = new List<Color>();
@@ -3507,7 +3379,7 @@ namespace MasterthesisGHA
                 geometry.Add(cylinders[cylinders.Count - 1].ToBrep(true, true));
                 color.Add(ElementCollection.materialBankColors[0]);
 
-                Vector<double> insertionVector = insertionMatrix.Row(i);
+                Vector<double> insertionVector = InsertionMatrix.Column(i);
                 double usedLengthAccumulated = 0;
                 bool isUsed = false;
 
@@ -3541,7 +3413,6 @@ namespace MasterthesisGHA
 
                 unusedInstance = unusedInstance + 2 * crossSectionRadiusVisuals + instanceSpacing;
             }
-
 
             MaterialBankVisuals = geometry;
             MaterialBankColors = color;

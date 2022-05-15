@@ -62,7 +62,8 @@ namespace MasterthesisGHA
                         newNode.reducedCostMatrix[position, i] = double.PositiveInfinity; // Remove position
                     double usedLength = 0;
                     for (int i = 0; i < parentNode.path.Count; i++)
-                        if (parentNode.path[i].Item2 == reuseElement) usedLength += newNode.structure.ElementsInStructure[parentNode.path[i].Item1].getInPlaceElementLength();
+                        if (parentNode.path[i].Item2 == reuseElement) 
+                            usedLength += parentNode.structure.ElementsInStructure[parentNode.path[i].Item1].getInPlaceElementLength();
                     for (int i = 0; i < newNode.reducedCostMatrix.RowCount; i++)
                     {
                         if (newNode.structure.ElementsInStructure[i].getInPlaceElementLength() > newNode.materialBank.ElementsInMaterialBank[reuseElement].getReusableLength() - usedLength
@@ -87,7 +88,6 @@ namespace MasterthesisGHA
                     break;
             }
 
-           
 
             newNode.reducedCostMatrix = costMatrixReduction(newNode.reducedCostMatrix, out double reductionCost);
             newNode.lowerBoundCost = reductionCost;
@@ -137,14 +137,14 @@ namespace MasterthesisGHA
         }
 
         public enum bnbMethod { linearSearch, fullSearch }
-        public Node Solve(Matrix<double> costMatrix, out string resultLog, Structure structure, MaterialBank materialBank, bnbMethod method = bnbMethod.fullSearch)
+        public Node Solve(Matrix<double> costMatrix, out string resultLog, Structure structure, MaterialBank materialBank, int maxIterations = 1000, bnbMethod method = bnbMethod.fullSearch)
         {
             resultLog = "";
 
             switch (method)
             {
                 case bnbMethod.linearSearch: return SolveLinearSearch(costMatrix, structure, materialBank);
-                case bnbMethod.fullSearch: return SolveFullSearch(costMatrix, structure, materialBank, out resultLog);
+                case bnbMethod.fullSearch: return SolveFullSearch(costMatrix, structure, materialBank, out resultLog, maxIterations);
             }
             throw new Exception("BnB search method not found");
                 
@@ -194,17 +194,20 @@ namespace MasterthesisGHA
                         return minimumCostNode;
                 }
 
-                liveNodes = childNodes;
+                liveNodes = childNodes; // Linear (Delete all parent e-nodes)
             }
 
             throw new Exception("Optimal Node Not Found!");
         }
-        public Node SolveFullSearch(Matrix<double> costMatrix, Structure structure, MaterialBank materialBank, out string resultLog, int maxLiveNodes = 5000, bool printLog = true)
+        public Node SolveFullSearch(Matrix<double> costMatrix, Structure structure, MaterialBank materialBank, out string fullSearchLog, int maxIterations = 1000, int maxLiveNodes = 5000, bool printLog = true)
         {
-            resultLog = "";
+            fullSearchLog = "";
             int i = 0;
 
             List<Node> liveNodes = new List<Node>();
+            Node bestLeafNode = new Node();
+            Node minimumCostNode = new Node();
+            bool firstLeafNode = true;
 
             // Initial Live Nodes 
             int position = 0;
@@ -222,8 +225,9 @@ namespace MasterthesisGHA
             while (liveNodes.Count != 0)
             {
                 liveNodes = liveNodes.OrderBy(o => o.lowerBoundCost + o.costOfPath).ToList();
-                Node minimumCostNode = liveNodes[0];
-                liveNodes.RemoveAt(0);
+                minimumCostNode = liveNodes[0];
+                liveNodes.RemoveAt(0);                
+                
 
                 if (printLog == true)
                 {
@@ -232,64 +236,78 @@ namespace MasterthesisGHA
                     foreach (Tuple<int, int> insertion in solutionPath)
                         insertionMatrix[insertion.Item1, insertion.Item2] = structure.ElementsInStructure[insertion.Item1].getInPlaceElementLength();
                     
-                    resultLog +=
+                    fullSearchLog +=
                         i++.ToString() + "," +
                         ObjectiveFunctions.GlobalLCA(structure, materialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified).ToString() + "," +
                         ObjectiveFunctions.GlobalFCA(structure, materialBank, insertionMatrix, ObjectiveFunctions.bound.upperBound).ToString() + '\n';
-
                 }
 
-                if (liveNodes.Count > maxLiveNodes) 
-                    return minimumCostNode;
+                if (i > maxIterations)
+                {
+                    if (!firstLeafNode) return bestLeafNode;
+                    else return minimumCostNode;
+                }
+
+                //if (liveNodes.Count > maxLiveNodes)
+                //    return minimumCostNode;
 
                 position = minimumCostNode.path[minimumCostNode.path.Count - 1].Item1 + 1;
+
                 bool noChildNodes = true;
                 List<Node> childNodes = new List<Node>();
                 while (noChildNodes)
                 {
                     for (int reuseElement = 0; reuseElement < costMatrix.ColumnCount; reuseElement++)
                     {
-                        Node child = new Node();
+                        Node child = ChildNode(minimumCostNode, position, reuseElement);
                         if (minimumCostNode.reducedCostMatrix[position, reuseElement] == double.PositiveInfinity) continue;
                         else
                         {
                             noChildNodes = false;
-                            childNodes.Add(ChildNode(minimumCostNode, position, reuseElement));
+                            childNodes.Add(child);
+                        }
+
+                        if (position + 1 == minimumCostNode.reducedCostMatrix.RowCount - 1)
+                        {
+                            if (firstLeafNode)
+                            {
+                                firstLeafNode = false;
+                                bestLeafNode = child;
+                            }
+                            else if (bestLeafNode.costOfPath > child.costOfPath) bestLeafNode = child;
+                            //return minimumCostNode;
                         }
                     }
 
-                    if (++position == minimumCostNode.reducedCostMatrix.RowCount - 1)
-                        return minimumCostNode;
-                }
+                    /*
+                    position++;
+                    for (int reuseElement = 0; reuseElement < costMatrix.ColumnCount; reuseElement++)
+                    {
+                        if (minimumCostNode.reducedCostMatrix[position-1, reuseElement] != double.PositiveInfinity)
+                        {
+                            position--;
+                            break;
+                        }     
+                    }*/
 
-                liveNodes.AddRange(childNodes); // Non-linear
+                    if (++position == costMatrix.RowCount) break;     
+                }
+                if (position == costMatrix.RowCount) break;
+
+                // Narrowed search
+                int searchDepth = 1;
+                childNodes = childNodes.OrderBy(o => o.lowerBoundCost + o.costOfPath).ToList();
+                for (int j = 0; j < searchDepth; j++) liveNodes.Add(childNodes[j]);
+
+                // Full Search
+                //liveNodes.AddRange(childNodes); 
             }
 
-            throw new Exception("Optimal Node Not Found!");
+            if (!firstLeafNode) return bestLeafNode;
+            else return minimumCostNode;
+
         }
         
-
-        /*public Matrix<double> getDynamicCostMatrix(Structure structure, MaterialBank materialBank, Matrix<double> insertionMatrix)
-        {
-            Matrix<double> priorityMatrix = Matrix<double>.Build.Sparse(insertionMatrix.RowCount, insertionMatrix.ColumnCount);
-            for (int row = 0; row < insertionMatrix.RowCount; row++)
-                for (int col = 0; col < insertionMatrix.ColumnCount; col++)
-                {
-                    priorityMatrix
-                }
-
-                    //double optimalValue = priorityMatrix.Enumerate().Max();
-                    
-
-                    for (int row = 0; row < insertionMatrix.RowCount; row++)
-                for (int col = 0; col < insertionMatrix.ColumnCount; col++)
-                {
-                    if (priorityMatrix[row, col] == 0) costMatrix[row, col] = double.PositiveInfinity;
-                    else costMatrix[row, col] = optimalValue - priorityMatrix[row, col];
-                }
-
-            return costMatrix;
-        }*/
         public Node SolveFullSearchWithCutting(Matrix<double> costMatrix, int maxLiveNodes = 5000)
         {
             List<Node> liveNodes = new List<Node>();

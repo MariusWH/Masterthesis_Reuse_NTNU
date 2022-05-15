@@ -32,7 +32,8 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
-            pManager.AddBooleanParameter("Run", "Run", "", GH_ParamAccess.item, false);
+            pManager.AddBooleanParameter("CutMaterialBank", "CutMB", "", GH_ParamAccess.item, false);
+            pManager.AddIntegerParameter("Search Iterations", "Iterations", "", GH_ParamAccess.item, 100);
         }
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
@@ -43,9 +44,11 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddGenericParameter("Structure Data", "Structure", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("MaterialBank Data", "MaterialBank", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Insertion Matrix", "IM", "", GH_ParamAccess.item);
-            pManager.AddTextParameter("ResultCSV", "csv", "", GH_ParamAccess.item);
+            pManager.AddTextParameter("Results CSV", "Results", "", GH_ParamAccess.item);
+            pManager.AddTextParameter("Full Search CSV", "Full Search", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("LCA", "LCA", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("FCA", "FCA", "", GH_ParamAccess.item);
+            pManager.AddTextParameter("Utilization", "", "", GH_ParamAccess.item);
         }
 
 
@@ -65,7 +68,8 @@ namespace MasterthesisGHA.Components.MethodOne
             Vector3d iLineLoadDirection = new Vector3d();
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
-
+            bool cutMB = false;
+            int maxSearchIterations = 0;
 
             DA.GetData(0, ref is3D);
             DA.GetData(1, ref insertMaterialBank);
@@ -79,8 +83,8 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(9, ref iLineLoadValue);
             DA.GetData(10, ref iLineLoadDirection);
             DA.GetData(11, ref iLineLoadDistribution);
-
-
+            DA.GetData(12, ref cutMB);
+            DA.GetData(13, ref maxSearchIterations);
 
             // CODE
             List<string> initialProfiles = new List<string>();
@@ -88,21 +92,20 @@ namespace MasterthesisGHA.Components.MethodOne
                 initialProfiles.Add("IPE600");
 
             SpatialTruss truss;
-            if (!is3D)
-                truss = new PlanarTruss(iGeometryLines, initialProfiles, iSupports);
-            else
-                truss = new SpatialTruss(iGeometryLines, initialProfiles, iSupports);
+            if (!is3D) truss = new PlanarTruss(iGeometryLines, initialProfiles, iSupports);
+            else truss = new SpatialTruss(iGeometryLines, initialProfiles, iSupports);
 
             truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
             truss.Solve();
             truss.Retracking();
 
-            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(0, 0);
+            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(truss.ElementsInStructure.Count, iMaterialBank.ElementsInMaterialBank.Count);
             MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank = iMaterialBank.GetDeepCopy();
             optimizationMethod = optimizationMethod % 4;
             string outputInfo = "";
             string resultCSV = "";
+            string fullSearchCSV = "";
             double resultLCA = 0;
             double resultFCA = 0;
 
@@ -128,29 +131,36 @@ namespace MasterthesisGHA.Components.MethodOne
                         break;
 
                     case 2: // Brute Force Optimization
-                        truss.InsertMaterialBankByRandomPermutations(out insertionMatrix, (int)1e3, inputMaterialBank, out _, out resultCSV);
-                        outputInfo += "with 1000 pseudo random permutations optimization.\n";
+                        truss.InsertMaterialBankByRandomPermutations(out insertionMatrix, maxSearchIterations, inputMaterialBank, out resultCSV, out fullSearchCSV);
+                        outputInfo += "with " + maxSearchIterations.ToString() + " pseudo random permutations optimization.\n";
                         break;
 
                     case 3: // Branch and Bound Optimization
-                        truss.InsertMaterialBankByBNB(inputMaterialBank, out insertionMatrix, out resultCSV);                        
+                        truss.InsertMaterialBankByBNB(inputMaterialBank, out insertionMatrix, maxSearchIterations, out resultCSV);                        
                         outputInfo += "insertion matrix method with branch and bound optimization.\n";
                         break;
                 }
 
-                truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
-                resultLCA = ObjectiveFunctions.GlobalLCA(truss, inputMaterialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified);
-                resultFCA = ObjectiveFunctions.GlobalFCA(truss, inputMaterialBank, insertionMatrix, ObjectiveFunctions.bound.upperBound);
+                
             }
 
-            outMaterialBank.UpdateVisualsMaterialBank();
+            if (cutMB) truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
+            else outMaterialBank.InsertionMatrix = insertionMatrix;
+            resultLCA = ObjectiveFunctions.GlobalLCA(truss, inputMaterialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified);
+            resultFCA = ObjectiveFunctions.GlobalFCA(truss, inputMaterialBank, insertionMatrix, ObjectiveFunctions.bound.upperBound);
+
             truss.Solve();
             truss.Retracking();
 
             outputInfo += "\n\n" + truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo();
 
+            string utilization = "";
+            for (int i = 0; i < truss.ElementsInStructure.Count; i++)
+                utilization += truss.ElementsInStructure[i].getTotalUtilization(truss.ElementAxialForcesX[i],0,0,0,0,0).ToString() + "\n";
+
+
             // OUTPUTS
-            DA.SetData(0, outputInfo);           
+            DA.SetData(0, outputInfo);
             DA.SetData(1, truss.GetTotalMass());
             DA.SetData(2, truss.GetReusedMass());
             DA.SetData(3, truss.GetNewMass());
@@ -158,8 +168,10 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(5, outMaterialBank);
             DA.SetData(6, ElementCollection.MathnetToRhinoMatrix(insertionMatrix));
             DA.SetData(7, resultCSV);
-            DA.SetData(8, resultLCA);
-            DA.SetData(9, resultFCA);
+            DA.SetData(8, fullSearchCSV);
+            DA.SetData(9, resultLCA);
+            DA.SetData(10, resultFCA);
+            DA.SetData(11, utilization);
         }
         protected override System.Drawing.Bitmap Icon
         {

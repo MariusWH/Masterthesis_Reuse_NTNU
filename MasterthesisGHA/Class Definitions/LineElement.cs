@@ -419,15 +419,16 @@ namespace MasterthesisGHA
         }
         public override string getElementInfo()
         {
-            string info = getElementInfoString() + " { ";
-            info += "{profile=" + ProfileName + "}, ";
-            info += "{start=" + getStartPoint().ToString() + "}, ";
-            info += "{end=" + getEndPoint().ToString() + "}, ";
-            info += "{startIndex=" + getStartNodeIndex().ToString() + "}, ";
-            info += "{endIndex=" + getEndNodeIndex().ToString() + "}, ";
-            info += "{A=" + CrossSectionArea + "}, ";
-            info += "{E=" + YoungsModulus + "}";
-            info += " }";
+            string info = getElementInfoString() + " "; 
+            info += "Profile=" + ProfileName + ", ";
+            info += "Length=" + getStartPoint().DistanceTo(getEndPoint()).ToString() + ", ";
+            info += "StartIndex=" + getStartNodeIndex().ToString() + ", ";
+            info += "EndIndex=" + getEndNodeIndex().ToString() + ", ";
+            info += "A=" + CrossSectionArea + ", ";
+            info += "E=" + YoungsModulus + ", ";
+            info += "StartPoint=" + getStartPoint().ToString() + ", ";
+            info += "EndPoint=" + getEndPoint().ToString() + "";
+            info += "\\"+"\\";
 
             return info;
         }
@@ -486,7 +487,7 @@ namespace MasterthesisGHA
         }                 
         public override string getElementInfoString()
         {
-            return "BarMember3D";
+            return "BarMember3D,\t";
         }
     }
 
@@ -681,15 +682,15 @@ namespace MasterthesisGHA
         // Methods
         public override string getElementInfo()
         {
-            string info = "StockElement{ ";
-            info += "{profile=" + ProfileName + "}, ";
-            info += "{L=" + getReusableLength() + "}, ";
-            info += "{A=" + CrossSectionArea + "}, ";
-            info += "{Iyy=" + AreaMomentOfInertiaY + "}, ";
-            info += "{Izz=" + AreaMomentOfInertiaZ + "}, ";
-            info += "{Ip=" + PolarMomentOfInertiaX + "}, ";
-            info += "{E=" + YoungsModulus + "}";
-            info += " }";
+            string info = "Reuse Element: ";
+            info += "Profile=" + ProfileName + ", ";
+            info += "L=" + getReusableLength() + ", ";
+            info += "A=" + CrossSectionArea + ", ";
+            info += "Iyy=" + AreaMomentOfInertiaY + ", ";
+            info += "Izz=" + AreaMomentOfInertiaZ + ", ";
+            info += "Ip=" + PolarMomentOfInertiaX + ", ";
+            info += "E=" + YoungsModulus + "";
+            info += "\\"+"\\";
 
             return info;
         }

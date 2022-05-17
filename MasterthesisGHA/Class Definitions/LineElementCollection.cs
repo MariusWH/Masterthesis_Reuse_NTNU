@@ -333,7 +333,16 @@ namespace MasterthesisGHA
             if (GetDofsPerNode() == 3) info += "Spatial Truss Structure:\n";
             else if (GetDofsPerNode() == 2) info += "Planar Truss Structure:\n";
             else if (GetDofsPerNode() == 6) info += "Spatial Frame Structure: \n";
-            foreach (LineElement element in ElementsInStructure) info += "\n" + element.getElementInfo();
+            info +=  "\\" + "\\" + "\n";
+            int pos = 0;
+            foreach (MemberElement element in ElementsInStructure)
+            {
+                info += "\nPosition:" + pos++.ToString() + ", Reuse/New:";
+                if (element.IsFromMaterialBank) info += "Reuse, ";
+                else info += "New, ";
+                info += element.getElementInfo();
+            }
+                
             return info;
         }
         protected void ConstructElementsFromLines(List<Line> lines, List<string> profileNames)

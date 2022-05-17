@@ -25,7 +25,7 @@ namespace MasterthesisGHA.Components.Visuals
               "Master", "Visuals")
         {
             firstRun = true;
-            size = new List<double>();
+            //size = new List<double>();
             maxLoad = new List<double>();
             maxMoment = new List<double>();
             maxDisplacement = new List<double>();
@@ -39,6 +39,7 @@ namespace MasterthesisGHA.Components.Visuals
             pManager.AddGenericParameter("Model", "Model", "Data", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Normalize Visuals", "Normalize", "Use button to normalize the visuals output", GH_ParamAccess.item, false);
             pManager.AddIntegerParameter("Color Code", "Color Code", "", GH_ParamAccess.item, 0);
+            pManager.AddNumberParameter("Structure Size", "Size", "", GH_ParamAccess.item, 10000);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -55,10 +56,12 @@ namespace MasterthesisGHA.Components.Visuals
             List<ElementCollection> elementCollections = new List<ElementCollection>();
             bool normalize = false;
             int colorCode = 0;
+            double size = 0;
 
             DA.GetDataList(0, elementCollections);
             DA.GetData(1, ref normalize);
             DA.GetData(2, ref colorCode);
+            DA.GetData(3, ref size);
 
             // Color codes
             // 0 - Discrete Member Verifiation (Red/Green/Yellow)
@@ -75,7 +78,7 @@ namespace MasterthesisGHA.Components.Visuals
             if (normalize || firstRun || (prevStructuresCount != elementCollections.Count))
             {
                 firstRun = false;
-                size = new List<double>(elementCollections.Count);
+                //size = new List<double>(elementCollections.Count);
                 maxLoad = new List<double>(elementCollections.Count);
                 maxMoment = new List<double>(elementCollections.Count);
                 maxDisplacement = new List<double>(elementCollections.Count);
@@ -84,7 +87,7 @@ namespace MasterthesisGHA.Components.Visuals
                 foreach (ElementCollection elementCollection in elementCollections)
                 {
                     //size.Add(elementCollection.GetSize());
-                    size.Add(1e4);
+                    //size.Add(1e4);
                     maxLoad.Add(elementCollection.GetMaxLoad());
                     maxMoment.Add(elementCollection.GetMaxMoment());
                     maxDisplacement.Add(elementCollection.GetMaxDisplacement());
@@ -103,7 +106,7 @@ namespace MasterthesisGHA.Components.Visuals
 
                 elementCollection.GetVisuals(
                     out List<Brep> geometry, out List<System.Drawing.Color> color, out codeInfo, 
-                    colorCode, size[i], maxDisplacement[i], maxAngle[i], maxLoad[i], maxMoment[i]);
+                    colorCode, size, maxDisplacement[i], maxAngle[i], maxLoad[i], maxMoment[i]);
 
                 outGeometry.AddRange(geometry);
                 outColor.AddRange(color);

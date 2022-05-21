@@ -1,4 +1,4 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 
 using Grasshopper.Kernel;
@@ -49,7 +49,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             pManager.AddNumberParameter("Masses", "", "", GH_ParamAccess.list);
 
             pManager.AddTextParameter("csv", "", "", GH_ParamAccess.item);
-            */
+            
 
             pManager.AddIntegerParameter("# of structures", "#", "", GH_ParamAccess.item);
             pManager.AddTextParameter("csv", "csv", "", GH_ParamAccess.item);
@@ -269,7 +269,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                                     trussLength.ToString() + "," +
                                     maxDisplacement.ToString() + "," +
                                     LCA.ToString() + "\n";
-                                */
+                                
 
                                 Structure truss;
                                 switch (is3D)
@@ -316,7 +316,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                                 trussLengths.Add(trussLength);
                                 maxDisplacements.Add(maxDisplacement);
                                 totalMasses.Add(totalMass);
-                                */
+                                
 
 
                             }
@@ -340,7 +340,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             DA.SetDataList(9, maxDisplacements);
             DA.SetDataList(10, totalMasses);
             DA.SetData(11, csv);
-            */
+            
 
             DA.SetData(0, numberOfStructures);
             DA.SetData(1, csv);
@@ -368,7 +368,7 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                 List<Grasshopper.Kernel.Types.GH_Line> iLinesToLoad = iLinesToLoadNested[i];
     
             }
-            */
+            
 
 
 
@@ -392,4 +392,4 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             get { return new Guid("CE78D6BD-0F1B-4DE2-AA2D-D38BAFAB84A2"); }
         }
     }
-}
+}*/

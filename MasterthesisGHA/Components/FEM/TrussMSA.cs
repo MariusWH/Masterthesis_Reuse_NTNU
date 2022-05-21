@@ -43,7 +43,7 @@ namespace MasterthesisGHA
             pManager.AddBooleanParameter("3D/2D", "3D/2D", "3D/2D", GH_ParamAccess.item, true);
             pManager.AddLineParameter("Line Geometry", "Geometry", "Geometry as list of lines", GH_ParamAccess.list);
             pManager.AddTextParameter("Bar Profiles", "Profiles", "Profile of each geometry line member as list", GH_ParamAccess.list);
-            pManager.AddPointParameter("Support Points", "Supports", "Pinned support points restricted from translation but free to rotate", GH_ParamAccess.list);
+            pManager.AddPointParameter("Pinned Support Points", "Supports", "Pinned support points restricted from translation but free to rotate", GH_ParamAccess.list);
             pManager.AddNumberParameter("List Loading [N]", "ListLoad", "Nodal loads by numeric values (x1, y1, x2, y2, ..)", GH_ParamAccess.list, new List<double> { 0 });
             pManager.AddVectorParameter("Vector Loading [N]", "VectorLoad", "Nodal loads by vector input", GH_ParamAccess.list, new Vector3d(0, 0, 0));
             pManager.AddNumberParameter("Line Load Value", "LL Value", "", GH_ParamAccess.item, 0);
@@ -51,8 +51,8 @@ namespace MasterthesisGHA
             pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item, new Vector3d(1, 0, 0));
             pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list, new Line());
             pManager.AddBooleanParameter("Apply Self Weight", "Self Weigth", "", GH_ParamAccess.item, false);
-
-            
+            pManager.AddBooleanParameter("Apply Snow Load (beta)", "Snow Load", "", GH_ParamAccess.item, false);
+            pManager.AddBooleanParameter("Apply Wind Load (beta)", "Wind Load", "", GH_ParamAccess.item, false);
         }
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
@@ -60,7 +60,10 @@ namespace MasterthesisGHA
             pManager.AddMatrixParameter("Stiffness Matrix", "K", "Stiffness matrix as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);           
+            pManager.AddMatrixParameter("Axial Forces", "Nx", "Member axial forces as matrix", GH_ParamAccess.item);
+            pManager.AddMatrixParameter("Total Utilization", "Util", "", GH_ParamAccess.item);
+            pManager.AddMatrixParameter("Axial Stress Utilization", "Util Nx", "", GH_ParamAccess.item);
+            pManager.AddMatrixParameter("Axial Buckling Utilization", "Util Buckling", "", GH_ParamAccess.item);
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("Rank", "Rank", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("Nullity", "Nullity", "", GH_ParamAccess.item);
@@ -120,19 +123,21 @@ namespace MasterthesisGHA
             double determinant = truss.GetStiffnessMatrixDeterminant();
             truss.Solve();
             truss.Retracking();
-            
-
+                        
 
             // OUTPUT
             DA.SetDataList(0, truss.FreeNodes);
             DA.SetData(1, truss.GetStiffnessMatrix());
             DA.SetData(2, truss.GetDisplacementVector());
             DA.SetData(3, truss.GetLoadVector());
-            DA.SetDataList(4, truss.ElementAxialForcesX);
-            DA.SetData(5, truss);
-            DA.SetData(6, rank);
-            DA.SetData(7, nullity);
-            DA.SetData(8, determinant);
+            DA.SetData(4, ElementCollection.ListToRhinoMatrix(truss.ElementAxialForcesX));
+            DA.SetData(5, truss.GetTotalUtilization());
+            DA.SetData(6, truss.GetAxialForceUtilization());
+            DA.SetData(7, truss.GetAxialBucklingUtilization());
+            DA.SetData(8, truss);
+            DA.SetData(9, rank);
+            DA.SetData(10, nullity);
+            DA.SetData(11, determinant);
 
         }
 
@@ -141,7 +146,7 @@ namespace MasterthesisGHA
         {
             get
             {
-                return Properties.Resources._3D_Truss_Icon;
+                return Properties.Resources.TrussMSA;
             }
         }
         public override Guid ComponentGuid

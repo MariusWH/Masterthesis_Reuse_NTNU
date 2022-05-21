@@ -221,27 +221,27 @@ namespace MasterthesisGHA
         public virtual double getBendingMomentUtilizationY(double momentY)
         {
             if (momentY == double.NaN) momentY = 0;
-            return momentY / (SectionModulusY * YieldStress);
+            return Math.Abs(momentY / (SectionModulusY * YieldStress));
         }
         public virtual double getBendingMomentUtilizationZ(double momentZ)
         {
             if (momentZ == double.NaN) momentZ = 0;
-            return momentZ / (SectionModulusZ * YieldStress);
+            return Math.Abs(momentZ / (SectionModulusZ * YieldStress));
         }
         public virtual double getShearForceUtilizationY(double shearForceY)
         {
             if (shearForceY == double.NaN) shearForceY = 0;
-            return shearForceY / (ShearAreaY * YieldStress);
+            return Math.Abs(shearForceY / (ShearAreaY * YieldStress));
         }
         public virtual double getShearForceUtilizationZ(double shearForceZ)
         {
             if (shearForceZ == double.NaN) shearForceZ = 0;
-            return shearForceZ / (ShearAreaZ * YieldStress);
+            return Math.Abs(shearForceZ / (ShearAreaZ * YieldStress));
         }
         public virtual double getTorsionalMomentUtilization(double momentX)
         {
             if (momentX == double.NaN) momentX = 0;
-            return momentX / (SectionModulusX * YieldStress);
+            return Math.Abs(momentX / (SectionModulusX * YieldStress));
         }
         public virtual double getAxialBucklingUtilization(double axialLoad)
         {

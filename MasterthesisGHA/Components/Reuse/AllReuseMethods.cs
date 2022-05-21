@@ -49,6 +49,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("LCA", "LCA", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("FCA", "FCA", "", GH_ParamAccess.item);
             pManager.AddTextParameter("Utilization", "", "", GH_ParamAccess.item);
+            pManager.AddTextParameter("Profiles", "", "", GH_ParamAccess.tree);
         }
 
 
@@ -140,8 +141,6 @@ namespace MasterthesisGHA.Components.MethodOne
                         outputInfo += "insertion matrix method with branch and bound optimization.\n";
                         break;
                 }
-
-                
             }
 
             if (cutMB) truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
@@ -152,12 +151,11 @@ namespace MasterthesisGHA.Components.MethodOne
             truss.Solve();
             truss.Retracking();
 
-            outputInfo += "\n\n" + truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo();
+            outputInfo += "\n\n" + truss.PrintProfilesInStructure() + "\n\n" + truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo();
 
             string utilization = "";
             for (int i = 0; i < truss.ElementsInStructure.Count; i++)
                 utilization += truss.ElementsInStructure[i].getTotalUtilization(truss.ElementAxialForcesX[i],0,0,0,0,0).ToString() + "\n";
-
 
             // OUTPUTS
             DA.SetData(0, outputInfo);
@@ -172,14 +170,13 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(9, resultLCA);
             DA.SetData(10, resultFCA);
             DA.SetData(11, utilization);
+            DA.SetDataTree(12, truss.PrintRangeOfMaterialBanksThree());
         }
         protected override System.Drawing.Bitmap Icon
         {
             get
             {
-                //You can add image files to your project resources and access them like this:
-                // return Resources.IconForThisComponent;
-                return null;
+                return Properties.Resources.ReuseALL;
             }
         }
 

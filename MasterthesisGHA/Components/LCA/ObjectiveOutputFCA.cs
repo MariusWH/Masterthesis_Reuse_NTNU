@@ -8,12 +8,12 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA
 {
-    public class ObjectiveOutputLCA : GH_Component
+    public class ObjectiveOutputFCA : GH_Component
     {
 
-        public ObjectiveOutputLCA()
-          : base("ObjectiveOutputLCA", "ObjectiveLCA",
-              "Life Cycle Assessment",
+        public ObjectiveOutputFCA()
+          : base("ObjectiveOutputFCA", "ObjectiveFCA",
+              "Financial Cost Analysis",
               "Master", "Objectives")
         {
         }
@@ -29,7 +29,7 @@ namespace MasterthesisGHA
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            pManager.AddNumberParameter("Carbon Equivalents", "Carbon", "", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Cost [NOK]", "Cost", "", GH_ParamAccess.item);
         }
 
 
@@ -39,7 +39,7 @@ namespace MasterthesisGHA
             // Input
             Structure structure = new SpatialTruss();
             MaterialBank materialBank = new MaterialBank();
-            Matrix insertionMatrix = new Matrix(0,0);
+            Matrix insertionMatrix = new Matrix(0, 0);
 
             DA.GetData(0, ref structure);
             DA.GetData(1, ref materialBank);
@@ -47,7 +47,7 @@ namespace MasterthesisGHA
 
 
             // Code
-            double carbon = ObjectiveFunctions.GlobalLCA(structure, materialBank, ElementCollection.RhinoToMathnetMatrix(insertionMatrix));
+            double carbon = ObjectiveFunctions.GlobalFCA(structure, materialBank, ElementCollection.RhinoToMathnetMatrix(insertionMatrix));
 
             // Output
             DA.SetData(0, carbon);
@@ -59,12 +59,12 @@ namespace MasterthesisGHA
         {
             get
             {
-                return Properties.Resources.LCA;
+                return Properties.Resources.FCA;
             }
         }
         public override Guid ComponentGuid
         {
-            get { return new Guid("23361999-C86C-4549-BF08-78E95CFC2EC5"); }
+            get { return new Guid("15895ED3-CF1A-46D8-88FF-120E507ED22A"); }
         }
     }
 }

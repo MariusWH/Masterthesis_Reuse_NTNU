@@ -39,7 +39,8 @@ namespace MasterthesisGHA.Components.Visuals
             pManager.AddGenericParameter("Model", "Model", "Data", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Normalize Visuals", "Normalize", "Use button to normalize the visuals output", GH_ParamAccess.item, false);
             pManager.AddIntegerParameter("Color Code", "Color Code", "", GH_ParamAccess.item, 0);
-            pManager.AddNumberParameter("Structure Size", "Size", "", GH_ParamAccess.item, 10000);
+            pManager.AddNumberParameter("Structure Size", "StructureSize", "", GH_ParamAccess.item, 10000);
+            pManager.AddNumberParameter("Cross Section Size", "ProfileSize", "", GH_ParamAccess.item, 1.0);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -57,22 +58,29 @@ namespace MasterthesisGHA.Components.Visuals
             bool normalize = false;
             int colorCode = 0;
             double size = 0;
+            double crossSectionSize = 0;
 
             DA.GetDataList(0, elementCollections);
             DA.GetData(1, ref normalize);
             DA.GetData(2, ref colorCode);
             DA.GetData(3, ref size);
+            DA.GetData(4, ref crossSectionSize);
 
             // Color codes
             // 0 - Discrete Member Verifiation (Red/Green/Yellow)
-            // 1 - Continuous Member Stresses (White-Blue)
-            // 2 - Continuous Member Buckling (White-Blue)
-            // 3 - New and Reuse Members (White-Blue)
-            // 4 - Discrete Node Displacements (Red/Green)
-            // 5 - Continuous Node Displacements (White-Blue)
+            // 1 - New and Reuse Members (White-Blue)
+            // 2 - Continuous Member Utilization (White-Blue)
+            // 3 - Continuous Member Buckling (White-Blue)
+            // 4 - Nx (White-Blue)
+            // 5 - Vy (White-Blue)
+            // 6 - Vz (White-Blue)
+            // 7 - Tx (White-Blue)
+            // 8 - My (White-Blue)
+            // 9 - Mz (White-Blue)
+            // 10 - Continuous Node Displacements (White-Blue)
 
             // CODE
-            
+
 
 
             if (normalize || firstRun || (prevStructuresCount != elementCollections.Count))
@@ -106,7 +114,8 @@ namespace MasterthesisGHA.Components.Visuals
 
                 elementCollection.GetVisuals(
                     out List<Brep> geometry, out List<System.Drawing.Color> color, out codeInfo, 
-                    colorCode, size, maxDisplacement[i], maxAngle[i], maxLoad[i], maxMoment[i]);
+                    colorCode, size, maxDisplacement[i], maxAngle[i], maxLoad[i], maxMoment[i],
+                    crossSectionSize);
 
                 outGeometry.AddRange(geometry);
                 outColor.AddRange(color);
@@ -126,7 +135,7 @@ namespace MasterthesisGHA.Components.Visuals
         {
             get
             {
-                return null;
+                return Properties.Resources.Visuals;
             }
         }
         public override Guid ComponentGuid

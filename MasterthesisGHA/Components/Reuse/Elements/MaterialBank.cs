@@ -86,7 +86,7 @@ namespace MasterthesisGHA
         {
             get
             {
-                return Properties.Resources.MaterialBank;
+                return Properties.Resources.MaterialBank1;
             }
         }
         public override Guid ComponentGuid

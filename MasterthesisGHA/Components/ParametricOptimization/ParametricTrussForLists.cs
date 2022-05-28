@@ -12,7 +12,7 @@ namespace MasterthesisGHA.Components
         public ParametricTrussForLists()
           : base("ParametricTrussForLists", "ParametricTrussForLists",
               "Description",
-              "Master", "MethodTwo")
+              "Master", "Structural Analysis")
         {
         }
 
@@ -219,9 +219,7 @@ namespace MasterthesisGHA.Components
         {
             get
             {
-                //You can add image files to your project resources and access them like this:
-                // return Resources.IconForThisComponent;
-                return null;
+                return Properties.Resources.ParametricTrussForLists;
             }
         }
 

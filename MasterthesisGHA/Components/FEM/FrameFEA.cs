@@ -20,9 +20,9 @@ namespace MasterthesisGHA
         public int returnCount;
 
         public FrameFEA()
-          : base("Frame Finite Element Analysis", "Frame MSA",
-              "Matrix Structural Analysis Tool for 2D and 3D Frame Systems",
-              "Master", "FEM")
+          : base("Frame Finite Element Analysis", "Frame FEA",
+              "Finite Element Analysis for 2D and 3D Frame Systems",
+              "Master", "Structural Analysis")
         {
             structureSize = -1;
             maxLoad = -1;
@@ -54,8 +54,6 @@ namespace MasterthesisGHA
             pManager.AddBooleanParameter("Apply Snow Load (beta)", "Snow Load", "", GH_ParamAccess.item, false);
             pManager.AddBooleanParameter("Apply Wind Load (beta)", "Wind Load", "", GH_ParamAccess.item, false);
             pManager.AddBooleanParameter("Consistent/Lumped Load", "Consistent/Lumped", "", GH_ParamAccess.item, true);
-            
-
 
         }
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -70,7 +68,6 @@ namespace MasterthesisGHA
             pManager.AddMatrixParameter("Torsions X", "Tx", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Moments Y", "My", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Moments Z", "Mz", "", GH_ParamAccess.item);
-
             pManager.AddMatrixParameter("Total Utilization", "Util", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Axial Stress Utilization", "Util Nx", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Shear Stress Utilization Y", "Util Vy", "", GH_ParamAccess.item);
@@ -79,7 +76,6 @@ namespace MasterthesisGHA
             pManager.AddMatrixParameter("Bending Moment Utilization Y", "Util My", "", GH_ParamAccess.item);
             pManager.AddMatrixParameter("Bending Moment Utilization Z", "Util Mz", "", GH_ParamAccess.item);            
             pManager.AddMatrixParameter("Axial Buckling Utilization", "Util Buckling", "", GH_ParamAccess.item);
-
             pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("Rank", "Rank", "", GH_ParamAccess.item);
             pManager.AddNumberParameter("Nullity", "Nullity", "", GH_ParamAccess.item);
@@ -153,7 +149,6 @@ namespace MasterthesisGHA
             DA.SetData(7, ElementCollection.ListToRhinoMatrix(frame.ElementTorsionsX));
             DA.SetData(8, ElementCollection.ListToRhinoMatrix(frame.ElementMomentsY));
             DA.SetData(9, ElementCollection.ListToRhinoMatrix(frame.ElementMomentsZ));
-
             DA.SetData(10, frame.GetTotalUtilization());
             DA.SetData(11, frame.GetAxialForceUtilization());
             DA.SetData(12, frame.GetShearStressUtilizationY());
@@ -162,7 +157,6 @@ namespace MasterthesisGHA
             DA.SetData(15, frame.GetBendingMomentUtilizationY());
             DA.SetData(16, frame.GetBendingMomentUtilizationZ());
             DA.SetData(17, frame.GetAxialBucklingUtilization());
-
             DA.SetData(18, frame);
             DA.SetData(19, rank);
             DA.SetData(20, nullity);

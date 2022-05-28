@@ -15,7 +15,7 @@ namespace MasterthesisGHA.Components.MethodOne
         public AllReuseMethods()
           : base("All Reuse Methods", "Reuse",
               "",
-              "Master", "Reuse Combi")
+              "Master", "Reuse")
         {
         }
         protected override void RegisterInputParams(GH_InputParamManager pManager)
@@ -34,6 +34,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
             pManager.AddBooleanParameter("CutMaterialBank", "CutMB", "", GH_ParamAccess.item, false);
             pManager.AddIntegerParameter("Search Iterations", "Iterations", "", GH_ParamAccess.item, 100);
+            pManager.AddBooleanParameter("Cutting", "Cutting", "", GH_ParamAccess.item, true);
         }
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
@@ -71,6 +72,7 @@ namespace MasterthesisGHA.Components.MethodOne
             List<Line> iLinesToLoad = new List<Line>();
             bool cutMB = false;
             int maxSearchIterations = 0;
+            bool cutting = true;
 
             DA.GetData(0, ref is3D);
             DA.GetData(1, ref insertMaterialBank);
@@ -86,6 +88,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(11, ref iLineLoadDistribution);
             DA.GetData(12, ref cutMB);
             DA.GetData(13, ref maxSearchIterations);
+            DA.GetData(14, ref cutting);
 
             // CODE
             List<string> initialProfiles = new List<string>();
@@ -122,17 +125,17 @@ namespace MasterthesisGHA.Components.MethodOne
                 {
                     
                     case 0: // No Optimization 
-                        truss.InsertMaterialBank(inputMaterialBank, out insertionMatrix);
+                        truss.InsertMaterialBank(inputMaterialBank, out insertionMatrix, false, cutting);
                         outputInfo += "no optimization.\n";
                         break;
 
                     case 1: // Priority Matrix Optimization
-                        truss.InsertMaterialBankByPriorityMatrix(out insertionMatrix, inputMaterialBank, out _);;
+                        truss.InsertMaterialBankByPriorityMatrix(out insertionMatrix, inputMaterialBank, out _, cutting);;
                         outputInfo += "priority matrix optimization.\n";
                         break;
 
                     case 2: // Brute Force Optimization
-                        truss.InsertMaterialBankByRandomPermutations(out insertionMatrix, maxSearchIterations, inputMaterialBank, out resultCSV, out fullSearchCSV);
+                        truss.InsertMaterialBankByRandomPermutations(out insertionMatrix, maxSearchIterations, inputMaterialBank, out resultCSV, out fullSearchCSV, cutting);
                         outputInfo += "with " + maxSearchIterations.ToString() + " pseudo random permutations optimization.\n";
                         break;
 

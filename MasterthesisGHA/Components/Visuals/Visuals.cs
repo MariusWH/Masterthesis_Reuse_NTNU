@@ -80,9 +80,6 @@ namespace MasterthesisGHA.Components.Visuals
             // 10 - Continuous Node Displacements (White-Blue)
 
             // CODE
-
-
-
             if (normalize || firstRun || (prevStructuresCount != elementCollections.Count))
             {
                 firstRun = false;
@@ -120,7 +117,6 @@ namespace MasterthesisGHA.Components.Visuals
                 outGeometry.AddRange(geometry);
                 outColor.AddRange(color);
             }
-
 
             // OUTPUT            
             DA.SetDataList(0, outGeometry);

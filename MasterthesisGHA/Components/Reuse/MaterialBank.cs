@@ -13,21 +13,18 @@ namespace MasterthesisGHA
         public MaterialBankComponent()
           : base("Material Bank", "MaterialBank",
               "Description",
-              "Master", "Member Replacement")
+              "Master", "Reuse")
         {
         }
         protected override void RegisterInputParams(GH_InputParamManager pManager)
         {            
             pManager.AddTextParameter("Section", "SectionName", "SectionName", GH_ParamAccess.list, "IPE200");
             pManager.AddIntegerParameter("Amount", "Amount", "Amount", GH_ParamAccess.list, 0);
-            pManager.AddNumberParameter("Length", "Length", "Length", GH_ParamAccess.list, 1000);
-            
+            pManager.AddNumberParameter("Length", "Length", "Length", GH_ParamAccess.list, 1000);           
             pManager.AddNumberParameter("Fabrication Distance", "Fabrication", "Transport distance for fabrication used in LCA", GH_ParamAccess.list, 100);
             pManager.AddNumberParameter("Building Distance", "Building", "Transport distance for building used in LCA", GH_ParamAccess.list, 100);
             pManager.AddNumberParameter("Recycling Distance", "Recycling", "Transport distance for recycling used in LCA", GH_ParamAccess.list, 100);
-
-            pManager.AddTextParameter("CommandInput", "Command", "Input as: Amount x SectionName x Length (ex.: 10xIPE200x1000)",
-                GH_ParamAccess.list, "0xIPE200x1000");
+            pManager.AddTextParameter("CommandInput", "Command", "Input as: Amount x SectionName x Length (ex.: 10xIPE200x1000)", GH_ParamAccess.list, "0xIPE200x1000");
             pManager.AddBooleanParameter("VisualsMethod", "Visuals", "Group Visuals by lengths (true) or cross section (false)", GH_ParamAccess.item, true);
         }
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -38,7 +35,6 @@ namespace MasterthesisGHA
             pManager.AddColourParameter("StockColour", "StockColour", "StockColour", GH_ParamAccess.list);
             pManager.AddNumberParameter("Mass", "Material Bank Mass", "Initial mass of all elements in Material Bank", GH_ParamAccess.item);
         }
-
 
         /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
@@ -80,7 +76,6 @@ namespace MasterthesisGHA
             DA.SetDataList(3, materialBank.MaterialBankColors);
             DA.SetData(4, materialBank.GetMaterialBankMass());
         }
-
 
         protected override System.Drawing.Bitmap Icon
         {

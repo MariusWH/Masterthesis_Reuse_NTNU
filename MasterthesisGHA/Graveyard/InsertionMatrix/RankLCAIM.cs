@@ -42,6 +42,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("Load Value", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Direction", "", "", GH_ParamAccess.item);
             pManager.AddVectorParameter("Load Distribution Direction", "", "", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("Cutting", "Cutting", "", GH_ParamAccess.item, true);
 
         }
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -77,6 +78,7 @@ namespace MasterthesisGHA.Components.MethodOne
             Vector3d iLineLoadDirection = new Vector3d();
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
+            bool cutting = true;
 
             DA.GetData(0, ref is3D);
             DA.GetData(1, ref insertMaterialBank);
@@ -89,6 +91,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(8, ref iLineLoadValue);
             DA.GetData(9, ref iLineLoadDirection);
             DA.GetData(10, ref iLineLoadDistribution);
+            DA.GetData(11, ref cutting);
 
 
             // CODE
@@ -120,13 +123,13 @@ namespace MasterthesisGHA.Components.MethodOne
                 truss.InsertNewElements();
                 rank = truss.getObjectiveMatrix(iMaterialBankCopy);
                 truss.InsertMaterialBankByPriorityMatrix(out insertionMatrix,
-                    iMaterialBankCopy, out optimumOrder);
+                    iMaterialBankCopy, out optimumOrder, cutting);
             }
             else if (insertMaterialBank)
             {
                 rank = truss.getObjectiveMatrix(iMaterialBankCopy);
                 truss.InsertMaterialBankByPriorityMatrix(out insertionMatrix,
-                    iMaterialBankCopy, out optimumOrder);
+                    iMaterialBankCopy, out optimumOrder, cutting);
             }
             else if (insertNewElements)
             {

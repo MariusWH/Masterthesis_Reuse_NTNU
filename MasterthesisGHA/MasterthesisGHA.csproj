@@ -9,6 +9,18 @@
   </PropertyGroup>
 	
   <ItemGroup>
+    <Compile Remove="Components\Reuse\DirectCuttingMethods\**" />
+    <Compile Remove="Components\Reuse\InsertionMatrix\**" />
+    <Compile Remove="Graveyard\**" />
+    <EmbeddedResource Remove="Components\Reuse\DirectCuttingMethods\**" />
+    <EmbeddedResource Remove="Components\Reuse\InsertionMatrix\**" />
+    <EmbeddedResource Remove="Graveyard\**" />
+    <None Remove="Components\Reuse\DirectCuttingMethods\**" />
+    <None Remove="Components\Reuse\InsertionMatrix\**" />
+    <None Remove="Graveyard\**" />
+  </ItemGroup>
+	
+  <ItemGroup>
     <None Remove="Resources\Profiles.txt" />
     <None Remove="Resources\ProfilesAdvanced.txt" />
   </ItemGroup>
@@ -70,6 +82,10 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="Components\DisplayComponents\" />
   </ItemGroup>
   
   <PropertyGroup Condition="$(Configuration) == 'Debug' AND $([MSBuild]::IsOSPlatform(Windows))">

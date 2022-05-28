@@ -45,13 +45,11 @@ namespace MasterthesisGHA
             DA.GetData(1, ref materialBank);
             DA.GetData(2, ref insertionMatrix);
 
-
             // Code
             double carbon = ObjectiveFunctions.GlobalFCA(structure, materialBank, ElementCollection.RhinoToMathnetMatrix(insertionMatrix));
 
             // Output
             DA.SetData(0, carbon);
-
         }
 
 

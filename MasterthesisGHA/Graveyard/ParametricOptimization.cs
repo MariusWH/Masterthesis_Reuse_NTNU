@@ -1,4 +1,4 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 
 using Grasshopper.Kernel;
@@ -132,4 +132,4 @@ namespace MasterthesisGHA.Components.ParametricOptimization
             get { return new Guid("4CD0D13F-BEA8-4FEB-8C85-ABF21D0CA584"); }
         }
     }
-}
+}*/

@@ -31,9 +31,9 @@ namespace MasterthesisGHA
 
 
         public GiftWrappingDisplay()
-          : base("Gift Wrapping Display", "Gift Wrapping",
+          : base("Gift Wrapping Display (Beta)", "Gift Wrapping",
               "",
-              "Master", "Display")
+              "Master", "Structural Analysis")
         {
             trussSize = -1;
             maxLoad = -1;
@@ -207,9 +207,7 @@ namespace MasterthesisGHA
         {
             get
             {
-                //You can add image files to your project resources and access them like this:
-                // return Resources.IconForThisComponent;
-                return null;
+                return Properties.Resources.GiftWrapping;
             }
         }
         public override Guid ComponentGuid

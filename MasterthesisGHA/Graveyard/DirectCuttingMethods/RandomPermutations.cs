@@ -78,6 +78,7 @@ namespace MasterthesisGHA.Components.MethodOne
             Vector3d iLineLoadDistribution = new Vector3d();
             List<Line> iLinesToLoad = new List<Line>();
 
+
             DA.GetData(0, ref is3D);
             DA.GetData(1, ref insertMaterialBank);
             DA.GetData(2, ref insertNewElements);
@@ -119,11 +120,11 @@ namespace MasterthesisGHA.Components.MethodOne
 
             if (insertMaterialBank && insertNewElements)
             {
-                truss.InsertMaterialBankByRandomPermutations(maxIterations,inputMaterialBank, out outMaterialBank, out objectiveFunctions,out shuffledLists);
+                truss.InsertMaterialBankByRandomPermutations(maxIterations,inputMaterialBank, out outMaterialBank, out objectiveFunctions,out shuffledLists, true);
             }
             else if (insertMaterialBank)
             {
-                truss.InsertMaterialBankByRandomPermutations(maxIterations, inputMaterialBank, out outMaterialBank, out objectiveFunctions, out shuffledLists);
+                truss.InsertMaterialBankByRandomPermutations(maxIterations, inputMaterialBank, out outMaterialBank, out objectiveFunctions, out shuffledLists, true);
             }
             else if (insertNewElements)
             {

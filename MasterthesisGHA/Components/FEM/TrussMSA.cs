@@ -22,7 +22,7 @@ namespace MasterthesisGHA
         public TrussMSA()
           : base("Truss Matrix Structural Analysis", "Truss MSA",
               "Matrix Structural Analysis Tool for 2D and 3D Truss Systems",
-              "Master", "FEM")
+              "Master", "Structural Analysis")
         {
             trussSize = -1;
             maxLoad = -1;

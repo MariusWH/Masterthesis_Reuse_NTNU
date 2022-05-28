@@ -123,6 +123,16 @@ namespace MasterthesisGHA.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        public static System.Drawing.Bitmap GiftWrapping {
+            get {
+                object obj = ResourceManager.GetObject("GiftWrapping", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         public static System.Drawing.Bitmap LCA {
             get {
                 object obj = ResourceManager.GetObject("LCA", resourceCulture);
@@ -146,6 +156,26 @@ namespace MasterthesisGHA.Properties {
         public static System.Drawing.Bitmap MaterialBank1 {
             get {
                 object obj = ResourceManager.GetObject("MaterialBank1", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap ParametricTruss {
+            get {
+                object obj = ResourceManager.GetObject("ParametricTruss", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap ParametricTrussForLists {
+            get {
+                object obj = ResourceManager.GetObject("ParametricTrussForLists", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

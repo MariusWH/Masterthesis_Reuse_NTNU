@@ -21,14 +21,12 @@ namespace MasterthesisGHA.Components.ParametricOptimization
         {
             pManager.AddBooleanParameter("Run", "Run", "", GH_ParamAccess.item, false);
             pManager.AddTextParameter("Filepath", "Filepath", "", GH_ParamAccess.item);
-
             pManager.AddBooleanParameter("2D/3D", "2D/3D", "2D (false) /3D (true)", GH_ParamAccess.item, false);
             pManager.AddPointParameter("StartPoints", "StartPoints", "", GH_ParamAccess.list, new Point3d(0, 0, 0));
             pManager.AddPointParameter("EndPoints", "EndPoints", "", GH_ParamAccess.list, new Point3d(1, 0, 0));
             pManager.AddIntegerParameter("LengthDivisions", "LengthDivisions", "", GH_ParamAccess.list);
             pManager.AddNumberParameter("Heigths", "Heights", "", GH_ParamAccess.list, 1000);
             pManager.AddNumberParameter("Widths", "Widths", "", GH_ParamAccess.list, 1000);
-
             pManager.AddTextParameter("Bar Profiles", "Profiles", "Profile of each geometry line member as list", GH_ParamAccess.item);
             pManager.AddNumberParameter("Line Load Value", "LL Value", "", GH_ParamAccess.item, 0);
             pManager.AddVectorParameter("Line Load Direction", "LL Direction", "", GH_ParamAccess.item, new Vector3d(0, 0, -1));
@@ -39,23 +37,6 @@ namespace MasterthesisGHA.Components.ParametricOptimization
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            /*
-            pManager.AddPointParameter("Free Nodes", "Nodes", "Free nodes as list of points", GH_ParamAccess.list);
-            pManager.AddMatrixParameter("Stiffness Matrix", "K", "Stiffness matrix as matrix", GH_ParamAccess.item);
-            pManager.AddMatrixParameter("Displacement Vector", "r", "Displacement vector as matrix", GH_ParamAccess.item);
-            pManager.AddMatrixParameter("Load Vector", "R", "Load vector as matrix", GH_ParamAccess.item);
-            pManager.AddNumberParameter("Axial Forces", "N", "Member axial forces as list of values", GH_ParamAccess.list);
-            pManager.AddGenericParameter("Model Data", "Model", "", GH_ParamAccess.list);
-
-            pManager.AddNumberParameter("Heights", "", "", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Widths", "", "", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Lengths", "", "", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Displacements", "", "", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Masses", "", "", GH_ParamAccess.list);
-
-            pManager.AddTextParameter("csv", "", "", GH_ParamAccess.item);
-            */
-
             pManager.AddIntegerParameter("# of structures", "#", "", GH_ParamAccess.item);
             pManager.AddTextParameter("csv", "csv", "", GH_ParamAccess.item);
         }
@@ -279,29 +260,11 @@ namespace MasterthesisGHA.Components.ParametricOptimization
                         }
                     }
                 }
-
-
-
             }
 
             fs.Close();
 
             // OUTPUT
-            /*
-            DA.SetDataList(0, trusses[0].FreeNodes);
-            DA.SetData(1, trusses[0].GetStiffnessMatrix());
-            DA.SetData(2, trusses[0].GetDisplacementVector());
-            DA.SetData(3, trusses[0].GetLoadVector());
-            DA.SetDataList(4, trusses[0].ElementAxialForcesX);
-            DA.SetDataList(5, trusses);
-            DA.SetDataList(6, trussHeights);
-            DA.SetDataList(7, trussWidths);
-            DA.SetDataList(8, trussLengths);
-            DA.SetDataList(9, maxDisplacements);
-            DA.SetDataList(10, totalMasses);
-            DA.SetData(11, csv);
-            */
-
             DA.SetData(0, numberOfStructures);
             DA.SetData(1, csv);
 

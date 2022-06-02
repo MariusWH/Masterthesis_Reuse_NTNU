@@ -7,13 +7,13 @@ using MathNet.Numerics.LinearAlgebra;
 
 namespace MasterthesisGHA.Components.MethodOne
 {
-    public class AllReuseMethods : GH_Component
+    public class AllReuseMethodsPreAnalyzed : GH_Component
     {
         // Stored Variables
 
 
-        public AllReuseMethods()
-          : base("All Reuse Methods", "Reuse",
+        public AllReuseMethodsPreAnalyzed()
+          : base("All Reuse Methods Pre Analyzed", "ReusePreAnalyzed",
               "",
               "Master", "Reuse")
         {
@@ -26,13 +26,7 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddIntegerParameter("Method", "Method", "", GH_ParamAccess.item, 0);
             pManager.AddGenericParameter("MaterialBank", "MB", "", GH_ParamAccess.item);
 
-            pManager.AddLineParameter("Structure Lines", "Lines", "", GH_ParamAccess.list, new Line());
-            pManager.AddPointParameter("Structure Supports", "Supports", "", GH_ParamAccess.list, new Point3d());
-
-            pManager.AddNumberParameter("Line Load Value", "LL Value", "", GH_ParamAccess.item, 0);
-            pManager.AddVectorParameter("Line Load Direction", "LL Direction", "", GH_ParamAccess.item, new Vector3d(0, 0, -1));
-            pManager.AddVectorParameter("Line Load Distribution Direction", "LL Distribution Direction", "", GH_ParamAccess.item, new Vector3d(1, 0, 0));
-            pManager.AddLineParameter("Line Load Members", "LL Members", "", GH_ParamAccess.list, new Line());
+            pManager.AddGenericParameter("Analyzed Structure", "Structure", "", GH_ParamAccess.item);
 
             pManager.AddBooleanParameter("CutMaterialBank", "CutMB", "", GH_ParamAccess.item, false);
             pManager.AddIntegerParameter("Search Iterations", "Iterations", "", GH_ParamAccess.item, 100);
@@ -65,13 +59,8 @@ namespace MasterthesisGHA.Components.MethodOne
             bool insertNewElements = false;
             int optimizationMethod = 0;
             MaterialBank iMaterialBank = new MaterialBank();
-            List<Line> iGeometryLines = new List<Line>();
-            List<Point3d> iSupports = new List<Point3d>();
 
-            double iLineLoadValue = 0;
-            Vector3d iLineLoadDirection = new Vector3d();
-            Vector3d iLineLoadDistribution = new Vector3d();
-            List<Line> iLinesToLoad = new List<Line>();
+            SpatialTruss truss = new SpatialTruss();
 
             bool cutMB = false;
             int maxSearchIterations = 0;
@@ -83,30 +72,15 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(3, ref optimizationMethod);
             DA.GetData(4, ref iMaterialBank);
 
-            DA.GetDataList(5, iGeometryLines);
-            DA.GetDataList(6, iSupports);
+            DA.GetData(5, ref truss);
 
-            DA.GetData(7, ref iLineLoadValue);
-            DA.GetData(8, ref iLineLoadDirection);
-            DA.GetData(9, ref iLineLoadDistribution);
-            DA.GetDataList(10, iLinesToLoad);
-
-            DA.GetData(11, ref cutMB);
-            DA.GetData(12, ref maxSearchIterations);
-            DA.GetData(13, ref cutting);
+            DA.GetData(6, ref cutMB);
+            DA.GetData(7, ref maxSearchIterations);
+            DA.GetData(8, ref cutting);
 
             // CODE
-            List<string> initialProfiles = new List<string>();
-            foreach (Line line in iGeometryLines)
-                initialProfiles.Add("IPE600");
-
-            SpatialTruss truss;
-            if (!is3D) truss = new PlanarTruss(iGeometryLines, initialProfiles, iSupports);
-            else truss = new SpatialTruss(iGeometryLines, initialProfiles, iSupports);
-
-            truss.ApplyLineLoad(iLineLoadValue, iLineLoadDirection, iLineLoadDistribution, iLinesToLoad);
-            truss.Solve();
-            truss.Retracking();
+            //truss.Solve();
+            //truss.Retracking();
 
             Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(truss.ElementsInStructure.Count, iMaterialBank.ElementsInMaterialBank.Count);
             MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
@@ -128,14 +102,14 @@ namespace MasterthesisGHA.Components.MethodOne
                 outputInfo += "Material Bank is inserted with ";
                 switch (optimizationMethod)
                 {
-                    
+
                     case 0: // No Optimization 
                         truss.InsertMaterialBank(inputMaterialBank, out insertionMatrix, false, cutting);
                         outputInfo += "no optimization.\n";
                         break;
 
                     case 1: // Priority Matrix Optimization
-                        truss.InsertMaterialBankByPriorityMatrix(out insertionMatrix, inputMaterialBank, out _, cutting);;
+                        truss.InsertMaterialBankByPriorityMatrix(out insertionMatrix, inputMaterialBank, out _, cutting); ;
                         outputInfo += "priority matrix optimization.\n";
                         break;
 
@@ -145,7 +119,7 @@ namespace MasterthesisGHA.Components.MethodOne
                         break;
 
                     case 3: // Branch and Bound Optimization
-                        truss.InsertMaterialBankByBNB(inputMaterialBank, out insertionMatrix, maxSearchIterations, out resultCSV);                        
+                        truss.InsertMaterialBankByBNB(inputMaterialBank, out insertionMatrix, maxSearchIterations, out resultCSV);
                         outputInfo += "insertion matrix method with branch and bound optimization.\n";
                         break;
                 }
@@ -163,7 +137,7 @@ namespace MasterthesisGHA.Components.MethodOne
 
             string utilization = "";
             for (int i = 0; i < truss.ElementsInStructure.Count; i++)
-                utilization += truss.ElementsInStructure[i].getTotalUtilization(truss.ElementAxialForcesX[i],0,0,0,0,0).ToString() + "\n";
+                utilization += truss.ElementsInStructure[i].getTotalUtilization(truss.ElementAxialForcesX[i], 0, 0, 0, 0, 0).ToString() + "\n";
 
             // OUTPUTS
             DA.SetData(0, outputInfo);
@@ -184,7 +158,9 @@ namespace MasterthesisGHA.Components.MethodOne
         {
             get
             {
-                return Properties.Resources.ReuseALL;
+                //You can add image files to your project resources and access them like this:
+                // return Resources.IconForThisComponent;
+                return null;
             }
         }
 
@@ -193,7 +169,7 @@ namespace MasterthesisGHA.Components.MethodOne
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("7B751CA9-B009-44DE-B20F-50D5D7E5A138"); }
+            get { return new Guid("CF7521C9-B2CD-4779-B867-722604659DB1"); }
         }
     }
 }

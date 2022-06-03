@@ -3606,6 +3606,96 @@ namespace MasterthesisGHA
             MaterialBankVisuals = geometry;
             MaterialBankColors = color;
         }
+        public void GetVisualsInsertionMatrix(out List<Brep> geometry, out List<Color> color, out string codeInfo, Matrix<double> insertionMatrix, int colorCode = 0)
+        {
+            geometry = new List<Brep>();
+            color = new List<Color>();
+            colorCode = colorCode % 2;
+            List<string> codeInfos = new List<string>()
+            {
+                "0 - Sorted by length",
+                "1 - Sorted by length and constant cross section"
+            };
+            codeInfo = codeInfos[colorCode];
+
+            if (ElementsInMaterialBank.Count == 0)
+                return;
+
+            int groupingMethod = -1;
+            if (colorCode == 0)
+            {
+                groupingMethod = 0;
+            }
+
+            int group = 0;
+            double groupSpacing = 0;
+            double unusedInstance = 0;
+            double usedInstance = 0;
+            double instanceSpacing = 100;
+            double startSpacing = 100;
+
+            List<Plane> basePlanes = new List<Plane>();
+            List<Circle> baseCircles = new List<Circle>();
+            List<Cylinder> cylinders = new List<Cylinder>();
+
+            double crossSectionRadiusVisuals = 0;
+
+            for (int i = 0; i < ElementsInMaterialBank.Count; i++)
+            {
+                if (colorCode == 0)
+                    crossSectionRadiusVisuals = Math.Sqrt(ElementsInMaterialBank[i].CrossSectionArea) / Math.PI;
+                else if (colorCode == 1)
+                {
+                    double maxLength = 0;
+                    ElementsInMaterialBank.ForEach(o => maxLength = Math.Max(maxLength, o.getReusableLength()));
+                    crossSectionRadiusVisuals = maxLength * 5e-2;
+                }
+
+
+                basePlanes.Add(new Plane(new Point3d(-(usedInstance + unusedInstance) - startSpacing, groupSpacing, 0), new Vector3d(0, 0, 1)));
+                baseCircles.Add(new Circle(basePlanes[basePlanes.Count - 1], crossSectionRadiusVisuals));
+                cylinders.Add(new Cylinder(baseCircles[baseCircles.Count - 1], ElementsInMaterialBank[i].getReusableLength()));
+                geometry.Add(cylinders[cylinders.Count - 1].ToBrep(true, true));
+                color.Add(ElementCollection.materialBankColors[0]);
+
+                Vector<double> insertionVector = insertionMatrix.Column(i);
+                double usedLengthAccumulated = 0;
+                bool isUsed = false;
+
+                foreach (double usedLength in insertionVector)
+                {
+                    if (usedLength == 0) continue;
+                    else isUsed = true;
+
+                    basePlanes.Add(new Plane(new Point3d(-(usedInstance + unusedInstance) - startSpacing, groupSpacing, usedLengthAccumulated), new Vector3d(0, 0, 1)));
+                    baseCircles.Add(new Circle(basePlanes[basePlanes.Count - 1], 1.1 * crossSectionRadiusVisuals));
+                    cylinders.Add(new Cylinder(baseCircles[baseCircles.Count - 1], usedLength));
+                    geometry.Add(cylinders[cylinders.Count - 1].ToBrep(true, true));
+                    color.Add(ElementCollection.materialBankColors[3]);
+
+                    usedLengthAccumulated += usedLength;
+
+                    basePlanes.Add(new Plane(new Point3d(-(usedInstance + unusedInstance) - startSpacing, groupSpacing, usedLengthAccumulated), new Vector3d(0, 0, 1)));
+                    baseCircles.Add(new Circle(basePlanes[basePlanes.Count - 1], 1.1 * crossSectionRadiusVisuals));
+                    cylinders.Add(new Cylinder(baseCircles[baseCircles.Count - 1], cuttingLength));
+                    geometry.Add(cylinders[cylinders.Count - 1].ToBrep(true, true));
+                    color.Add(ElementCollection.materialBankColors[2]);
+
+                    usedLengthAccumulated += cuttingLength;
+                }
+
+                if (isUsed)
+                {
+                    geometry.RemoveAt(geometry.Count - 1);
+                    color.RemoveAt(color.Count - 1);
+                }
+
+                unusedInstance = unusedInstance + 2 * crossSectionRadiusVisuals + instanceSpacing;
+            }
+
+            //MaterialBankVisuals = geometry;
+            //MaterialBankColors = color;
+        }
         public override double GetSize()
         {
             return -1;

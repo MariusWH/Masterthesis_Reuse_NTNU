@@ -47,6 +47,10 @@ namespace MasterthesisGHA.Components.MethodOne
             pManager.AddNumberParameter("FCA", "FCA", "", GH_ParamAccess.item);
             pManager.AddTextParameter("Utilization", "", "", GH_ParamAccess.item);
             pManager.AddTextParameter("Profiles", "", "", GH_ParamAccess.tree);
+            pManager.AddBrepParameter("DirectGeometry", "Geometry", "", GH_ParamAccess.list);
+            pManager.AddColourParameter("DirectColors", "Colors", "", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Area", "Area", "", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Length", "Length", "", GH_ParamAccess.list);
         }
 
 
@@ -139,6 +143,17 @@ namespace MasterthesisGHA.Components.MethodOne
             for (int i = 0; i < truss.ElementsInStructure.Count; i++)
                 utilization += truss.ElementsInStructure[i].getTotalUtilization(truss.ElementAxialForcesX[i], 0, 0, 0, 0, 0).ToString() + "\n";
 
+            // Visuals
+            inputMaterialBank.GetVisualsInsertionMatrix(out List<Brep> geometry, out List<System.Drawing.Color> colors, out _, insertionMatrix, 4);
+
+            List<double> memberAreas = new List<double>();
+            List<double> memberLengths = new List<double>();
+            foreach (MemberElement member in truss.ElementsInStructure)
+            {
+                memberAreas.Add( member.CrossSectionArea );
+                memberLengths.Add(member.getInPlaceElementLength());
+            }
+
             // OUTPUTS
             DA.SetData(0, outputInfo);
             DA.SetData(1, truss.GetTotalMass());
@@ -153,6 +168,10 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(10, resultFCA);
             DA.SetData(11, utilization);
             DA.SetDataTree(12, truss.PrintRangeOfMaterialBanksThree());
+            DA.SetDataList(13, geometry);
+            DA.SetDataList(14, colors);
+            DA.SetDataList(15, memberAreas);
+            DA.SetDataList(16, memberLengths);
         }
         protected override System.Drawing.Bitmap Icon
         {

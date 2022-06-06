@@ -3143,6 +3143,67 @@ namespace MasterthesisGHA
                 geometry.Add(Brep.CreateFromBox(nodeBox));
             }
         }
+
+
+        // 
+
+        public override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int reuseElementIndex, int positionIndex, MaterialBank materialBank, bool keepCutOff = true)
+        {
+            if (positionIndex < 0 || positionIndex > ElementsInStructure.Count)
+            {
+                throw new Exception("The In-Place-Element index " + positionIndex.ToString() + " is not valid!");
+            }
+            else if (keepCutOff)
+            {
+                insertionMatrix[positionIndex, reuseElementIndex] =
+                    ElementsInStructure[positionIndex].StartPoint.DistanceTo(ElementsInStructure[positionIndex].EndPoint);
+                return true;
+            }
+            else
+            {
+                insertionMatrix[positionIndex, reuseElementIndex] =
+                    materialBank.ElementsInMaterialBank[reuseElementIndex].getReusableLength();
+                return true;
+            }
+
+        }
+        protected override void InsertReuseElementAndCutMaterialBank(int positionIndex, int elementIndex, ref MaterialBank materialBank, bool keepCutOff = true)
+        {
+            materialBank.RemoveReuseElementFromMaterialBank(elementIndex, ElementsInStructure[positionIndex], keepCutOff);
+
+            MemberElement temp = new SpatialBeam(materialBank.ElementsInMaterialBank[elementIndex].DeepCopy(), ElementsInStructure[positionIndex]);
+            ElementsInStructure.RemoveAt(positionIndex);
+            ElementsInStructure.Insert(positionIndex, temp);
+        }
+        protected override void InsertNewElement(int memberIndex, List<string> sortedNewElements, double minimumArea)
+        {
+            if (memberIndex < 0 || memberIndex > ElementsInStructure.Count)
+            {
+                throw new Exception("The In-Place-Element index " + memberIndex.ToString() + " is not valid!");
+            }
+            else
+            {
+                while (true)
+                {
+                    if (sortedNewElements.Count == 0) return;
+                    string newProfile = sortedNewElements[0];
+                    sortedNewElements.RemoveAt(0);
+                    ReuseElement newElement = new ReuseElement(newProfile, ElementsInStructure[memberIndex].getInPlaceElementLength());
+                    MemberElement temp = new SpatialBeam(newElement, ElementsInStructure[memberIndex]);
+                    temp.IsFromMaterialBank = false;
+
+                    if (temp.getTotalUtilization(ElementAxialForcesX[memberIndex], ElementMomentsY[memberIndex], ElementMomentsZ[memberIndex], ElementShearForcesY[memberIndex], ElementShearForcesZ[memberIndex], ElementTorsionsX[memberIndex]) > 1
+                        || temp.getAxialBucklingUtilization(ElementAxialForcesX[memberIndex]) > 1) continue;
+                    else
+                    {
+                        ElementsInStructure.RemoveAt(memberIndex);
+                        ElementsInStructure.Insert(memberIndex, temp);
+                        return;
+                    }
+                }
+            }
+        }
+
     }
 
 

@@ -64,7 +64,7 @@ namespace MasterthesisGHA.Components.MethodOne
             int optimizationMethod = 0;
             MaterialBank iMaterialBank = new MaterialBank();
 
-            SpatialTruss truss = new SpatialTruss();
+            Structure structure = new SpatialTruss();
 
             bool cutMB = false;
             int maxSearchIterations = 0;
@@ -76,7 +76,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.GetData(3, ref optimizationMethod);
             DA.GetData(4, ref iMaterialBank);
 
-            DA.GetData(5, ref truss);
+            DA.GetData(5, ref structure);
 
             DA.GetData(6, ref cutMB);
             DA.GetData(7, ref maxSearchIterations);
@@ -86,7 +86,7 @@ namespace MasterthesisGHA.Components.MethodOne
             //truss.Solve();
             //truss.Retracking();
 
-            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(truss.ElementsInStructure.Count, iMaterialBank.ElementsInMaterialBank.Count);
+            Matrix<double> insertionMatrix = Matrix<double>.Build.Sparse(structure.ElementsInStructure.Count, iMaterialBank.ElementsInMaterialBank.Count);
             MaterialBank inputMaterialBank = iMaterialBank.GetDeepCopy();
             MaterialBank outMaterialBank = iMaterialBank.GetDeepCopy();
             optimizationMethod = optimizationMethod % 4;
@@ -98,7 +98,7 @@ namespace MasterthesisGHA.Components.MethodOne
 
             if (insertNewElements)
             {
-                truss.InsertNewElements();
+                structure.InsertNewElements();
                 outputInfo += "Structure is optimized with new elements.\n";
             }
             if (insertMaterialBank)
@@ -108,47 +108,47 @@ namespace MasterthesisGHA.Components.MethodOne
                 {
 
                     case 0: // No Optimization 
-                        truss.InsertMaterialBank(inputMaterialBank, out insertionMatrix, false, cutting);
+                        structure.InsertMaterialBank(inputMaterialBank, out insertionMatrix, false, cutting);
                         outputInfo += "no optimization.\n";
                         break;
 
                     case 1: // Priority Matrix Optimization
-                        truss.InsertMaterialBankByPriorityMatrix(out insertionMatrix, inputMaterialBank, out _, cutting); ;
+                        structure.InsertMaterialBankByPriorityMatrix(out insertionMatrix, inputMaterialBank, out _, cutting); ;
                         outputInfo += "priority matrix optimization.\n";
                         break;
 
                     case 2: // Brute Force Optimization
-                        truss.InsertMaterialBankByRandomPermutations(out insertionMatrix, maxSearchIterations, inputMaterialBank, out resultCSV, out fullSearchCSV, cutting);
+                        structure.InsertMaterialBankByRandomPermutations(out insertionMatrix, maxSearchIterations, inputMaterialBank, out resultCSV, out fullSearchCSV, cutting);
                         outputInfo += "with " + maxSearchIterations.ToString() + " pseudo random permutations optimization.\n";
                         break;
 
                     case 3: // Branch and Bound Optimization
-                        truss.InsertMaterialBankByBNB(inputMaterialBank, out insertionMatrix, maxSearchIterations, out resultCSV);
+                        structure.InsertMaterialBankByBNB(inputMaterialBank, out insertionMatrix, maxSearchIterations, out resultCSV);
                         outputInfo += "insertion matrix method with branch and bound optimization.\n";
                         break;
                 }
             }
 
-            if (cutMB) truss.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
+            if (cutMB) structure.InsertReuseElementsFromInsertionMatrix(insertionMatrix, inputMaterialBank, out outMaterialBank);
             else outMaterialBank.InsertionMatrix = insertionMatrix;
-            resultLCA = ObjectiveFunctions.GlobalLCA(truss, inputMaterialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified);
-            resultFCA = ObjectiveFunctions.GlobalFCA(truss, inputMaterialBank, insertionMatrix, ObjectiveFunctions.bound.upperBound);
+            resultLCA = ObjectiveFunctions.GlobalLCA(structure, inputMaterialBank, insertionMatrix, ObjectiveFunctions.lcaMethod.simplified);
+            resultFCA = ObjectiveFunctions.GlobalFCA(structure, inputMaterialBank, insertionMatrix, ObjectiveFunctions.bound.upperBound);
 
-            truss.Solve();
-            truss.Retracking();
+            structure.Solve();
+            structure.Retracking();
 
-            outputInfo += "\n\n" + truss.PrintProfilesInStructure() + "\n\n" + truss.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo();
+            outputInfo += "\n\n" + structure.PrintProfilesInStructure() + "\n\n" + structure.PrintStructureInfo() + "\n\n" + outMaterialBank.GetMaterialBankInfo();
 
             string utilization = "";
-            for (int i = 0; i < truss.ElementsInStructure.Count; i++)
-                utilization += truss.ElementsInStructure[i].getTotalUtilization(truss.ElementAxialForcesX[i], 0, 0, 0, 0, 0).ToString() + "\n";
+            for (int i = 0; i < structure.ElementsInStructure.Count; i++)
+                utilization += structure.ElementsInStructure[i].getTotalUtilization(structure.ElementAxialForcesX[i], 0, 0, 0, 0, 0).ToString() + "\n";
 
             // Visuals
             inputMaterialBank.GetVisualsInsertionMatrix(out List<Brep> geometry, out List<System.Drawing.Color> colors, out _, insertionMatrix, 4);
 
             List<double> memberAreas = new List<double>();
             List<double> memberLengths = new List<double>();
-            foreach (MemberElement member in truss.ElementsInStructure)
+            foreach (MemberElement member in structure.ElementsInStructure)
             {
                 memberAreas.Add( member.CrossSectionArea );
                 memberLengths.Add(member.getInPlaceElementLength());
@@ -156,10 +156,10 @@ namespace MasterthesisGHA.Components.MethodOne
 
             // OUTPUTS
             DA.SetData(0, outputInfo);
-            DA.SetData(1, truss.GetTotalMass());
-            DA.SetData(2, truss.GetReusedMass());
-            DA.SetData(3, truss.GetNewMass());
-            DA.SetData(4, truss);
+            DA.SetData(1, structure.GetTotalMass());
+            DA.SetData(2, structure.GetReusedMass());
+            DA.SetData(3, structure.GetNewMass());
+            DA.SetData(4, structure);
             DA.SetData(5, outMaterialBank);
             DA.SetData(6, ElementCollection.MathnetToRhinoMatrix(insertionMatrix));
             DA.SetData(7, resultCSV);
@@ -167,7 +167,7 @@ namespace MasterthesisGHA.Components.MethodOne
             DA.SetData(9, resultLCA);
             DA.SetData(10, resultFCA);
             DA.SetData(11, utilization);
-            DA.SetDataTree(12, truss.PrintRangeOfMaterialBanksThree());
+            DA.SetDataTree(12, structure.PrintRangeOfMaterialBanksThree());
             DA.SetDataList(13, geometry);
             DA.SetDataList(14, colors);
             DA.SetDataList(15, memberAreas);

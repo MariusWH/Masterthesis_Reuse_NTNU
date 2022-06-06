@@ -548,10 +548,10 @@ namespace MasterthesisGHA
             AlphaAngle = alphaAngle;
             bucklingShape = BucklingShape.fixedfixed;
         }
-        public SpatialBeam(ReuseElement stockElement, SpatialBeam member)
+        public SpatialBeam(ReuseElement stockElement, MemberElement member)
             : base(stockElement, member)
         {
-            AlphaAngle = member.AlphaAngle;
+            AlphaAngle = 0;
             bucklingShape = BucklingShape.fixedfixed;
         }
 

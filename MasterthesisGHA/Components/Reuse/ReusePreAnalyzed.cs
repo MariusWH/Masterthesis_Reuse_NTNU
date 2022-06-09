@@ -142,7 +142,10 @@ namespace MasterthesisGHA.Components.MethodOne
             string utilization = "";
 
             for (int i = 0; i < structure.ElementsInStructure.Count; i++)
-                utilization += structure.ElementsInStructure[i].getTotalUtilization(structure.ElementAxialForcesX[i], structure.ElementMomentsY[i], structure.ElementMomentsZ[i], structure.ElementShearForcesY[i], structure.ElementShearForcesZ[i], structure.ElementTorsionsX[i]).ToString() + "\n";
+                utilization += structure.ElementsInStructure[i].getTotalUtilization(structure.ElementAxialForcesX[i],0,0,0,0,0).ToString() + "\n";
+
+            // utilization += structure.ElementsInStructure[i].getTotalUtilization(structure.ElementAxialForcesX[i], structure.ElementMomentsY[i], structure.ElementMomentsZ[i], structure.ElementShearForcesY[i], structure.ElementShearForcesZ[i], structure.ElementTorsionsX[i]).ToString() + "\n";
+
 
             // Visuals
             inputMaterialBank.GetVisualsInsertionMatrix(out List<Brep> geometry, out List<System.Drawing.Color> colors, out _, insertionMatrix, 4);
@@ -178,9 +181,7 @@ namespace MasterthesisGHA.Components.MethodOne
         {
             get
             {
-                //You can add image files to your project resources and access them like this:
-                // return Resources.IconForThisComponent;
-                return null;
+                return Properties.Resources.ReuseALL;
             }
         }
 

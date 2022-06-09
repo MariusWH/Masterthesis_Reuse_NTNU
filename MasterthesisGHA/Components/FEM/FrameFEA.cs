@@ -161,7 +161,6 @@ namespace MasterthesisGHA
             DA.SetData(19, rank);
             DA.SetData(20, nullity);
             DA.SetData(21, determinant);
-
         }
         protected override System.Drawing.Bitmap Icon
         {

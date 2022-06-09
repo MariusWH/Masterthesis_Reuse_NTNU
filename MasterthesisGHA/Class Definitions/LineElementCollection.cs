@@ -1044,7 +1044,7 @@ namespace MasterthesisGHA
         }
 
 
-        // Brute Force Permutations
+        // Brute Force
         public void InsertMaterialBankByAllPermutations(MaterialBank materialBank, out MaterialBank remainingMaterialBank, out List<double> objectiveFunctionOutputs, out IEnumerable<IEnumerable<int>> allOrderedLists)
         {
             List<int> initalList = new List<int>();
@@ -1300,8 +1300,7 @@ namespace MasterthesisGHA
         {
             InsertMaterialBank(materialBank, Enumerable.Range(0, ElementsInStructure.Count), out remainingMaterialBank);
         }
-
-        
+       
         public IEnumerable<int> OptimumInsertOrderFromReuseRate(Matrix<double> reusableMatrix)
         {
             List<int> order = new List<int>(reusableMatrix.RowCount);
@@ -2568,8 +2567,6 @@ namespace MasterthesisGHA
 
 
 
-
-
     public class SpatialFrame : Structure
     {
         // Constructors
@@ -2686,14 +2683,14 @@ namespace MasterthesisGHA
                 localLoadVector.PointwiseAbs();
 
                 ElementAxialForcesX.Add(localLoadVector[6]); // (+) = Tension
-                ElementShearForcesY.Add(Math.Max(localLoadVector[1], localLoadVector[7]));
-                ElementShearForcesZ.Add(Math.Max(localLoadVector[2], localLoadVector[8]));
-                ElementTorsionsX.Add(Math.Max(localLoadVector[3], localLoadVector[9]));
-                ElementMomentsY.Add(Math.Max(localLoadVector[4], localLoadVector[10]));
-                ElementMomentsZ.Add(Math.Max(localLoadVector[5], localLoadVector[11]));
+                ElementShearForcesY.Add(Math.Max(Math.Abs(localLoadVector[1]), Math.Abs(localLoadVector[7])));
+                ElementShearForcesZ.Add(Math.Max(Math.Abs(localLoadVector[2]), Math.Abs(localLoadVector[8])));
+                //ElementShearForcesZ.Add(localLoadVector[8]);
+                ElementTorsionsX.Add(Math.Max(Math.Abs(localLoadVector[3]), Math.Abs(localLoadVector[9])));
+                ElementMomentsY.Add(Math.Max(Math.Abs(localLoadVector[4]), Math.Abs(localLoadVector[10])));
+                //ElementMomentsY.Add(localLoadVector[4]);
+                ElementMomentsZ.Add(Math.Max(Math.Abs(localLoadVector[5]), Math.Abs(localLoadVector[11])));
             }
-            
-
         }
 
         public void ApplyNodalLoads(List<double> loadList, List<Vector3d> loadVecs)
@@ -2822,8 +2819,6 @@ namespace MasterthesisGHA
             }
             
         }
-
-
 
         // Visuals
         public override void GetLoadVisuals(out List<Brep> geometry, out List<Color> color, double size = -1, double maxLoad = -1, double maxMoment = -1, double maxDisplacement = -1, double maxAngle = -1, bool inwardFacingArrows = true)
@@ -3144,9 +3139,7 @@ namespace MasterthesisGHA
             }
         }
 
-
-        // 
-
+        // Member Replacement
         public override bool UpdateInsertionMatrix(ref Matrix<double> insertionMatrix, int reuseElementIndex, int positionIndex, MaterialBank materialBank, bool keepCutOff = true)
         {
             if (positionIndex < 0 || positionIndex > ElementsInStructure.Count)
@@ -3205,11 +3198,6 @@ namespace MasterthesisGHA
         }
 
     }
-
-
-
-
-
 
 
 
@@ -3348,7 +3336,6 @@ namespace MasterthesisGHA
             return mass;
         }
         
-
         // Sorting Methods
         public void sortMaterialBankByLength()
         {
@@ -3779,6 +3766,4 @@ namespace MasterthesisGHA
         }
 
     }
-
-
 }
